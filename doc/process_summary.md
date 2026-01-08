@@ -517,6 +517,72 @@ Before starting P2 implementation, reviewed cache artifact design to prevent pot
 
 ---
 
+## 2026-01-08 — P2 Implementation: AIE-aTB Integration (dry-run ready)
+
+### Context
+Implemented P2 aTB wrapper infrastructure based on analysis of `third_party/aTB/`.
+
+### Implemented
+
+1. **AIE-aTB Integration Analysis**
+   - Entrypoint: `third_party/aTB/main.py`
+   - CLI: `python main.py --smiles '<SMILES>' --workdir '<CACHE_PATH>' [--npara N] [--maxcore MB]`
+   - Output: `result.json` containing `ground_state`, `excited_state`, `NEB` sections
+
+2. **New modules created**
+   - `src/chem/__init__.py`: Package init
+   - `src/chem/atb_parser.py`: Parse `result.json` → `features.json`
+     - `parse_result_json()`: Main entry point
+     - `detect_fail_stage()`: Maps missing keys to fail_stage enum
+     - `extract_features()`: Maps AIE-aTB output to our schema
+   - `src/chem/atb_runner.py`: Subprocess wrapper for AIE-aTB
+     - `run_atb()`: Runs single molecule, returns (status, fail_stage, error_msg)
+     - `create_status_json()`: Creates strict 7-field status.json
+   - `src/chem/batch_runner.py`: Batch orchestration
+     - `run_batch()`: Iterates molecule_table, calls runner, updates cache
+     - `consolidate_cache_to_parquet()`: Recovery utility
+
+3. **Tests added**
+   - `tests/test_atb_parser.py`: 14 tests for parsing and schema compliance
+
+4. **Documentation updated**
+   - `doc/process.md` P2 section: Added V0 black-box integration details
+     - CLI arguments table
+     - Cache structure with AIE-aTB subdirs
+     - result.json → features.json mapping
+     - Failure stage detection logic
+
+### Outputs produced
+- `src/chem/atb_parser.py` (112 lines)
+- `src/chem/atb_runner.py` (198 lines)
+- `src/chem/batch_runner.py` (268 lines)
+- `tests/test_atb_parser.py` (180 lines)
+- 36 tests passing (14 new parser tests + 22 existing)
+
+### Key mappings (result.json → features.json)
+
+| AIE-aTB field | Our feature |
+|---------------|-------------|
+| `ground_state.volume` | `s0_volume` |
+| `excited_state.volume` | `s1_volume` |
+| `ground_state.HOMO-LUMO` (string) | `s0_homo_lumo_gap` (float) |
+| `ground_state.structure.DA` | `s0_dihedral_avg` |
+| `NEB` | `neb_mean_volume` |
+
+### Failure stage detection order
+1. `result.json` missing/invalid → `"feature_parse"`
+2. `ground_state` missing → `"opt"`
+3. `excited_state` missing → `"excit"`
+4. `NEB` missing → `"neb"`
+5. `volume` missing → `"volume"`
+
+### Next actions
+- Run 5-molecule dry-run on Linux server (commands provided below)
+- Copy back `cache/atb/`, `data/atb_features.parquet`, `data/atb_qc.parquet`, logs
+- Review results, iterate if needed
+
+---
+
 ## Template for future entries
 ### YYYY-MM-DD — <Short title>
 #### Implemented

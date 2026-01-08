@@ -38,12 +38,13 @@
 - [x] CLI commands working: `python -m src.cli run --id <id>`
 
 ### P2. aTB wrapper (Chem Agent)
-- [ ] Create `src/chem/atb_wrapper.py` (batch runner with caching)
-- [ ] Create `src/chem/atb_parser.py` (parse aTB outputs → features.json)
-- [ ] Implement cache structure (`cache/atb/{inchikey[:2]}/{inchikey}/`)
-- [ ] Implement status.json schema + resumability logic
+- [ ] Create `src/chem/atb_runner.py` (subprocess wrapper for `third_party/aTB/main.py`)
+- [ ] Create `src/chem/atb_parser.py` (parse result.json → features.json)
+- [ ] Create `src/chem/batch_runner.py` (iterate molecule_table, call runner, update status)
+- [ ] Implement resumability logic (skip if status.json run_status=="success")
 - [ ] Generate `data/atb_features.parquet`
 - [ ] Generate `data/atb_qc.parquet`
+- [ ] 5-molecule dry-run validation
 
 ### P3. Feature merge
 - [ ] Create `src/features/merger.py` (join private_clean + rdkit + atb on inchikey)
@@ -275,16 +276,48 @@ Given an experimental `id`, the system can:
 - Record stage failures and provide audit trail.
 - Output structured per-molecule results and a consolidated table.
 
-**Cache Structure**
+**V0 Implementation: Black-box Integration**
+
+For V0, the aTB agent calls `third_party/aTB/main.py` as a **black-box subprocess**:
+
+```bash
+# Entrypoint (from project root)
+python third_party/aTB/main.py \
+    --smiles '<canonical_smiles>' \
+    --workdir 'cache/atb/{inchikey[:2]}/{inchikey}' \
+    --npara 4 --maxcore 4000
+```
+
+**Key CLI arguments**:
+| Argument | Default | Description |
+|----------|---------|-------------|
+| `--smiles` | None | Canonical SMILES (from molecule_table) |
+| `--workdir` | `work_dirs` | Output directory = our cache path |
+| `--nimg` | 3 | NEB intermediate images |
+| `--npara` | 2 | Amesp parallel processes |
+| `--maxcore` | 4000 | Memory per core (MB) |
+
+**Cache Structure** (after AIE-aTB run)
 ```
 cache/atb/
 ├── {inchikey[:2]}/           # 2-char prefix for filesystem efficiency
 │   └── {inchikey}/
-│       ├── input.xyz         # Initial geometry
-│       ├── opt_s0.xyz        # Optimized S0 geometry
-│       ├── opt_s1.xyz        # Optimized S1 geometry (if available)
-│       ├── features.json     # Extracted descriptors
-│       └── status.json       # Run metadata
+│       ├── status.json       # Our run metadata (strict 7-field schema)
+│       ├── features.json     # Parsed descriptors (from result.json)
+│       ├── canonical_smiles.txt  # SMILES audit copy
+│       ├── opt/
+│       │   ├── opt_run.aip   # Amesp input
+│       │   ├── opt_run.aop   # Amesp output (~3MB)
+│       │   └── opted.xyz     # Optimized S0 geometry
+│       ├── excit/
+│       │   ├── excit_run.aip
+│       │   ├── excit_run.aop
+│       │   └── excited.xyz   # Optimized S1 geometry
+│       ├── neb/
+│       │   ├── neb.log       # NEB optimization log
+│       │   └── volume_results/
+│       │       └── volumes.log
+│       └── result.json       # ★ AIE-aTB primary output (we parse this)
 ```
 
 **status.json schema:**
@@ -299,6 +332,60 @@ cache/atb/
   "runtime_sec": 123.4
 }
 ```
+
+**AIE-aTB result.json → features.json Mapping**
+
+AIE-aTB writes `result.json` in the workdir. We parse it to create our `features.json`:
+
+```
+result.json structure:
+{
+  "ground_state": {
+    "HOMO-LUMO": "1.83",           // string → s0_homo_lumo_gap (float)
+    "structure": {
+      "bonds": 1.23,               // avg bond length (Å)
+      "angles": 115.4,             // avg bond angle (°)
+      "DA": 5.88                   // avg dihedral → s0_dihedral_avg
+    },
+    "volume": 513.0,               // → s0_volume (Å³)
+    "charge": {...}                // per-atom Mulliken charges
+  },
+  "excited_state": {
+    "HOMO-LUMO": "1.54",           // → s1_homo_lumo_gap
+    "structure": {...},            // DA → s1_dihedral_avg
+    "volume": 513.0,               // → s1_volume
+    "charge": {...}
+  },
+  "NEB": 512.8                     // mean NEB volume (informational)
+}
+```
+
+**features.json schema** (what we store):
+```json
+{
+  "s0_volume": 513.0,
+  "s1_volume": 513.0,
+  "delta_volume": 0.0,
+  "s0_homo_lumo_gap": 1.83,
+  "s1_homo_lumo_gap": 1.54,
+  "delta_gap": -0.29,
+  "s0_dihedral_avg": 5.88,
+  "s1_dihedral_avg": -2.81,
+  "delta_dihedral": -8.69,
+  "s0_charge_dipole": null,
+  "s1_charge_dipole": null,
+  "delta_dipole": null,
+  "excitation_energy": null,
+  "neb_mean_volume": 512.8
+}
+```
+
+**Failure Stage Detection** (in order):
+1. Check if `result.json` exists and is valid JSON → `"feature_parse"` if fails
+2. Check for `ground_state` key → `"opt"` if missing
+3. Check for `excited_state` key → `"excit"` if missing
+4. Check for `NEB` key → `"neb"` if missing
+5. Check for `volume` in both states → `"volume"` if missing
 
 **P2 Implementation Notes**
 
