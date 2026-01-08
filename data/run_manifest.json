@@ -1,0 +1,19 @@
+{
+  "run_id": "2026-01-07T21:29:22.112017",
+  "timestamp": "2026-01-07T21:29:22.112021",
+  "git_commit": "untracked",
+  "rdkit": "2025.09.3",
+  "pandas": "2.3.3",
+  "numpy": "2.2.6",
+  "python": "3.10.19",
+  "encoding_used": "latin1",
+  "n_molecules_input": 1225,
+  "n_molecules_processed": 1225,
+  "n_unique_molecules": 1050,
+  "n_valid_inchikeys": 1164,
+  "artifacts": {
+    "private_clean": "data/private_clean.parquet",
+    "molecule_table": "data/molecule_table.parquet",
+    "rdkit_features": "data/rdkit_features.parquet"
+  }
+}
