@@ -1,0 +1,54 @@
+# config/default.yaml
+# V0 default configuration (placeholder for future use)
+
+# Data paths
+data:
+  input_csv: "data/data.csv"
+  output_dir: "data"
+  cache_dir: "cache"
+  reports_dir: "reports"
+
+# UQ parameters
+uq:
+  # Coverage
+  coverage_sim_weight: 0.7
+  coverage_meta_weight: 0.3
+  k_neighbors: 5  # for kNN similarity/novelty
+
+  # Novelty
+  novelty_method: "knn_distance"  # knn_distance | lof | isolation_forest
+
+  # Aleatoric
+  aleatoric_method: "gmm_entropy"  # gmm_entropy | kmeans_entropy
+  gmm_k_min: 5
+  gmm_k_max: 20
+  gmm_k_ratio: 10  # K = min(gmm_k_max, n_anchors // gmm_k_ratio)
+
+  # Router thresholds (percentiles on anchor population)
+  threshold_cov_low: 0.2   # 20th percentile
+  threshold_cov_high: 0.8  # 80th percentile
+  threshold_ale_high: 0.8  # 80th percentile
+  threshold_nov_high: 0.8  # 80th percentile
+
+# Feature engineering
+features:
+  rdkit:
+    ecfp_radius: 2
+    ecfp_bits: 2048
+
+  scaling:
+    method: "standard"  # standard (z-score) | minmax | robust
+
+# Anchor selection
+anchors:
+  min_metadata_completeness: 0.5  # 50% of critical fields present
+  require_atb_success: true
+
+# Logging
+logging:
+  level: "INFO"  # DEBUG | INFO | WARNING | ERROR
+  format: "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+  file: null  # null = console only; or specify path
+
+# Units override (future use)
+units_override_file: null  # or "config/units_override.yaml"
