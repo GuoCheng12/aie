@@ -75,9 +75,16 @@ def run_batch(
 
     start_time = time.time()
 
+    invalid_smiles = 0
+
     for idx, row in molecule_table.iterrows():
         inchikey = row["inchikey"]
         smiles = row["canonical_smiles"]  # From molecule_table (single source of truth)
+        # Skip molecules with empty/invalid inchikey (failed canonicalization in P1)
+        if not inchikey or len(inchikey) < 2:
+            logger.warning(f"[{idx+1}/{len(molecule_table)}] Skipping invalid InChIKey (empty): SMILES={smiles[:50]}...")
+            invalid_smiles += 1
+            continue
 
         logger.info(f"[{idx+1}/{len(molecule_table)}] Processing {inchikey}")
 
@@ -174,6 +181,7 @@ def run_batch(
     # Summary
     summary = {
         "total_molecules": len(molecule_table),
+        "invalid_smiles": invalid_smiles,
         "skipped": skipped,
         "succeeded": succeeded,
         "failed": failed,

@@ -1,11 +1,11 @@
 # Uncertainty-aware AIE V0 .gitignore
 
 # Generated data artifacts (large, reproducible)
-data/*.parquet
-data/*.json
-data/*.pkl
-data/*.faiss
-data/*.yaml
+# data/*.parquet
+# data/*.json
+# data/*.pkl
+# data/*.faiss
+# data/*.yaml
 
 # Keep input data
 !data/data.csv
