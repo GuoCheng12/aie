@@ -149,7 +149,7 @@ def run_atb(
 
         # Try to detect which stage was running when timeout occurred
         fail_stage = detect_fail_stage_from_output(cache_path, "", "")
-        return "failed", fail_stage or "opt", error_msg
+        return "failed", fail_stage or "timeout", error_msg
 
     except Exception as e:
         error_msg = str(e)[:500]
@@ -171,8 +171,46 @@ def detect_fail_stage_from_output(
         stderr: Subprocess stderr
 
     Returns:
-        Detected fail_stage string
+        Detected fail_stage string. One of:
+        - "conformer": Failed to generate 3D conformer from SMILES
+        - "opt": Ground state optimization failed
+        - "excit": Excited state optimization failed
+        - "neb": NEB calculation failed
+        - "volume": Volume calculation failed
+        - "feature_parse": Failed to parse result.json
     """
+    combined_output = (stdout or "") + (stderr or "")
+
+    # Priority 1: Check for conformer generation failure (before any calculation)
+    # This happens when RDKit can't generate a 3D structure from SMILES
+    if "Bad Conformer Id" in combined_output or "GetConformer()" in combined_output:
+        return "conformer"
+    if "RDKit embedding failed" in combined_output or "no conformer generated" in combined_output:
+        return "conformer"
+    if "EmbedMolecule" in combined_output and "failed" in combined_output:
+        return "conformer"
+
+    # Priority 2: Check for amesp output parsing errors
+    # IndexError typically indicates amesp calculation produced no valid output
+    if "IndexError" in combined_output and "parse_aop_energy" in combined_output:
+        # Determine which stage based on directory state
+        opt_dir = cache_path / "opt"
+        excit_dir = cache_path / "excit"
+        if excit_dir.exists():
+            return "excit"
+        if opt_dir.exists():
+            return "opt"
+        return "opt"
+
+    # Priority 3: Check for amesp calculator failures
+    if "CalculationFailed" in combined_output or "error code -11" in combined_output:
+        # Determine which stage failed from the path in error message
+        if "/excit/" in combined_output:
+            return "excit"
+        if "/neb/" in combined_output:
+            return "neb"
+        return "opt"
+
     # Check which directories/files exist
     opt_dir = cache_path / "opt"
     excit_dir = cache_path / "excit"
@@ -203,9 +241,9 @@ def detect_fail_stage_from_output(
         return "neb"
 
     # Check stdout for stage keywords
-    if "NEB" in stdout or "neb" in stdout.lower():
+    if "NEB" in stdout or "neb" in (stdout or "").lower():
         return "neb"
-    if "excit" in stdout.lower():
+    if "excit" in (stdout or "").lower():
         return "excit"
 
     return "opt"  # Default to earliest stage

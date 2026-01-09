@@ -62,6 +62,8 @@ def run_batch(
     limit: Optional[int] = None,
     force_rerun: bool = False,
     retry_failed: bool = False,
+    max_heavy_atoms: Optional[int] = None,
+    rdkit_features_path: str = "data/rdkit_features.parquet",
     config: Optional[Dict[str, Any]] = None,
     project_root: Optional[Path] = None,
 ) -> Dict[str, Any]:
@@ -78,6 +80,8 @@ def run_batch(
         limit: Limit number of molecules (for dry-run)
         force_rerun: Force rerun all molecules (including succeeded and failed)
         retry_failed: Retry only failed molecules (skip succeeded)
+        max_heavy_atoms: Skip molecules with heavy atom count above this threshold
+        rdkit_features_path: Path to rdkit_features.parquet for heavy atom counts
         config: Optional config overrides for aTB
         project_root: Project root directory
 
@@ -111,6 +115,17 @@ def run_batch(
 
     invalid_smiles = 0
     skipped_ionic = 0
+    skipped_size = 0
+
+    heavy_atom_map: Dict[str, float] = {}
+    if max_heavy_atoms is not None:
+        rdkit_path = Path(rdkit_features_path)
+        if not rdkit_path.exists():
+            logger.warning(f"RDKit features not found at {rdkit_path}; size filter disabled")
+        else:
+            logger.info(f"Loading RDKit features from {rdkit_path} for size filter")
+            rdkit_df = pd.read_parquet(rdkit_path, columns=["inchikey", "n_heavy_atoms"])
+            heavy_atom_map = rdkit_df.set_index("inchikey")["n_heavy_atoms"].to_dict()
 
     for idx, row in molecule_table.iterrows():
         inchikey = row["inchikey"]
@@ -142,6 +157,29 @@ def run_batch(
                 "fail_stage": "ionic",
             })
             continue
+
+        if max_heavy_atoms is not None and heavy_atom_map:
+            n_heavy_atoms = heavy_atom_map.get(inchikey)
+            if n_heavy_atoms is not None and not pd.isna(n_heavy_atoms) and n_heavy_atoms > max_heavy_atoms:
+                logger.warning(
+                    f"[{idx+1}/{len(molecule_table)}] Skipping large molecule: {inchikey} (heavy_atoms={int(n_heavy_atoms)})"
+                )
+                skipped_size += 1
+                qc_rows.append({
+                    "inchikey": inchikey,
+                    "run_status": "skipped",
+                    "fail_stage": "size",
+                    "error_msg": f"Heavy atom count {int(n_heavy_atoms)} exceeds limit {max_heavy_atoms}",
+                    "runtime_sec": None,
+                    "atb_version": None,
+                    "timestamp": datetime.now().isoformat(),
+                })
+                features_rows.append({
+                    "inchikey": inchikey,
+                    "run_status": "skipped",
+                    "fail_stage": "size",
+                })
+                continue
 
         logger.info(f"[{idx+1}/{len(molecule_table)}] Processing {inchikey}")
 
@@ -265,6 +303,7 @@ def run_batch(
         "total_molecules": len(molecule_table),
         "invalid_smiles": invalid_smiles,
         "skipped_ionic": skipped_ionic,
+        "skipped_size": skipped_size,
         "skipped_cached": skipped,
         "succeeded": succeeded,
         "failed": failed,
@@ -407,6 +446,17 @@ if __name__ == "__main__":
         help="Memory per core in MB",
     )
     parser.add_argument(
+        "--max-heavy-atoms",
+        type=int,
+        default=None,
+        help="Skip molecules with heavy atom count above this threshold (requires rdkit_features.parquet)",
+    )
+    parser.add_argument(
+        "--rdkit-features",
+        default="data/rdkit_features.parquet",
+        help="Path to rdkit_features.parquet for size filter",
+    )
+    parser.add_argument(
         "--consolidate-only",
         action="store_true",
         help="Only consolidate existing cache to parquet (no new runs)",
@@ -433,6 +483,8 @@ if __name__ == "__main__":
             limit=args.limit,
             force_rerun=args.force_rerun,
             retry_failed=args.retry_failed,
+            max_heavy_atoms=args.max_heavy_atoms,
+            rdkit_features_path=args.rdkit_features,
             config=config,
         )
         print(f"Batch summary: {summary}")

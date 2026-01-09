@@ -60,6 +60,7 @@ Mechanism subgraph retrieval as explicit memory; new hypotheses create new branc
 ## Known gotchas / lessons (add more as discovered)
 - aTB integration pitfall: avoid using global `args` inside helpers; always pass args explicitly (e.g., volume computation and workdir usage). Record stage failures.
 - aTB can fail at different stages (`opt`, `excit`, `neb`, `volume`, `feature_parse`). Failures must be recorded with `fail_stage` and routed to `Evidence-insufficient` with recommended next steps (retry / different initial conformer / skip NEB / etc.).
+- Amesp can segfault on large molecules (error code -11); consider size-based skipping or reduced parallelism for stability.
 
 ---
 
@@ -141,4 +142,3 @@ When requesting work, explicitly reference the docs to read using the `@` syntax
 ## Notes on privacy
 - Private dataset fields and values must not be logged in plaintext beyond what is necessary for debugging.
 - Hypothesis logs should include IDs/inchikey, not sensitive “comment” content unless explicitly approved.
-

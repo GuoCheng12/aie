@@ -44,6 +44,9 @@
 - [x] Implement resumability logic (skip if status.json run_status=="success" or "failed")
 - [x] Add `--retry-failed` flag for selective retry
 - [x] Skip ionic molecules in V0 (see DEFERRED below)
+- [x] Improve RDKit conformer generation in `third_party/aTB/main.py` (ETKDG + fallback + UFF optimize)
+- [x] Add optional size filter in batch runner (`--max-heavy-atoms`) to skip large molecules and record `fail_stage="size"`
+- [x] Update fail_stage detection to classify RDKit embedding failures as `conformer` and document new `size` stage
 - [ ] Generate `data/atb_features.parquet`
 - [ ] Generate `data/atb_qc.parquet`
 - [ ] Batch run validation on neutral molecules
@@ -332,7 +335,7 @@ cache/atb/
 {
   "inchikey": "XXXXX-YYYYY-Z",
   "run_status": "success|failed|pending|skipped",
-  "fail_stage": null | "conformer" | "opt" | "excit" | "neb" | "volume" | "feature_parse" | "timeout" | "ionic",
+  "fail_stage": null | "conformer" | "opt" | "excit" | "neb" | "volume" | "feature_parse" | "timeout" | "ionic" | "size",
   "error_msg": null | "truncated error (max 500 chars)",
   "timestamp": "ISO 8601",
   "atb_version": "x.x.x",
@@ -390,7 +393,7 @@ result.json structure:
 ```
 
 **Failure Stage Detection** (in order):
-1. Check stderr for "Bad Conformer Id" → `"conformer"` (RDKit failed to generate 3D structure)
+1. Check stderr for "Bad Conformer Id" or "RDKit embedding failed" → `"conformer"` (RDKit failed to generate 3D structure)
 2. Check stderr for "CalculationFailed" or "error code -11" → stage based on path in error
 3. Check stderr for "IndexError" + "parse_aop_energy" → amesp output parsing failure
 4. Check if `result.json` exists and is valid JSON → `"feature_parse"` if fails
@@ -450,12 +453,16 @@ Critical design decisions to prevent cache/input drift:
   - `volume` failure: `["retry_volume_calc"]`
   - `feature_parse` failure: `["manual_inspection", "report_bug"]`
   - `timeout` failure: `["increase_timeout", "check_molecule_size", "simplify_calculation"]`
+  - `size` failure: `["retry_with_more_memory", "reduce_npara", "skip_large_molecule"]`
 - Partial results: If S0 succeeds but S1 fails, keep S0 features; mark S1 features as null.
 
 **Batch Runner CLI**
 ```bash
 # Normal run (skips both succeeded and failed)
 python -m src.chem.batch_runner --limit 20 --npara 4 --maxcore 4000
+
+# Optional: skip large molecules using RDKit heavy-atom counts
+python -m src.chem.batch_runner --max-heavy-atoms 40
 
 # Retry only failed molecules
 python -m src.chem.batch_runner --limit 20 --retry-failed

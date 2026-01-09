@@ -756,6 +756,30 @@ After implementing charge auto-detection, decided to take a more conservative ap
 
 ---
 
+## 2026-01-09 — P2 Stabilization: RDKit embedding + size filter
+### Implemented
+- Hardened RDKit 3D embedding in `third_party/aTB/main.py` (ETKDG v3/v2 fallback + random-coords retry + UFF cleanup)
+- Added explicit embedding failure message to improve `conformer` stage classification
+- Added optional size filter in `src/chem/batch_runner.py`:
+  - New CLI flags: `--max-heavy-atoms`, `--rdkit-features`
+  - Skips large molecules with `run_status="skipped"` and `fail_stage="size"`
+  - Adds `skipped_size` to batch summary
+
+### Outputs produced
+- Updated `third_party/aTB/main.py` (robust embedding)
+- Updated `src/chem/atb_runner.py` (embedding failure detection)
+- Updated `src/chem/batch_runner.py` (size filter + CLI flags)
+- Updated `doc/process.md` (documented `size` fail_stage and new CLI option)
+
+### Issues / surprises
+- None
+
+### Next actions
+- Re-run batch with a size cap (e.g., `--max-heavy-atoms 40`) to reduce amesp segfaults
+- Evaluate remaining failures and adjust threshold or resources as needed
+
+---
+
 ## Template for future entries
 ### YYYY-MM-DD — <Short title>
 #### Implemented

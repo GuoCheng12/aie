@@ -60,48 +60,75 @@ def get_formal_charge_from_smiles(smiles):
 
 def smiles_to_ase_atoms(smiles, random_seed=42):
     """
-    Convert SMILES string to ASE Atoms object (without structure optimization)
-    
+    Convert SMILES string to ASE Atoms object (with robust 3D embedding).
+
     Parameters:
         smiles: SMILES string
         random_seed: Random seed for reproducible initial structure generation
-    
+
     Returns:
         ASE Atoms object
     """
     from rdkit import Chem
     from rdkit.Chem import AllChem
     from ase import Atoms
-    
+
     # 1. Create RDKit molecule object from SMILES
     mol = Chem.MolFromSmiles(smiles)
     if mol is None:
         raise ValueError(f"Invalid SMILES: {smiles}")
-    
+
     # 2. Add hydrogen atoms (required for 3D structure generation)
     mol = Chem.AddHs(mol)
-    
-    # 3. Generate initial 3D coordinates (without optimization)
-    AllChem.EmbedMolecule(mol, randomSeed=random_seed)
-    
-    # 4. Get the conformation (3D coordinates)
+
+    # 3. Generate initial 3D coordinates with ETKDG (fallback to random coords)
+    params = None
+    if hasattr(AllChem, "ETKDGv3"):
+        params = AllChem.ETKDGv3()
+    elif hasattr(AllChem, "ETKDGv2"):
+        params = AllChem.ETKDGv2()
+    elif hasattr(AllChem, "ETKDG"):
+        params = AllChem.ETKDG()
+
+    if params is not None:
+        params.randomSeed = random_seed
+        params.maxAttempts = 200
+        res = AllChem.EmbedMolecule(mol, params)
+        if res != 0:
+            params.useRandomCoords = True
+            res = AllChem.EmbedMolecule(mol, params)
+    else:
+        res = AllChem.EmbedMolecule(mol, randomSeed=random_seed)
+        if res != 0:
+            res = AllChem.EmbedMolecule(mol, randomSeed=random_seed, useRandomCoords=True)
+
+    if res != 0 or mol.GetNumConformers() == 0:
+        raise ValueError("RDKit embedding failed (no conformer generated)")
+
+    # 4. Light geometry cleanup (does not replace quantum optimization)
+    try:
+        AllChem.UFFOptimizeMolecule(mol, maxIters=200)
+    except Exception:
+        pass
+
+    # 5. Get the conformation (3D coordinates)
     conf = mol.GetConformer()
-    
-    # 5. Extract atom information and create ASE Atoms object
+
+    # 6. Extract atom information and create ASE Atoms object
     positions = []
     symbols = []
-    
+
     for atom in mol.GetAtoms():
         # Get atom coordinates
         pos = conf.GetAtomPosition(atom.GetIdx())
         positions.append([pos.x, pos.y, pos.z])
-        
+
         # Get element symbol
         symbols.append(atom.GetSymbol())
-    
-    # 6. Create ASE Atoms object
+
+    # 7. Create ASE Atoms object
     atoms = Atoms(symbols=symbols, positions=positions)
-    
+
     return atoms
 
 # In[5]:
@@ -159,4 +186,3 @@ def main():
 # In[6]:
 if __name__ == "__main__":
     main()
-
