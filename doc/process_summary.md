@@ -780,6 +780,23 @@ After implementing charge auto-detection, decided to take a more conservative ap
 
 ---
 
+## 2026-01-09 — P2 Bug fix: ETKDG param compatibility
+### Implemented
+- Guarded RDKit ETKDG parameter setting in `third_party/aTB/main.py` to avoid `AttributeError` on older RDKit builds that lack `maxAttempts`
+- Only enables random-coords fallback when the parameter supports it
+
+### Outputs produced
+- Updated `third_party/aTB/main.py` (ETKDG param guard)
+- Updated `doc/process.md` (task marked complete)
+
+### Issues / surprises
+- None
+
+### Next actions
+- Re-run failed molecule to verify the conformer stage proceeds without `AttributeError`
+
+---
+
 ## Template for future entries
 ### YYYY-MM-DD — <Short title>
 #### Implemented

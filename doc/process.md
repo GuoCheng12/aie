@@ -47,6 +47,7 @@
 - [x] Improve RDKit conformer generation in `third_party/aTB/main.py` (ETKDG + fallback + UFF optimize)
 - [x] Add optional size filter in batch runner (`--max-heavy-atoms`) to skip large molecules and record `fail_stage="size"`
 - [x] Update fail_stage detection to classify RDKit embedding failures as `conformer` and document new `size` stage
+- [x] Make RDKit ETKDG parameter setting compatible across versions (guard `maxAttempts`)
 - [ ] Generate `data/atb_features.parquet`
 - [ ] Generate `data/atb_qc.parquet`
 - [ ] Batch run validation on neutral molecules

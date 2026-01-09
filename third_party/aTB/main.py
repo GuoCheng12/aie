@@ -92,9 +92,10 @@ def smiles_to_ase_atoms(smiles, random_seed=42):
 
     if params is not None:
         params.randomSeed = random_seed
-        params.maxAttempts = 200
+        if hasattr(params, "maxAttempts"):
+            params.maxAttempts = 200
         res = AllChem.EmbedMolecule(mol, params)
-        if res != 0:
+        if res != 0 and hasattr(params, "useRandomCoords"):
             params.useRandomCoords = True
             res = AllChem.EmbedMolecule(mol, params)
     else:
