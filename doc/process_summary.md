@@ -583,6 +583,140 @@ Implemented P2 aTB wrapper infrastructure based on analysis of `third_party/aTB/
 
 ---
 
+## 2026-01-09 — P2 Bug fixes: Resumability + fail_stage detection
+
+### Context
+After running 20-molecule dry-run, discovered several bugs in batch_runner behavior.
+
+### Bugs identified from logs
+1. **Resumability bug**: Failed molecules were re-run on every batch execution, wasting compute time
+2. **Lack of retry control**: No way to selectively retry only failed molecules vs. force-rerun everything
+3. **Poor fail_stage detection**: Different error types not properly classified:
+   - "Bad Conformer Id" → conformer generation failure (before calculation)
+   - "CalculationFailed" with "error code -11" → amesp crash
+   - "IndexError: parse_aop_energy" → amesp output parsing failure
+   - Timeout failures not tracked separately
+
+### Fixes implemented
+
+1. **batch_runner.py**:
+   - Added `--retry-failed` flag: re-run only failed molecules (skip succeeded)
+   - Default behavior now skips both `success` AND `failed` molecules
+   - `--force-rerun` now clearly means "rerun everything including succeeded"
+   - Failed molecules preserved in output parquet with their cached status
+
+2. **atb_runner.py**:
+   - Enhanced `detect_fail_stage_from_output()` with priority-based detection:
+     - Priority 1: "Bad Conformer Id" → `"conformer"`
+     - Priority 2: "CalculationFailed" / "error code -11" → stage from path
+     - Priority 3: "IndexError" + "parse_aop_energy" → amesp parsing failure
+     - Priority 4: Parse result.json state
+     - Priority 5: Directory existence checks
+   - Added `"timeout"` as explicit fail_stage for timeout failures
+   - Added `"conformer"` as new fail_stage for RDKit 3D generation failures
+
+3. **doc/process.md**:
+   - Updated status.json schema with new fail_stages: `conformer`, `timeout`
+   - Updated failure stage detection order (9 steps)
+   - Added `recommended_next_steps` for new fail_stages
+   - Added batch runner CLI examples
+
+### Dry-run results (20 molecules)
+From logs:
+- Total: 20 molecules
+- Invalid SMILES (empty InChIKey): 1
+- Succeeded: 5 (AAAQKTZKLRYKHR, AAHQWSRRIKEFES, AGOZGUAZHRGBCP, AMDZJULAHPGTEZ, AMVKSLDIFMJFIG)
+- Failed: 14
+  - Conformer failures: 2 (AJUBVOXNBCYBCI, ANLLAXFYLRALTK - "Bad Conformer Id")
+  - Amesp crashes: ~10 ("error code -11")
+  - Timeout: 1 (AHEKEONWUHBVNV - 3600s)
+  - Parsing errors: 2 ("IndexError: parse_aop_energy")
+
+### Success rate
+- 5/19 = 26% success rate (excluding 1 invalid SMILES)
+- Average runtime per successful molecule: ~100-200s
+- Failure pattern: Most failures are amesp crashes (error code -11)
+
+### Issues / surprises
+- High failure rate (~74%) due to amesp calculator issues
+- Error code -11 typically indicates SEGFAULT in amesp
+- Some SMILES can't generate 3D conformers (complex structures)
+
+### Decisions
+- Default batch behavior: skip both succeeded AND failed (conservative)
+- Use `--retry-failed` for selective retry of failed molecules
+- New fail_stages: `conformer`, `timeout` for better diagnostics
+
+### Next actions
+- Continue full batch run on server with improved resumability
+- Analyze failed molecules to understand amesp crash patterns
+- Consider filtering out molecules likely to fail (ionic, very large, etc.)
+
+---
+
+## 2026-01-09 — P2 Root cause fix: Charge auto-detection for ionic molecules
+
+### Context
+Analysis of the 74% failure rate revealed a critical bug: **amesp was running all molecules with `charge=0`**, even ionic molecules with formal charges like `[n+]`, `[I-]`, etc.
+
+### Root cause analysis
+From InChIKey suffix distribution:
+- `-N` (neutral): 977 molecules (93%)
+- `-M` (ionic): 47 molecules (4.5%)
+- Other ionic (`-L`, `-O`, `-J`, etc.): 25 molecules (2.5%)
+
+**Total ionic molecules: 72 (7%)** - all were failing due to incorrect charge.
+
+The hardcoded `charge=0` in `calculator.py:54` caused amesp to crash or produce garbage for:
+- `ABNRGKSAIONSCC-UHFFFAOYSA-M` (contains `[n+]` and `[I-]`)
+- `AHEKEONWUHBVNV-OCEACIFDSA-J` (phosphate groups with `[O-]`)
+- `AIXZTWWXCJZLLV-UHFFFAOYSA-M` (contains `[F-]` and `[n+]`)
+- etc.
+
+### Fixes implemented
+
+1. **third_party/aTB/main.py**:
+   - Added `--charge` CLI argument: `--charge <int>`
+   - Added `get_formal_charge_from_smiles()` function using RDKit
+   - Auto-detects charge from SMILES if `--charge` not provided
+   - Logs detected/provided charge for auditability
+
+2. **third_party/aTB/calculator.py**:
+   - Changed `charge=0` to `charge=getattr(args, 'charge', 0)`
+   - Now uses the auto-detected or user-provided charge
+
+### How it works now
+```bash
+# Neutral molecule (charge auto-detected as 0)
+python third_party/aTB/main.py --smiles "c1ccccc1" --workdir cache/atb/XX/XXX
+
+# Ionic molecule (charge auto-detected from SMILES)
+# SMILES: CN(C)c1ccc(/C=C(\C#N)c2ccc(-c3cc[n+](C)cc3)cc2)cc1.[I-]
+# Auto-detected charge: 0 (net neutral: +1 from [n+] and -1 from [I-])
+
+# Override charge manually if needed
+python third_party/aTB/main.py --smiles "..." --charge 1 --workdir cache/atb/XX/XXX
+```
+
+### Expected improvement
+- Ionic molecules should now run correctly with proper charge
+- Expected to fix ~50% of the amesp failures (those caused by wrong charge)
+- Remaining failures may be due to:
+  - Molecule too large/complex for amesp
+  - Memory issues (try increasing `--maxcore`)
+  - Conformer generation failures (RDKit issue)
+
+### Files modified
+- `third_party/aTB/main.py` - Added `--charge` arg and auto-detection
+- `third_party/aTB/calculator.py` - Use `args.charge` instead of hardcoded 0
+
+### Next actions
+- Re-run batch on server with charge fix
+- Monitor success rate improvement
+- If still high failure rate, investigate memory/complexity issues
+
+---
+
 ## Template for future entries
 ### YYYY-MM-DD — <Short title>
 #### Implemented

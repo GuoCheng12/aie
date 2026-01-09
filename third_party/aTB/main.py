@@ -18,6 +18,7 @@ def parse_args():
     p.add_argument("--workdir", default="work_dirs", help="working directory")
     p.add_argument("--properties", default="HOMO-LUMO,charge,structure", help="properties to extract, comma-separated")
     p.add_argument("--smiles",default=None,help="SMILES string")
+    p.add_argument("--charge",type=int,default=None,help="Molecular charge (auto-detected from SMILES if not provided)")
     p.add_argument("--nstates",default=3,help="Number of excited states")
     p.add_argument("--excit_root",default=1,help="number of the excited state focused on")
     p.add_argument("--mult",default=1,help="multiplicity of the excited state")
@@ -38,6 +39,25 @@ def analysis(args,type,log):
 
 
 # In[4]:
+def get_formal_charge_from_smiles(smiles):
+    """
+    Calculate formal charge from SMILES string.
+
+    Parameters:
+        smiles: SMILES string
+
+    Returns:
+        int: Total formal charge of the molecule
+    """
+    from rdkit import Chem
+
+    mol = Chem.MolFromSmiles(smiles)
+    if mol is None:
+        return 0  # Default to neutral if SMILES is invalid
+
+    return Chem.GetFormalCharge(mol)
+
+
 def smiles_to_ase_atoms(smiles, random_seed=42):
     """
     Convert SMILES string to ASE Atoms object (without structure optimization)
@@ -97,9 +117,19 @@ def main():
     if args.smiles:
         log.info("Start generating begin structure from SMILES")
         initial = smiles_to_ase_atoms(args.smiles)
+
+        # Auto-detect charge from SMILES if not provided
+        if args.charge is None:
+            args.charge = get_formal_charge_from_smiles(args.smiles)
+            log.info(f"Auto-detected charge from SMILES: {args.charge}")
+        else:
+            log.info(f"Using provided charge: {args.charge}")
     else:
         log.info("Start reading begin structure from xyz file")
         initial = io.read(args.begin)
+        if args.charge is None:
+            args.charge = 0  # Default to neutral for xyz input
+            log.info(f"Using default charge: {args.charge}")
 
 
     # 1. optimize initial structure

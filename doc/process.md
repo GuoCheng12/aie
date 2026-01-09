@@ -325,7 +325,7 @@ cache/atb/
 {
   "inchikey": "XXXXX-YYYYY-Z",
   "run_status": "success|failed|pending",
-  "fail_stage": null | "opt" | "excit" | "neb" | "volume" | "feature_parse",
+  "fail_stage": null | "conformer" | "opt" | "excit" | "neb" | "volume" | "feature_parse" | "timeout",
   "error_msg": null | "truncated error (max 500 chars)",
   "timestamp": "ISO 8601",
   "atb_version": "x.x.x",
@@ -381,11 +381,15 @@ result.json structure:
 ```
 
 **Failure Stage Detection** (in order):
-1. Check if `result.json` exists and is valid JSON → `"feature_parse"` if fails
-2. Check for `ground_state` key → `"opt"` if missing
-3. Check for `excited_state` key → `"excit"` if missing
-4. Check for `NEB` key → `"neb"` if missing
-5. Check for `volume` in both states → `"volume"` if missing
+1. Check stderr for "Bad Conformer Id" → `"conformer"` (RDKit failed to generate 3D structure)
+2. Check stderr for "CalculationFailed" or "error code -11" → stage based on path in error
+3. Check stderr for "IndexError" + "parse_aop_energy" → amesp output parsing failure
+4. Check if `result.json` exists and is valid JSON → `"feature_parse"` if fails
+5. Check for `ground_state` key → `"opt"` if missing
+6. Check for `excited_state` key → `"excit"` if missing
+7. Check for `NEB` key → `"neb"` if missing
+8. Check for `volume` in both states → `"volume"` if missing
+9. Timeout → `"timeout"` (default 3600s)
 
 **P2 Implementation Notes**
 
@@ -430,17 +434,35 @@ Critical design decisions to prevent cache/input drift:
 - On failure, record `fail_stage` and `error_msg` (truncated to 500 chars)
 - **No automatic retry in V0**. Router marks as `Evidence-insufficient`.
 - `recommended_next_steps` populated based on fail_stage:
+  - `conformer` failure: `["check_smiles_validity", "try_alternative_smiles", "manual_structure"]`
   - `opt` failure: `["retry_with_different_conformer", "check_smiles_validity"]`
   - `excit` failure: `["skip_excited_state", "use_simpler_method"]`
   - `neb` failure: `["skip_neb", "use_relaxed_scan"]`
   - `volume` failure: `["retry_volume_calc"]`
   - `feature_parse` failure: `["manual_inspection", "report_bug"]`
+  - `timeout` failure: `["increase_timeout", "check_molecule_size", "simplify_calculation"]`
 - Partial results: If S0 succeeds but S1 fails, keep S0 features; mark S1 features as null.
 
+**Batch Runner CLI**
+```bash
+# Normal run (skips both succeeded and failed)
+python -m src.chem.batch_runner --limit 20 --npara 4 --maxcore 4000
+
+# Retry only failed molecules
+python -m src.chem.batch_runner --limit 20 --retry-failed
+
+# Force rerun everything (including succeeded)
+python -m src.chem.batch_runner --limit 20 --force-rerun
+
+# Consolidate existing cache to parquet (no new runs)
+python -m src.chem.batch_runner --consolidate-only
+```
+
 **Resumability**
-- Check `status.json` before running; skip if `run_status == "success"`
-- Support `--force-rerun` flag to override cache
-- Log skipped molecules to console
+- By default, skip molecules with `run_status == "success"` OR `run_status == "failed"`
+- Use `--retry-failed` to re-run only failed molecules (skips succeeded)
+- Use `--force-rerun` to re-run ALL molecules (including succeeded)
+- Log skipped molecules to console with reason
 
 **Minimum descriptor set**
 - S0: volume, homo_lumo_gap, dihedral_avg, charge_dipole

@@ -45,13 +45,16 @@ def make_amesp_calc(atoms, args,calculation_type,idx=None):
             keywords=["atb", "force"]
             opt = None  
     
+    # Get charge from args (auto-detected or provided), default to 0 if not set
+    charge = getattr(args, 'charge', 0) if hasattr(args, 'charge') and args.charge is not None else 0
+
     calc = Amesp(
         atoms=atoms,
-        label=str(label_path), 
-        command="amesp PREFIX.aip", 
+        label=str(label_path),
+        command="amesp PREFIX.aip",
         npara=args.npara,
         maxcore=args.maxcore,
-        charge=0, mult=int(args.mult),
+        charge=charge, mult=int(args.mult),
         keywords=keywords,
         opt = opt,
         scf = {'maxcyc':2000,'vshift': 500},
