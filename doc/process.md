@@ -38,13 +38,20 @@
 - [x] CLI commands working: `python -m src.cli run --id <id>`
 
 ### P2. aTB wrapper (Chem Agent)
-- [ ] Create `src/chem/atb_runner.py` (subprocess wrapper for `third_party/aTB/main.py`)
-- [ ] Create `src/chem/atb_parser.py` (parse result.json → features.json)
-- [ ] Create `src/chem/batch_runner.py` (iterate molecule_table, call runner, update status)
-- [ ] Implement resumability logic (skip if status.json run_status=="success")
+- [x] Create `src/chem/atb_runner.py` (subprocess wrapper for `third_party/aTB/main.py`)
+- [x] Create `src/chem/atb_parser.py` (parse result.json → features.json)
+- [x] Create `src/chem/batch_runner.py` (iterate molecule_table, call runner, update status)
+- [x] Implement resumability logic (skip if status.json run_status=="success" or "failed")
+- [x] Add `--retry-failed` flag for selective retry
+- [x] Skip ionic molecules in V0 (see DEFERRED below)
 - [ ] Generate `data/atb_features.parquet`
 - [ ] Generate `data/atb_qc.parquet`
-- [ ] 5-molecule dry-run validation
+- [ ] Batch run validation on neutral molecules
+
+**DEFERRED (V0)**: Ionic molecule support
+- Ionic molecules (~72 of 1050, 7%) are skipped with `run_status="skipped"`, `fail_stage="ionic"`
+- Charge auto-detection added to `third_party/aTB/main.py` (ready but not validated)
+- Re-enable after validating charge handling on a few test ionic molecules
 
 ### P3. Feature merge
 - [ ] Create `src/features/merger.py` (join private_clean + rdkit + atb on inchikey)
@@ -324,14 +331,16 @@ cache/atb/
 ```json
 {
   "inchikey": "XXXXX-YYYYY-Z",
-  "run_status": "success|failed|pending",
-  "fail_stage": null | "conformer" | "opt" | "excit" | "neb" | "volume" | "feature_parse" | "timeout",
+  "run_status": "success|failed|pending|skipped",
+  "fail_stage": null | "conformer" | "opt" | "excit" | "neb" | "volume" | "feature_parse" | "timeout" | "ionic",
   "error_msg": null | "truncated error (max 500 chars)",
   "timestamp": "ISO 8601",
   "atb_version": "x.x.x",
   "runtime_sec": 123.4
 }
 ```
+
+**Note**: `run_status="skipped"` with `fail_stage="ionic"` indicates molecules temporarily skipped in V0 due to ionic charge handling limitations.
 
 **AIE-aTB result.json → features.json Mapping**
 

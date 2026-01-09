@@ -711,9 +711,48 @@ python third_party/aTB/main.py --smiles "..." --charge 1 --workdir cache/atb/XX/
 - `third_party/aTB/calculator.py` - Use `args.charge` instead of hardcoded 0
 
 ### Next actions
-- Re-run batch on server with charge fix
+- ~~Re-run batch on server with charge fix~~ (deferred, see below)
 - Monitor success rate improvement
 - If still high failure rate, investigate memory/complexity issues
+
+---
+
+## 2026-01-09 — P2 Strategy change: Skip ionic molecules in V0
+
+### Context
+After implementing charge auto-detection, decided to take a more conservative approach for V0: **skip ionic molecules entirely** rather than risk untested charge handling.
+
+### Rationale
+1. Ionic molecules are only ~7% of dataset (72 of 1050)
+2. Charge handling in amesp is complex and untested
+3. Better to get V0 working on 93% neutral molecules first
+4. Can re-enable ionic support in V1 after validation
+
+### Implementation
+- Added `is_ionic_molecule(smiles)` function to detect ionic patterns
+- Ionic molecules get `run_status="skipped"`, `fail_stage="ionic"`
+- Charge auto-detection code kept in place (ready for V1)
+
+### Files modified
+- `src/chem/batch_runner.py` - Added ionic detection and skipping
+- `doc/process.md` - Marked ionic support as DEFERRED, updated status.json schema
+
+### Expected batch summary
+```
+{
+  "total_molecules": 1050,
+  "invalid_smiles": 1,
+  "skipped_ionic": ~72,
+  "skipped_cached": ...,
+  "succeeded": ...,
+  "failed": ...,
+}
+```
+
+### Next actions
+- Run batch on neutral molecules only (~977 molecules)
+- After V0 complete, validate charge handling on test ionic molecules
+- Re-enable ionic support in V1
 
 ---
 

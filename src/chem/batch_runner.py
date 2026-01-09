@@ -23,12 +23,45 @@ from src.chem.atb_parser import parse_result_json
 logger = get_logger(__name__)
 
 
+def is_ionic_molecule(smiles: str) -> bool:
+    """
+    Check if a molecule is ionic (contains charged fragments).
+
+    Ionic molecules are temporarily skipped in V0 due to amesp limitations.
+    TODO: Re-enable ionic molecules after proper charge handling is validated.
+
+    Args:
+        smiles: SMILES string
+
+    Returns:
+        True if molecule contains ionic fragments (e.g., [I-], [n+], [O-])
+    """
+    if not smiles:
+        return False
+
+    # Quick heuristic: check for common ionic patterns in SMILES
+    ionic_patterns = [
+        "[I-]", "[Br-]", "[Cl-]", "[F-]",  # Halide anions
+        "[O-]", "[S-]", "[N-]",  # Common anions
+        "[n+]", "[N+]", "[P+]", "[S+]",  # Common cations
+        ".[Na+]", ".[K+]", ".[Li+]",  # Metal cations
+        "[BF4-]", "[PF6-]",  # Complex anions
+    ]
+
+    for pattern in ionic_patterns:
+        if pattern in smiles:
+            return True
+
+    return False
+
+
 def run_batch(
     molecule_table_path: str = "data/molecule_table.parquet",
     cache_dir: str = "cache/atb",
     output_dir: str = "data",
     limit: Optional[int] = None,
     force_rerun: bool = False,
+    retry_failed: bool = False,
     config: Optional[Dict[str, Any]] = None,
     project_root: Optional[Path] = None,
 ) -> Dict[str, Any]:
@@ -43,7 +76,8 @@ def run_batch(
         cache_dir: Cache directory for aTB results
         output_dir: Output directory for parquet files
         limit: Limit number of molecules (for dry-run)
-        force_rerun: Force rerun even if cache exists
+        force_rerun: Force rerun all molecules (including succeeded and failed)
+        retry_failed: Retry only failed molecules (skip succeeded)
         config: Optional config overrides for aTB
         project_root: Project root directory
 
@@ -76,14 +110,37 @@ def run_batch(
     start_time = time.time()
 
     invalid_smiles = 0
+    skipped_ionic = 0
 
     for idx, row in molecule_table.iterrows():
         inchikey = row["inchikey"]
         smiles = row["canonical_smiles"]  # From molecule_table (single source of truth)
+
         # Skip molecules with empty/invalid inchikey (failed canonicalization in P1)
         if not inchikey or len(inchikey) < 2:
-            logger.warning(f"[{idx+1}/{len(molecule_table)}] Skipping invalid InChIKey (empty): SMILES={smiles[:50]}...")
+            logger.warning(f"[{idx+1}/{len(molecule_table)}] Skipping invalid InChIKey (empty): SMILES={smiles[:50] if smiles else 'None'}...")
             invalid_smiles += 1
+            continue
+
+        # Skip ionic molecules (V0 limitation - TODO: re-enable after charge handling is validated)
+        if is_ionic_molecule(smiles):
+            logger.warning(f"[{idx+1}/{len(molecule_table)}] Skipping ionic molecule (V0 limitation): {inchikey}")
+            skipped_ionic += 1
+            # Record as skipped_ionic in QC table
+            qc_rows.append({
+                "inchikey": inchikey,
+                "run_status": "skipped",
+                "fail_stage": "ionic",
+                "error_msg": "Ionic molecules temporarily skipped in V0",
+                "runtime_sec": None,
+                "atb_version": None,
+                "timestamp": datetime.now().isoformat(),
+            })
+            features_rows.append({
+                "inchikey": inchikey,
+                "run_status": "skipped",
+                "fail_stage": "ionic",
+            })
             continue
 
         logger.info(f"[{idx+1}/{len(molecule_table)}] Processing {inchikey}")
@@ -94,7 +151,10 @@ def run_batch(
         # Check existing cache
         if not force_rerun and atb_agent.check_cache(inchikey):
             status = atb_agent.load_status(inchikey)
-            if status.get("run_status") == "success":
+            cached_run_status = status.get("run_status")
+
+            # Skip succeeded molecules (unless force_rerun)
+            if cached_run_status == "success":
                 logger.info(f"  Skipping {inchikey}: already succeeded")
                 skipped += 1
 
@@ -111,6 +171,28 @@ def run_batch(
                         "atb_version": status.get("atb_version"),
                         "timestamp": status.get("timestamp"),
                     })
+                continue
+
+            # Skip failed molecules (unless retry_failed or force_rerun)
+            if cached_run_status == "failed" and not retry_failed:
+                logger.info(f"  Skipping {inchikey}: previously failed (use --retry-failed to retry)")
+                skipped += 1
+
+                # Keep existing failed status in output
+                qc_rows.append({
+                    "inchikey": inchikey,
+                    "run_status": "failed",
+                    "fail_stage": status.get("fail_stage"),
+                    "error_msg": status.get("error_msg"),
+                    "runtime_sec": status.get("runtime_sec"),
+                    "atb_version": status.get("atb_version"),
+                    "timestamp": status.get("timestamp"),
+                })
+                features_rows.append({
+                    "inchikey": inchikey,
+                    "run_status": "failed",
+                    "fail_stage": status.get("fail_stage"),
+                })
                 continue
 
         # Run AIE-aTB
@@ -182,7 +264,8 @@ def run_batch(
     summary = {
         "total_molecules": len(molecule_table),
         "invalid_smiles": invalid_smiles,
-        "skipped": skipped,
+        "skipped_ionic": skipped_ionic,
+        "skipped_cached": skipped,
         "succeeded": succeeded,
         "failed": failed,
         "total_time_sec": round(total_time, 2),
@@ -304,7 +387,12 @@ if __name__ == "__main__":
     parser.add_argument(
         "--force-rerun",
         action="store_true",
-        help="Force rerun even if cache exists",
+        help="Force rerun all molecules (including succeeded and failed)",
+    )
+    parser.add_argument(
+        "--retry-failed",
+        action="store_true",
+        help="Retry failed molecules (but skip succeeded)",
     )
     parser.add_argument(
         "--npara",
@@ -344,6 +432,7 @@ if __name__ == "__main__":
             output_dir=args.output_dir,
             limit=args.limit,
             force_rerun=args.force_rerun,
+            retry_failed=args.retry_failed,
             config=config,
         )
         print(f"Batch summary: {summary}")
