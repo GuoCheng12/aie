@@ -797,6 +797,24 @@ After implementing charge auto-detection, decided to take a more conservative ap
 
 ---
 
+## 2026-01-09 — P2 Enhancement: Include ionic molecules option
+### Implemented
+- Added `--include-ionic` flag to `src/chem/batch_runner.py` to override V0 ionic skipping
+- Default behavior remains skip ionic molecules; setting the flag processes all molecules
+- Updated `doc/process.md` with the new CLI option and V0 note
+
+### Outputs produced
+- Updated `src/chem/batch_runner.py`
+- Updated `doc/process.md`
+
+### Issues / surprises
+- None
+
+### Next actions
+- Use `python -m src.chem.batch_runner --include-ionic` to run ionic molecules
+
+---
+
 ## Template for future entries
 ### YYYY-MM-DD — <Short title>
 #### Implemented

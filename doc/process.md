@@ -48,14 +48,15 @@
 - [x] Add optional size filter in batch runner (`--max-heavy-atoms`) to skip large molecules and record `fail_stage="size"`
 - [x] Update fail_stage detection to classify RDKit embedding failures as `conformer` and document new `size` stage
 - [x] Make RDKit ETKDG parameter setting compatible across versions (guard `maxAttempts`)
+- [x] Add CLI flag to include ionic molecules (override V0 skip)
 - [ ] Generate `data/atb_features.parquet`
 - [ ] Generate `data/atb_qc.parquet`
 - [ ] Batch run validation on neutral molecules
 
 **DEFERRED (V0)**: Ionic molecule support
-- Ionic molecules (~72 of 1050, 7%) are skipped with `run_status="skipped"`, `fail_stage="ionic"`
+- Ionic molecules (~72 of 1050, 7%) are skipped with `run_status="skipped"`, `fail_stage="ionic"` by default
 - Charge auto-detection added to `third_party/aTB/main.py` (ready but not validated)
-- Re-enable after validating charge handling on a few test ionic molecules
+- Re-enable after validating charge handling on a few test ionic molecules (or use `--include-ionic` for ad-hoc runs)
 
 ### P3. Feature merge
 - [ ] Create `src/features/merger.py` (join private_clean + rdkit + atb on inchikey)
@@ -461,6 +462,9 @@ Critical design decisions to prevent cache/input drift:
 ```bash
 # Normal run (skips both succeeded and failed)
 python -m src.chem.batch_runner --limit 20 --npara 4 --maxcore 4000
+
+# Include ionic molecules (override V0 skip)
+python -m src.chem.batch_runner --include-ionic
 
 # Optional: skip large molecules using RDKit heavy-atom counts
 python -m src.chem.batch_runner --max-heavy-atoms 40

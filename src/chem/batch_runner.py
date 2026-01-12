@@ -62,6 +62,7 @@ def run_batch(
     limit: Optional[int] = None,
     force_rerun: bool = False,
     retry_failed: bool = False,
+    skip_ionic: bool = True,
     max_heavy_atoms: Optional[int] = None,
     rdkit_features_path: str = "data/rdkit_features.parquet",
     config: Optional[Dict[str, Any]] = None,
@@ -80,6 +81,7 @@ def run_batch(
         limit: Limit number of molecules (for dry-run)
         force_rerun: Force rerun all molecules (including succeeded and failed)
         retry_failed: Retry only failed molecules (skip succeeded)
+        skip_ionic: Skip ionic molecules (V0 default). Set False to include ionic.
         max_heavy_atoms: Skip molecules with heavy atom count above this threshold
         rdkit_features_path: Path to rdkit_features.parquet for heavy atom counts
         config: Optional config overrides for aTB
@@ -138,7 +140,7 @@ def run_batch(
             continue
 
         # Skip ionic molecules (V0 limitation - TODO: re-enable after charge handling is validated)
-        if is_ionic_molecule(smiles):
+        if skip_ionic and is_ionic_molecule(smiles):
             logger.warning(f"[{idx+1}/{len(molecule_table)}] Skipping ionic molecule (V0 limitation): {inchikey}")
             skipped_ionic += 1
             # Record as skipped_ionic in QC table
@@ -434,6 +436,11 @@ if __name__ == "__main__":
         help="Retry failed molecules (but skip succeeded)",
     )
     parser.add_argument(
+        "--include-ionic",
+        action="store_true",
+        help="Include ionic molecules (override V0 skip)",
+    )
+    parser.add_argument(
         "--npara",
         type=int,
         default=4,
@@ -483,6 +490,7 @@ if __name__ == "__main__":
             limit=args.limit,
             force_rerun=args.force_rerun,
             retry_failed=args.retry_failed,
+            skip_ionic=not args.include_ionic,
             max_heavy_atoms=args.max_heavy_atoms,
             rdkit_features_path=args.rdkit_features,
             config=config,
