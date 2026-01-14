@@ -20,10 +20,17 @@ logger = get_logger(__name__)
 
 # Default configuration
 DEFAULT_CONFIG = {
+<<<<<<< HEAD
     "npara": 4,
     "maxcore": 4000,
     "nimg": 3,
     "neb_fmax": 0.1,
+=======
+    "npara": 2,
+    "maxcore": 4000,
+    "nimg": 4,
+    "neb_fmax": 0.2,
+>>>>>>> 605e931 (add ionic caculator & rota. const. & excited energy)
     "opt_fmax": 0.03,
     "timeout": 3600,  # 1 hour timeout
 }

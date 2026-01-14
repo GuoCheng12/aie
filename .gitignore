@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Uncertainty-aware AIE V0 .gitignore
 
 # Generated data artifacts (large, reproducible)
@@ -44,17 +45,6 @@ env/
 ENV/
 .venv
 
-# IDEs
-.vscode/
-.idea/
-*.swp
-*.swo
-*~
-.DS_Store
-
-# Jupyter
-.ipynb_checkpoints/
-*.ipynb
 
 # Testing
 .pytest_cache/
@@ -79,3 +69,5 @@ third_party/aTB/3
 third_party/aTB/4
 third_party/aTB/5
 third_party/aTB/6
+
+>>>>>>> 605e931 (add ionic caculator & rota. const. & excited energy)

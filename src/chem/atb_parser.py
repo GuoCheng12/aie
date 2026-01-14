@@ -83,7 +83,11 @@ def detect_fail_stage(result: Dict[str, Any]) -> Optional[str]:
     es = result["excited_state"]
 
     # Check NEB
+<<<<<<< HEAD
     if "NEB" not in result:
+=======
+    if "exciting_path_mean_volume" not in result:
+>>>>>>> 605e931 (add ionic caculator & rota. const. & excited energy)
         logger.warning("NEB missing from result.json")
         return "neb"
 
@@ -115,7 +119,11 @@ def extract_features(result: Dict[str, Any]) -> Dict[str, Any]:
     """
     gs = result["ground_state"]
     es = result["excited_state"]
+<<<<<<< HEAD
     neb = result.get("NEB")
+=======
+    neb = result.get("exciting_path_mean_volume")
+>>>>>>> 605e931 (add ionic caculator & rota. const. & excited energy)
 
     # Volume
     s0_volume = gs.get("volume")
@@ -137,17 +145,45 @@ def extract_features(result: Dict[str, Any]) -> Dict[str, Any]:
     delta_dihedral = (s1_dihedral_avg - s0_dihedral_avg) if (s0_dihedral_avg is not None and s1_dihedral_avg is not None) else None
 
     # Charge dipole - compute from Mulliken charges if available
+<<<<<<< HEAD
     s0_charge_dipole = compute_charge_dipole(gs.get("charge"))
     s1_charge_dipole = compute_charge_dipole(es.get("charge"))
     delta_dipole = (s1_charge_dipole - s0_charge_dipole) if (s0_charge_dipole is not None and s1_charge_dipole is not None) else None
 
+=======
+    delta_dipole = compute_charge_dipole(result.get("charge"))
+>>>>>>> 605e931 (add ionic caculator & rota. const. & excited energy)
     # Additional structure properties (for reference)
     s0_bonds_avg = s0_struct.get("bonds")
     s1_bonds_avg = s1_struct.get("bonds")
     s0_angles_avg = s0_struct.get("angles")
     s1_angles_avg = s1_struct.get("angles")
 
+<<<<<<< HEAD
     features = {
+=======
+    # rotational_constant
+    s0_rc_a = gs['rotational_constant'].get('A')
+    s0_rc_b = gs['rotational_constant'].get('B')
+    s0_rc_c = gs['rotational_constant'].get('C')
+    s1_rc_a = es['rotational_constant'].get('A')
+    s1_rc_b = es['rotational_constant'].get('B')
+    s1_rc_c = es['rotational_constant'].get('C')
+    s0_rap = gs['rays_asymmetry_parameter']
+    s1_rap = es['rays_asymmetry_parameter']
+
+
+    features = {
+        # rotational_constant
+        "s0_rotational_constant_a" : s0_rc_a,
+        "s0_rotational_constant_b" : s0_rc_b,
+        "s0_rotational_constant_c" : s0_rc_c,
+        "s1_rotational_constant_a" : s1_rc_a,
+        "s1_rotational_constant_b" : s1_rc_b,
+        "s1_rotational_constant_c" : s1_rc_c,
+        "s0_rays_asymmetry_parameter" : s0_rap,
+        "s1_rays_asymmetry_parameter" : s1_rap,
+>>>>>>> 605e931 (add ionic caculator & rota. const. & excited energy)
         # Volume
         "s0_volume": s0_volume,
         "s1_volume": s1_volume,
@@ -161,6 +197,7 @@ def extract_features(result: Dict[str, Any]) -> Dict[str, Any]:
         "s1_dihedral_avg": s1_dihedral_avg,
         "delta_dihedral": delta_dihedral,
         # Charge dipole (computed from Mulliken charges)
+<<<<<<< HEAD
         "s0_charge_dipole": s0_charge_dipole,
         "s1_charge_dipole": s1_charge_dipole,
         "delta_dipole": delta_dipole,
@@ -168,6 +205,13 @@ def extract_features(result: Dict[str, Any]) -> Dict[str, Any]:
         "excitation_energy": None,
         # NEB mean volume
         "neb_mean_volume": neb,
+=======
+        "delta_dipole": delta_dipole,
+        # Excitation energy - not directly in result.json, set null for V0
+        "excitation_energy": es.get('excited_energy'),
+        # NEB mean volume
+        "exciting_path_mean_volume": neb,
+>>>>>>> 605e931 (add ionic caculator & rota. const. & excited energy)
         # Extra structure metrics (informational)
         "s0_bonds_avg": s0_bonds_avg,
         "s1_bonds_avg": s1_bonds_avg,

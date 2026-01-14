@@ -140,7 +140,11 @@ def run_batch(
             continue
 
         # Skip ionic molecules (V0 limitation - TODO: re-enable after charge handling is validated)
+<<<<<<< HEAD
         if skip_ionic and is_ionic_molecule(smiles):
+=======
+        if not skip_ionic and is_ionic_molecule(smiles):
+>>>>>>> 605e931 (add ionic caculator & rota. const. & excited energy)
             logger.warning(f"[{idx+1}/{len(molecule_table)}] Skipping ionic molecule (V0 limitation): {inchikey}")
             skipped_ionic += 1
             # Record as skipped_ionic in QC table

@@ -1,7 +1,11 @@
 from PyAmesp import Amesp
 from ase import io
 from ase.mep import NEB
+<<<<<<< HEAD
 from ase.optimize import BFGS
+=======
+from ase.optimize import LBFGS
+>>>>>>> 605e931 (add ionic caculator & rota. const. & excited energy)
 from pathlib import Path
 
 # -------------------- return the PyAmesp calculator --------------------
@@ -19,7 +23,11 @@ def make_amesp_calc(atoms, args,calculation_type,idx=None):
 
         # define calculate options
         keywords=["atb", "opt","force"]
+<<<<<<< HEAD
         opt = {'maxcyc': 2000, 'gediis': 'off', 'maxstep' : 0.3}
+=======
+        opt = {'maxcyc': 2000, 'gediis': 'off', 'maxstep' : 0.1,'geomtol': 'loose'}
+>>>>>>> 605e931 (add ionic caculator & rota. const. & excited energy)
 
     elif calculation_type == "excit":
         # define a work_dirs/excit/
@@ -29,7 +37,11 @@ def make_amesp_calc(atoms, args,calculation_type,idx=None):
 
         # define calculate options
         keywords=["atb", "tda", 'opt',"force"]
+<<<<<<< HEAD
         opt = {'maxcyc': 2000, 'gediis': 'off', 'maxstep' : 0.3}
+=======
+        opt = {'maxcyc': 2000, 'gediis': 'off', 'maxstep' : 0.1,'geomtol': 'loose'}
+>>>>>>> 605e931 (add ionic caculator & rota. const. & excited energy)
         posthf = {'nstates': args.nstates, 'root': args.excit_root}
     
     elif calculation_type == "neb" :
@@ -45,8 +57,11 @@ def make_amesp_calc(atoms, args,calculation_type,idx=None):
             keywords=["atb", "force"]
             opt = None  
     
+<<<<<<< HEAD
     # Get charge from args (auto-detected or provided), default to 0 if not set
     charge = getattr(args, 'charge', 0) if hasattr(args, 'charge') and args.charge is not None else 0
+=======
+>>>>>>> 605e931 (add ionic caculator & rota. const. & excited energy)
 
     calc = Amesp(
         atoms=atoms,
@@ -54,7 +69,11 @@ def make_amesp_calc(atoms, args,calculation_type,idx=None):
         command="amesp PREFIX.aip",
         npara=args.npara,
         maxcore=args.maxcore,
+<<<<<<< HEAD
         charge=charge, mult=int(args.mult),
+=======
+        charge=args.charge, mult=int(args.mult),
+>>>>>>> 605e931 (add ionic caculator & rota. const. & excited energy)
         keywords=keywords,
         opt = opt,
         scf = {'maxcyc':2000,'vshift': 500},
@@ -109,10 +128,19 @@ def run_calculate(args, type, begin_atoms, log, end_atoms=None):
         log.debug("NEB object created and interpolated using IDPP method")
         
         # 4. Initialize optimizer and run NEB calculation
+<<<<<<< HEAD
         dyn = BFGS(neb, 
                    trajectory=f"{args.workdir}/neb/neb.traj", 
                    logfile=f"{args.workdir}/neb/neb.log",
                    maxstep=0.1)
+=======
+        dyn = LBFGS(neb, 
+                   trajectory=f"{args.workdir}/neb/neb.traj", 
+                   logfile=f"{args.workdir}/neb/neb.log",
+                   maxstep=0.05,
+                   memory=200
+                   )
+>>>>>>> 605e931 (add ionic caculator & rota. const. & excited energy)
         log.info("Running NEB optimization...")
         dyn.run(fmax=args.neb_fmax)
         
