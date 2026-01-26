@@ -59,7 +59,8 @@ def run_batch(
     molecule_table_path: str = "data/molecule_table.parquet",
     cache_dir: str = "cache/atb",
     output_dir: str = "data",
-    limit: Optional[int] = None,
+    limit_begin: Optional[int] = None,
+    limit_end: Optional[int] = None,
     force_rerun: bool = False,
     retry_failed: bool = False,
     skip_ionic: bool = True,
@@ -99,9 +100,9 @@ def run_batch(
     total_molecules = len(molecule_table)
     logger.info(f"Found {total_molecules} unique molecules")
 
-    if limit:
-        molecule_table = molecule_table.head(limit)
-        logger.info(f"Limited to {len(molecule_table)} molecules (dry-run mode)")
+    if limit_begin and limit_end:
+        molecule_table = molecule_table.iloc[limit_begin:limit_end]
+        logger.info(f"Limited from {limit_begin+1} to {limit_end} molecules (dry-run mode)")
 
     # Initialize agent for cache operations
     atb_agent = ATBAgent(cache_dir=cache_dir)
@@ -140,11 +141,7 @@ def run_batch(
             continue
 
         # Skip ionic molecules (V0 limitation - TODO: re-enable after charge handling is validated)
-<<<<<<< HEAD
-        if skip_ionic and is_ionic_molecule(smiles):
-=======
         if not skip_ionic and is_ionic_molecule(smiles):
->>>>>>> 605e931 (add ionic caculator & rota. const. & excited energy)
             logger.warning(f"[{idx+1}/{len(molecule_table)}] Skipping ionic molecule (V0 limitation): {inchikey}")
             skipped_ionic += 1
             # Record as skipped_ionic in QC table
@@ -424,10 +421,16 @@ if __name__ == "__main__":
         help="Output directory for parquet files",
     )
     parser.add_argument(
-        "--limit",
+        "--limit-begin",
         type=int,
         default=None,
-        help="Limit number of molecules (for dry-run)",
+        help="Start index for limiting molecules (for dry-run)",
+    )
+    parser.add_argument(
+        "--limit-end",
+        type=int,
+        default=None,
+        help="End index for limiting molecules (for dry-run)",
     )
     parser.add_argument(
         "--force-rerun",
@@ -491,7 +494,8 @@ if __name__ == "__main__":
             molecule_table_path=args.molecule_table,
             cache_dir=args.cache_dir,
             output_dir=args.output_dir,
-            limit=args.limit,
+            limit_begin=args.limit_begin,
+            limit_end=args.limit_end,
             force_rerun=args.force_rerun,
             retry_failed=args.retry_failed,
             skip_ionic=not args.include_ionic,

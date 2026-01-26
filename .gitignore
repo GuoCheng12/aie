@@ -12,7 +12,9 @@
 !data/data.csv
 
 # Cache directories (expensive computations)
-cache/
+cache/atb/*/*/excit/
+cache/atb/*/*/opt/
+cache/atb/*/*/neb/
 
 # Generated reports
 reports/*.json

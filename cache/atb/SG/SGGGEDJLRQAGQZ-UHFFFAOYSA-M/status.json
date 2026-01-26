@@ -1,0 +1,9 @@
+{
+  "inchikey": "SGGGEDJLRQAGQZ-UHFFFAOYSA-M",
+  "run_status": "failed",
+  "fail_stage": "opt",
+  "error_msg": "/miniconda/envs/ase-amesp/lib/python3.10/site-packages/PyAmesp/amesp.py\", line 117, in read_results\n    self.results['forces'] = parse_aop_force(text)\n  File \"/mnt/afs/250010045/conda/miniconda/envs/ase-amesp/lib/python3.10/site-packages/PyAmesp/amesp.py\", line 348, in parse_aop_force\n    force_data = np.array([f.split()[1:]\nValueError: setting an array element with a sequence. The requested array has an inhomogeneous shape after 1 dimensions. The detected shape was (104,) + inhomogeneous part.\n",
+  "timestamp": "2026-01-22T05:27:21.243932",
+  "atb_version": null,
+  "runtime_sec": 373.53
+}
