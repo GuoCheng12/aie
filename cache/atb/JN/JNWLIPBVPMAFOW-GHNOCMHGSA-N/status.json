@@ -1,0 +1,9 @@
+{
+  "inchikey": "JNWLIPBVPMAFOW-GHNOCMHGSA-N",
+  "run_status": "failed",
+  "fail_stage": "excit",
+  "error_msg": "ound state optimization\n2026-01-21 12:28:14,189 | opt calculation completed successfully\n2026-01-21 12:28:14,204 | Analyzing opt calculation\nTraceback (most recent call last):\n  File \"/mnt/afs/250010045/5-AIE-code/third_party/aTB/main.py\", line 202, in <module>\n    main()\n  File \"/mnt/afs/250010045/5-AIE-code/third_party/aTB/main.py\", line 167, in main\n    opted_graph=mol_to_graph(f'{args.workdir}/opt/opted.xyz',opted_features[\"charge\"][\"charge\"],args)\nTypeError: 'module' object is not callable\n",
+  "timestamp": "2026-01-21T12:28:16.974031",
+  "atb_version": null,
+  "runtime_sec": 35.11
+}

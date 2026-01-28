@@ -1,0 +1,9 @@
+{
+  "inchikey": "UCNLDCBQWKXZKX-UHFFFAOYSA-N",
+  "run_status": "failed",
+  "fail_stage": "opt",
+  "error_msg": "line 519, in get_property\n    self.calculate(atoms, [name], system_changes)\n  File \"/mnt/afs/250010045/conda/miniconda/envs/ase-amesp/lib/python3.10/site-packages/ase/calculators/calculator.py\", line 1163, in calculate\n    self.read_results()\n  File \"/mnt/afs/250010045/conda/miniconda/envs/ase-amesp/lib/python3.10/site-packages/PyAmesp/amesp.py\", line 115, in read_results\n    self.results['energy'] = parse_aop_energy(text, nimage)[-1]\nIndexError: index -1 is out of bounds for axis 0 with size 0\n",
+  "timestamp": "2026-01-23T07:04:32.163200",
+  "atb_version": null,
+  "runtime_sec": 88.39
+}

@@ -1,0 +1,9 @@
+{
+  "inchikey": "KRLDORNWOUZMGZ-UHFFFAOYSA-N",
+  "run_status": "failed",
+  "fail_stage": "opt",
+  "error_msg": "ib/python3.10/site-packages/ase/calculators/calculator.py\", line 1166, in execute\n    self.profile.execute(self)\n  File \"/mnt/afs/250010045/conda/miniconda/envs/ase-amesp/lib/python3.10/site-packages/ase/calculators/calculator.py\", line 964, in execute\n    raise CalculationFailed(msg)\nase.calculators.calculator.CalculationFailed: Calculator \"amesp\" failed with command \"amesp excit_run.aip\" failed in /mnt/afs/250010045/5-AIE-code/cache/atb/KR/KRLDORNWOUZMGZ-UHFFFAOYSA-N/excit with error code 174\n",
+  "timestamp": "2026-01-22T12:41:00.442576",
+  "atb_version": null,
+  "runtime_sec": 730.19
+}

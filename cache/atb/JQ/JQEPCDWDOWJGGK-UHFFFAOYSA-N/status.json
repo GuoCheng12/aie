@@ -1,0 +1,9 @@
+{
+  "inchikey": "JQEPCDWDOWJGGK-UHFFFAOYSA-N",
+  "run_status": "failed",
+  "fail_stage": "excit",
+  "error_msg": "\n  File \"/mnt/afs/250010045/5-AIE-code/third_party/aTB/main.py\", line 202, in <module>\n    main()\n  File \"/mnt/afs/250010045/5-AIE-code/third_party/aTB/main.py\", line 167, in main\n    opted_graph=mol_to_graph.mol_to_graph(f'{args.workdir}/opt/opted.xyz',opted_features['charge']['charge'],args)\n  File \"/mnt/afs/250010045/5-AIE-code/third_party/aTB/mol_to_graph.py\", line 69, in mol_to_graph\n    torch.save(graph_data, f'{args.workdir}/molecule_graph.pt')\nNameError: name 'graph_data' is not defined\n",
+  "timestamp": "2026-01-21T12:30:58.436002",
+  "atb_version": null,
+  "runtime_sec": 22.13
+}
