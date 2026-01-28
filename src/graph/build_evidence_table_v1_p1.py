@@ -38,6 +38,15 @@ EVIDENCE_TYPES = {"private_observation", "atb_computation", "literature_claim"}
 SOURCE_TYPES = {"private_db", "atb_cache", "paper_doi"}
 CONDITION_STATES = {"sol", "solid", "aggr", "crys", "unknown"}
 
+QUALITY_FLAGS = {
+    "OK",
+    "OUT_OF_RANGE_NEGATIVE",
+    "OUT_OF_RANGE_GT1",
+    "OUTLIER_TAU_EXTREME",
+    "OUT_OF_RANGE_NONPOSITIVE",
+    "PARSE_WARNING",
+}
+
 
 PRIVATE_FIELDS = [
     "absorption",
@@ -331,6 +340,8 @@ def write_manifest(
     counts_by_type: Dict[str, int],
     counts_by_field: Dict[str, int],
     counts_by_type_field: Dict[str, Dict[str, int]],
+    counts_by_quality_flag: Dict[str, int],
+    counts_by_field_out_of_range: Dict[str, int],
     invalid_summary: Dict[str, Any],
 ) -> None:
     manifest = {
@@ -343,6 +354,8 @@ def write_manifest(
         "counts_by_evidence_type": counts_by_type,
         "counts_by_field": counts_by_field,
         "counts_by_evidence_type_field": counts_by_type_field,
+        "counts_by_quality_flag": counts_by_quality_flag,
+        "counts_by_field_out_of_range": counts_by_field_out_of_range,
         "invalid": invalid_summary,
     }
     with open(path, "w") as f:
@@ -377,6 +390,41 @@ def main():
     all_rows = private_rows + atb_rows
     df = pd.DataFrame(all_rows)
 
+    # Quality annotations: preserve raw values; never "fix" numbers.
+    df["quality_flag"] = "OK"
+    df["quality_score"] = 1.0
+
+    # qy_* should be in [0,1]
+    qy = df["field"].astype(str).str.startswith("qy_") & df["value_num"].notna()
+    qy_neg = qy & (df["value_num"] < 0)
+    df.loc[qy_neg, "quality_flag"] = "OUT_OF_RANGE_NEGATIVE"
+    df.loc[qy_neg, "quality_score"] = 0.3
+    qy_gt1 = qy & (df["value_num"] > 1)
+    df.loc[qy_gt1, "quality_flag"] = "OUT_OF_RANGE_GT1"
+    df.loc[qy_gt1, "quality_score"] = 0.3
+
+    # tau_* extreme outliers (ns)
+    tau_ext = df["field"].astype(str).str.startswith("tau_") & df["value_num"].notna() & (df["value_num"] > 1e6)
+    df.loc[tau_ext, "quality_flag"] = "OUTLIER_TAU_EXTREME"
+    df.loc[tau_ext, "quality_score"] = 0.3
+
+    # absorption_peak_nm should be positive
+    abs_peak_bad = (df["field"] == "absorption_peak_nm") & df["value_num"].notna() & (df["value_num"] <= 0)
+    df.loc[abs_peak_bad, "quality_flag"] = "OUT_OF_RANGE_NONPOSITIVE"
+    df.loc[abs_peak_bad, "quality_score"] = 0.3
+
+    # Parse warnings: fields expected to be numeric but value_num couldn't be parsed.
+    # Keep these as WARN (not errors) because they come from source data quality.
+    parse_warn = (
+        (df["quality_flag"] == "OK")
+        & df["evidence_type"].isin(["private_observation", "atb_computation"])
+        & df["value_num"].isna()
+        & df["value"].notna()
+        & (~df["field"].isin(["absorption", "tested_solvent"]))
+    )
+    df.loc[parse_warn, "quality_flag"] = "PARSE_WARNING"
+    df.loc[parse_warn, "quality_score"] = 0.7
+
     # Basic schema sanity
     required_cols = [
         "evidence_id",
@@ -394,10 +442,16 @@ def main():
         "timestamp_source",
         "confidence",
         "extraction_method",
+        "quality_flag",
+        "quality_score",
     ]
     missing = [c for c in required_cols if c not in df.columns]
     if missing:
         raise ValueError(f"Missing required columns in output: {missing}")
+
+    bad_flags = sorted(set(df["quality_flag"].dropna()) - QUALITY_FLAGS)
+    if bad_flags:
+        raise ValueError(f"Invalid quality_flag values: {bad_flags}")
 
     # Manifest stats
     counts_by_type = df["evidence_type"].value_counts(dropna=False).to_dict()
@@ -405,6 +459,17 @@ def main():
     counts_by_type_field: Dict[str, Dict[str, int]] = {}
     for etype, grp in df.groupby("evidence_type"):
         counts_by_type_field[str(etype)] = grp["field"].value_counts(dropna=False).to_dict()
+
+    counts_by_quality_flag = df["quality_flag"].value_counts(dropna=False).head(10).to_dict()
+    out_of_range_fields_mask = (
+        (df["quality_flag"] != "OK")
+        & (
+            df["field"].astype(str).str.startswith("qy_")
+            | df["field"].astype(str).str.startswith("tau_")
+            | (df["field"] == "absorption_peak_nm")
+        )
+    )
+    counts_by_field_out_of_range = df.loc[out_of_range_fields_mask, "field"].value_counts(dropna=False).to_dict()
 
     atb_ts_source_counts = (
         df[df["evidence_type"] == "atb_computation"]["timestamp_source"]
@@ -442,6 +507,8 @@ def main():
         counts_by_type=counts_by_type,
         counts_by_field=counts_by_field,
         counts_by_type_field=counts_by_type_field,
+        counts_by_quality_flag=counts_by_quality_flag,
+        counts_by_field_out_of_range=counts_by_field_out_of_range,
         invalid_summary=invalid_summary,
     )
 

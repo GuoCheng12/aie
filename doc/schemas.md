@@ -331,12 +331,15 @@ Minimal mapping (examples):
 | timestamp_source | string | Yes | enum (atb only): atb_qc \| build_fallback |
 | confidence | float64 | No | [0,1] |
 | extraction_method | string | No | e.g., manual \| mineru \| atb_parser |
+| quality_flag | string | Yes | Data-quality annotation (default OK); e.g., OUT_OF_RANGE_NEGATIVE / OUTLIER_TAU_EXTREME |
+| quality_score | float64 | Yes | [0,1] downweight factor; OK=1.0, warning ~0.7, severe ~0.3 |
 
 Notes:
 - If `value_num` is non-null, `value` should still preserve the original extracted text (before normalization) when available.
 - If `value_num` is null, consumers should fall back to `value` for categorical/text claims.
 - `unit` should be the canonical unit corresponding to `field` when `value_num` is used.
 - confidence is 1.0 for internal sources in V1-P1 (private_db/atb_cache); literature_claim will use extraction confidence (<1) in V1-P4.
+- Evidence table preserves raw values; data-quality issues are annotated (quality_flag/quality_score) rather than corrected. Downstream components may downweight low-quality evidence.
 
 ### `data/graph_nodes.parquet` (V1 Light Graph)
 | Column | Type | Nullable | Description |

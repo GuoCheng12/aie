@@ -9,6 +9,7 @@ Checks:
 - evidence_id uniqueness
 - confidence range
 - timestamp parseability
+- Build correctness (PASS/FAIL) vs data-quality warnings (WARN)
 - Prints summary stats
 
 Usage:
@@ -17,7 +18,7 @@ Usage:
 
 import argparse
 from datetime import datetime
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 import numpy as np
 import pandas as pd
@@ -44,12 +45,22 @@ REQUIRED_COLS = [
     "timestamp_source",
     "confidence",
     "extraction_method",
+    "quality_flag",
+    "quality_score",
 ]
 
 EVIDENCE_TYPES = {"private_observation", "atb_computation", "literature_claim"}
 SOURCE_TYPES = {"private_db", "atb_cache", "paper_doi"}
 CONDITION_STATES = {"sol", "solid", "aggr", "crys", "unknown"}
 ATB_TIMESTAMP_SOURCES = {"atb_qc", "build_fallback"}
+QUALITY_FLAGS = {
+    "OK",
+    "OUT_OF_RANGE_NEGATIVE",
+    "OUT_OF_RANGE_GT1",
+    "OUTLIER_TAU_EXTREME",
+    "OUT_OF_RANGE_NONPOSITIVE",
+    "PARSE_WARNING",
+}
 
 
 def _is_null(x: Any) -> bool:
@@ -60,7 +71,7 @@ def _is_null(x: Any) -> bool:
     return False
 
 
-def validate(df: pd.DataFrame) -> List[str]:
+def validate_build(df: pd.DataFrame) -> List[str]:
     errors: List[str] = []
 
     missing_cols = [c for c in REQUIRED_COLS if c not in df.columns]
@@ -140,7 +151,34 @@ def validate(df: pd.DataFrame) -> List[str]:
         if bad_ts_sources:
             errors.append(f"Invalid atb timestamp_source values: {bad_ts_sources}")
 
+    # Quality schema checks (build correctness; warnings handled separately)
+    bad_qf = sorted(set(df["quality_flag"].dropna()) - QUALITY_FLAGS)
+    if bad_qf:
+        errors.append(f"Invalid quality_flag values: {bad_qf}")
+
+    qs = df["quality_score"]
+    if qs.isna().any():
+        errors.append("quality_score must be non-null for all rows (V1-P1)")
+    else:
+        bad = df[(qs < 0.0) | (qs > 1.0)]
+        if len(bad) > 0:
+            errors.append(f"quality_score out of range [0,1] for {len(bad)} rows")
+
     return errors
+
+
+def collect_quality_warnings(df: pd.DataFrame, max_examples_per_flag: int = 10) -> Dict[str, Any]:
+    warnings: Dict[str, Any] = {
+        "counts_by_quality_flag": df["quality_flag"].value_counts(dropna=False).to_dict(),
+        "examples_by_quality_flag": {},
+    }
+
+    non_ok = df[df["quality_flag"] != "OK"]
+    for flag, grp in non_ok.groupby("quality_flag"):
+        examples = grp["evidence_id"].astype(str).head(max_examples_per_flag).tolist()
+        warnings["examples_by_quality_flag"][str(flag)] = examples
+
+    return warnings
 
 
 def print_summary(df: pd.DataFrame) -> None:
@@ -156,6 +194,9 @@ def print_summary(df: pd.DataFrame) -> None:
     sol_fields = {"emission_sol", "qy_sol", "tau_sol", "absorption_peak_nm", "absorption"}
     n_sol_unknown = int(((df["field"].isin(sol_fields)) & (df["condition_solvent"] == "unknown")).sum())
     logger.info(f"sol-state rows with condition_solvent=='unknown': {n_sol_unknown}")
+    if "quality_flag" in df.columns:
+        logger.info("quality_flag distribution (top 10):")
+        logger.info(df["quality_flag"].value_counts(dropna=False).head(10).to_dict())
 
 
 def main():
@@ -165,13 +206,29 @@ def main():
 
     df = pd.read_parquet(args.path)
     print_summary(df)
-    errors = validate(df)
+    errors = validate_build(df)
     if errors:
-        logger.error("VALIDATION FAILED")
+        logger.error("BUILD CHECKS: FAIL")
         for e in errors[:20]:
             logger.error(f"- {e}")
         raise SystemExit(1)
-    logger.info("VALIDATION PASSED")
+
+    logger.info("BUILD CHECKS: PASS")
+
+    warn = collect_quality_warnings(df)
+    non_ok_total = int((df["quality_flag"] != "OK").sum()) if "quality_flag" in df.columns else 0
+    if non_ok_total > 0:
+        logger.warning("DATA QUALITY WARNINGS: PRESENT")
+        logger.warning(f"non-OK rows: {non_ok_total}")
+        logger.warning(f"counts_by_quality_flag: {warn['counts_by_quality_flag']}")
+        # Print a few examples per warning flag for debugging.
+        for flag, examples in warn["examples_by_quality_flag"].items():
+            logger.warning(f"{flag}: examples={examples}")
+        logger.info("OVERALL: PASS with WARNINGS")
+        raise SystemExit(0)
+
+    logger.info("DATA QUALITY WARNINGS: NONE")
+    logger.info("OVERALL: PASS")
 
 
 if __name__ == "__main__":
