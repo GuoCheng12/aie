@@ -7,7 +7,7 @@ Build the Evidence Layer + Light KG + Chem Agent literature evidence loop, while
 
 ## V1 Objectives
 - Add a structured evidence_table with provenance, conditions, and confidence.
-- Build a light graph (nodes/edges) for traceable evidence ↔ molecule ↔ mechanism templates.
+- Build a light graph (nodes/edges) for traceable evidence ↔ molecule ↔ conditions.
 - Provide subgraph retrieval for GraphRAG context (structure-first neighbors + evidence).
 - Extend Chem Agent to harvest literature evidence into EvidenceClaim rows.
 - Update reports to cite evidence IDs and provenance (no new mechanisms yet).
@@ -28,6 +28,8 @@ Build the Evidence Layer + Light KG + Chem Agent literature evidence loop, while
   - Manifest: `data/evidence_table_build_manifest.json` (counts by evidence_type/field + invalid rows)
   - Validator: `python -m src.graph.validate_evidence_table`
 - **V1-P2**: Export light graph tables (nodes.parquet, edges.parquet) from evidence_table + similarity edges
+  - Export: evidence_table → Molecule/Evidence/Condition nodes + HAS_* / UNDER_CONDITION edges
+  - Add structure-only SIMILAR_TO edges from `data/anchor_neighbors_ecfp.parquet` (no aTB / no mechanism nodes)
 - **V1-P3**: Implement subgraph retrieval API (inchikey → 1–2 hop neighborhood) for GraphRAG context
   - Input: `inchikey` (+ optional budgets: `max_nodes`, `max_edges`)
   - Output: `{nodes, edges, provenance_refs}`

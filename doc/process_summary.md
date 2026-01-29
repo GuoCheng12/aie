@@ -2687,3 +2687,35 @@ python -m src.graph.validate_evidence_table
 - Manifest includes atb timestamp_source counts and sol-state unknown-solvent count
 
 ---
+
+## 2026-01-29 — V1-P2 Light KG Export (evidence_table → nodes/edges + SIMILAR_TO)
+
+### Implemented
+- Built Light KG tables from `data/evidence_table.parquet`:
+  - Molecule/Evidence/Condition nodes
+  - Molecule → Evidence edges (HAS_OBSERVATION / HAS_COMPUTATION)
+  - Evidence → Condition edges (UNDER_CONDITION)
+- Added structure-only similarity edges (SIMILAR_TO) from `data/anchor_neighbors_ecfp.parquet` (ECFP tanimoto)
+- Added builder: `src/graph/build_light_graph_v1_p2.py`
+- Added validator: `src/graph/validate_graph_tables.py`
+- Wrote manifest: `data/graph_build_manifest.json`
+
+### Outputs produced
+- `data/graph_nodes.parquet`
+- `data/graph_edges.parquet`
+- `data/graph_build_manifest.json`
+
+### Key stats
+- Nodes: total=13273 (Molecule=1042, Evidence=12181, Condition=50)
+- Edges: total=34305 (HAS_OBSERVATION=7330, HAS_COMPUTATION=4400, UNDER_CONDITION=12181, SIMILAR_TO=10394)
+- SIMILAR_TO kept=10394 / dropped_missing_molecule_nodes=96
+- subject_inchikey missing/empty: skipped mol→ev edges for 451 evidence rows (still kept ev→cond)
+- Validator: PASS
+
+### Commands
+```bash
+python -m src.graph.build_light_graph_v1_p2
+python -m src.graph.validate_graph_tables
+```
+
+---

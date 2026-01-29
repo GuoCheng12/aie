@@ -1,0 +1,44 @@
+{
+  "build_timestamp": "2026-01-29T02:41:30.050523",
+  "inputs": {
+    "evidence_table_path": "data/evidence_table.parquet",
+    "evidence_table_rows": 12181,
+    "anchor_neighbors_path": "data/anchor_neighbors_ecfp.parquet",
+    "anchor_neighbors_rows": 10490
+  },
+  "nodes": {
+    "counts_by_node_type": {
+      "Evidence": 12181,
+      "Molecule": 1042,
+      "Condition": 50
+    },
+    "total_nodes": 13273
+  },
+  "edges": {
+    "counts_by_rel_type": {
+      "UNDER_CONDITION": 12181,
+      "SIMILAR_TO": 10394,
+      "HAS_OBSERVATION": 7330,
+      "HAS_COMPUTATION": 4400
+    },
+    "total_edges": 34305
+  },
+  "integrity": {
+    "counts_by_rel_type": {
+      "UNDER_CONDITION": 12181,
+      "SIMILAR_TO": 10394,
+      "HAS_OBSERVATION": 7330,
+      "HAS_COMPUTATION": 4400
+    },
+    "evidence_edges": {
+      "n_subject_inchikey_null_skipped_mol_to_ev": 451
+    },
+    "similarity_edges": {
+      "total_anchor_rows": 10490,
+      "kept_similar_to": 10394,
+      "dropped_missing_molecule_nodes": 96,
+      "dropped_null_inchikey": 0,
+      "dropped_bad_weight": 0
+    }
+  }
+}
