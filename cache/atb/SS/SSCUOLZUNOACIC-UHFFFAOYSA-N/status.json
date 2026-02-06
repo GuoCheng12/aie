@@ -1,9 +1,9 @@
 {
   "inchikey": "SSCUOLZUNOACIC-UHFFFAOYSA-N",
-  "run_status": "failed",
-  "fail_stage": "excit",
-  "error_msg": "Timeout after 1800s",
-  "timestamp": "2026-01-22T17:02:44.065035",
-  "atb_version": null,
-  "runtime_sec": 1800.69
+  "run_status": "success",
+  "fail_stage": null,
+  "error_msg": null,
+  "timestamp": "2026-02-03T03:55:42.200630",
+  "atb_version": "AIE-aTB-v0",
+  "runtime_sec": 69.21
 }

@@ -2,8 +2,8 @@
   "inchikey": "RJIZYXQFZKZVNM-UHFFFAOYSA-M",
   "run_status": "failed",
   "fail_stage": "opt",
-  "error_msg": "Timeout after 1800s",
-  "timestamp": "2026-01-25T04:10:14.862469",
+  "error_msg": "ues/new?template=distutils-deprecation.yml\n  warnings.warn(\n2026-01-30 13:29:03,288 | Start generating begin structure from SMILES\n[13:29:03] UFFTYPER: Warning: hybridization set to SP3 for atom 1\n[13:29:03] UFFTYPER: Warning: hybridization set to SP3 for atom 36\n2026-01-30 13:29:03,455 | Auto-detected charge from SMILES: 0\n2026-01-30 13:29:03,466 | Starting ground state optimization\n2026-01-30 14:25:46,487 | opt calculation failed\n2026-01-30 14:25:46,488 | Opt. Calculation failed. Exit code 1.\n",
+  "timestamp": "2026-01-30T14:25:47.106249",
   "atb_version": null,
-  "runtime_sec": 1800.8
+  "runtime_sec": 3418.01
 }

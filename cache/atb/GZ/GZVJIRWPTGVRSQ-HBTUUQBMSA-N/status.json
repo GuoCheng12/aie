@@ -1,9 +1,9 @@
 {
   "inchikey": "GZVJIRWPTGVRSQ-HBTUUQBMSA-N",
   "run_status": "failed",
-  "fail_stage": "excit",
-  "error_msg": "45/5-AIE-code/third_party/aTB/main.py\", line 42, in analysis\n    features = get_feature.get_features_dict(open(dirs+'_run.aop').read(), type, log,*args.properties.split(','))   \n  File \"/mnt/afs/250010045/5-AIE-code/third_party/aTB/get_feature.py\", line 124, in get_features_dict\n    if get_structure_prop(xyz):\n  File \"/mnt/afs/250010045/5-AIE-code/third_party/aTB/get_feature.py\", line 10, in get_structure_prop\n    for line in structure_lines[-1].splitlines():\nIndexError: list index out of range\n",
-  "timestamp": "2026-01-22T20:45:24.796897",
+  "fail_stage": "opt",
+  "error_msg": "calculation\n2026-02-02 11:51:23,475 | Structural features calculated from ASE for opt  \n2026-02-02 11:51:23,581 | Analyzing excit calculation\n2026-02-02 11:51:23,636 | Structural features calculated from ASE for excit  \n2026-02-02 11:53:02,810 | Starting NEB calculation with 4 intermediate images\n2026-02-02 11:53:02,956 | Running NEB optimization...\n2026-02-02 21:35:27,955 | NEB optimization did not converge within the maximum steps\n2026-02-02 21:35:27,961 | NEB calculation failed. Exit code 3.\n",
+  "timestamp": "2026-02-02T21:35:28.608262",
   "atb_version": null,
-  "runtime_sec": 174.02
+  "runtime_sec": 35636.13
 }

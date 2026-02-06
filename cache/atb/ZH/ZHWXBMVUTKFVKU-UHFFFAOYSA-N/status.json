@@ -2,8 +2,8 @@
   "inchikey": "ZHWXBMVUTKFVKU-UHFFFAOYSA-N",
   "run_status": "failed",
   "fail_stage": "opt",
-  "error_msg": "Timeout after 1800s",
-  "timestamp": "2026-01-25T19:49:18.070329",
+  "error_msg": "0)\n[05:46:58] UFFTYPER: Unrecognized atom type: Se2+2 (59)\n[05:46:59] UFFTYPER: Unrecognized atom type: Se2+2 (50)\n[05:46:59] UFFTYPER: Unrecognized atom type: Se2+2 (59)\n2026-02-03 05:47:00,081 | Auto-detected charge from SMILES: 0\n2026-02-03 05:47:00,094 | Starting ground state optimization\n2026-02-03 06:02:49,286 | Calculation did not complete successfully.\n2026-02-03 06:02:49,286 | opt calculation did not complete successfully.\n2026-02-03 06:02:49,325 | Opt. Calculation failed. Exit code 1.\n",
+  "timestamp": "2026-02-03T06:02:50.034252",
   "atb_version": null,
-  "runtime_sec": 1800.58
+  "runtime_sec": 965.64
 }

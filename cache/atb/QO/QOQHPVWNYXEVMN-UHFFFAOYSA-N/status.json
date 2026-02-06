@@ -2,8 +2,8 @@
   "inchikey": "QOQHPVWNYXEVMN-UHFFFAOYSA-N",
   "run_status": "failed",
   "fail_stage": "excit",
-  "error_msg": "Timeout after 1800s",
-  "timestamp": "2026-01-24T10:33:27.866559",
+  "error_msg": " generating begin structure from SMILES\n2026-01-30 03:21:15,707 | Auto-detected charge from SMILES: 1\n2026-01-30 03:21:15,720 | Starting ground state optimization\n2026-01-30 03:22:52,715 | opt calculation completed successfully\n2026-01-30 03:22:52,721 | Starting excited state optimization\n2026-01-30 04:22:21,626 | Calculation did not complete successfully.\n2026-01-30 04:22:21,626 | excit calculation did not complete successfully.\n2026-01-30 04:22:21,747 | Excit. Calculation failed. Exit code 2.\n",
+  "timestamp": "2026-01-30T04:22:22.540910",
   "atb_version": null,
-  "runtime_sec": 1800.7
+  "runtime_sec": 3681.58
 }

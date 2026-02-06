@@ -1,9 +1,9 @@
 {
   "inchikey": "PZRZXXLAALPQNS-UHFFFAOYSA-N",
-  "run_status": "failed",
-  "fail_stage": "excit",
-  "error_msg": "Timeout after 1800s",
-  "timestamp": "2026-01-23T19:33:05.472489",
-  "atb_version": null,
-  "runtime_sec": 1800.52
+  "run_status": "success",
+  "fail_stage": null,
+  "error_msg": null,
+  "timestamp": "2026-01-28T23:05:44.371528",
+  "atb_version": "AIE-aTB-v0",
+  "runtime_sec": 502.04
 }

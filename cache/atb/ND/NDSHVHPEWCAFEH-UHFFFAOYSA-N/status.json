@@ -2,8 +2,8 @@
   "inchikey": "NDSHVHPEWCAFEH-UHFFFAOYSA-N",
   "run_status": "failed",
   "fail_stage": "excit",
-  "error_msg": "Timeout after 3600s",
-  "timestamp": "2026-01-21T04:48:02.881577",
+  "error_msg": "YPER: Unrecognized atom type: Cd+2 (44)\n2026-01-28 09:42:05,876 | Auto-detected charge from SMILES: 0\n2026-01-28 09:42:05,898 | Starting ground state optimization\n2026-01-28 09:45:09,122 | opt calculation completed successfully\n2026-01-28 09:45:09,128 | Starting excited state optimization\n2026-01-28 11:16:55,950 | Calculation did not complete successfully.\n2026-01-28 11:16:55,950 | excit calculation did not complete successfully.\n2026-01-28 11:16:56,057 | Excit. Calculation failed. Exit code 2.\n",
+  "timestamp": "2026-01-28T11:16:56.751018",
   "atb_version": null,
-  "runtime_sec": 3600.14
+  "runtime_sec": 5706.36
 }

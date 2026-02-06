@@ -2,8 +2,8 @@
   "inchikey": "KZGPAZKMHWVKPT-UHFFFAOYSA-N",
   "run_status": "failed",
   "fail_stage": "excit",
-  "error_msg": "45/5-AIE-code/third_party/aTB/main.py\", line 42, in analysis\n    features = get_feature.get_features_dict(open(dirs+'_run.aop').read(), type, log,*args.properties.split(','))   \n  File \"/mnt/afs/250010045/5-AIE-code/third_party/aTB/get_feature.py\", line 124, in get_features_dict\n    if get_structure_prop(xyz):\n  File \"/mnt/afs/250010045/5-AIE-code/third_party/aTB/get_feature.py\", line 10, in get_structure_prop\n    for line in structure_lines[-1].splitlines():\nIndexError: list index out of range\n",
-  "timestamp": "2026-01-22T15:21:28.246341",
+  "error_msg": "line 519, in get_property\n    self.calculate(atoms, [name], system_changes)\n  File \"/mnt/afs/250010045/conda/miniconda/envs/ase-amesp/lib/python3.10/site-packages/ase/calculators/calculator.py\", line 1163, in calculate\n    self.read_results()\n  File \"/mnt/afs/250010045/conda/miniconda/envs/ase-amesp/lib/python3.10/site-packages/PyAmesp/amesp.py\", line 115, in read_results\n    self.results['energy'] = parse_aop_energy(text, nimage)[-1]\nIndexError: index -1 is out of bounds for axis 0 with size 0\n",
+  "timestamp": "2026-01-28T19:27:48.477142",
   "atb_version": null,
-  "runtime_sec": 38.02
+  "runtime_sec": 17827.6
 }
