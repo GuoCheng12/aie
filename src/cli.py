@@ -7,13 +7,18 @@ Commands:
 - fetch: Fetch record by id
 - compute-atb: Check aTB cache and mark pending if missing
 - run: Full orchestration (fetch + atb + report)
+- uq: Online UQ for arbitrary SMILES (pre-P6 test)
+- report: Generate P6a pre-aTB report for a specific record
 """
 
 import sys
 import json
 import argparse
 from pathlib import Path
-from typing import Dict, Any
+from typing import Dict, Any, List, Optional, Tuple
+
+import numpy as np
+import pandas as pd
 
 from src.agents.data_agent import DataAgent
 from src.agents.atb_agent import ATBAgent
@@ -26,44 +31,19 @@ logger = setup_logger(__name__, level="INFO")
 REPORT_FIELD_ALLOWLIST = [
     # Core identifiers
     "id", "code", "SMILES", "canonical_smiles", "inchikey",
+    "reference", "doi",
 
-    # Photophysical properties (emission/qy/tau × 4 conditions)
-    "emission_sol", "emission_solid", "emission_aggr", "emission_crys",
-    "qy_sol", "qy_solid", "qy_aggr", "qy_crys",
-    "tau_sol", "tau_solid", "tau_aggr", "tau_crys",
+    # Train-only private observations
+    "emission_solid", "emission_aggr",
 
-    # Additional observables
-    "absorption", "absorption_peak_nm", "tested_solvent",
-    "color_in_powder", "molecular_weight",
+    # Additional train columns
+    "molecular_weight",
 
-    # Mechanism/feature IDs (NOT full text)
-    "features_id", "mechanism_id", "AggIndex",
+    # Mechanism/feature IDs
+    "features_id", "mechanism_id",
 
-    # Stability metrics
-    "photostability", "thermostability",
-
-    # Solubility and pKa (numeric values only)
-    "solubility_water", "solubility_dmso", "solubility_thf",
-    "solubility_chloroform", "solubility_acetone", "pka",
-
-    # Applications (categorical IDs)
-    "application1", "application2", "application3", "application4",
-
-    # Molar properties
-    "molar_extinction", "molar_absorptivity",
-
-    # Normalized/standardized fields
-    "qy_sol_raw", "qy_solid_raw", "qy_aggr_raw", "qy_crys_raw",
-    "tau_sol_raw", "tau_solid_raw", "tau_aggr_raw", "tau_crys_raw",
-    "tau_sol_outlier", "tau_solid_outlier", "tau_aggr_outlier", "tau_crys_outlier",
-    "tau_sol_log", "tau_solid_log", "tau_aggr_log", "tau_crys_log",
-    "qy_unit_inferred", "qy_inferred_confidence",
-
-    # Missing indicators
-    "emission_sol_missing", "emission_solid_missing", "emission_aggr_missing", "emission_crys_missing",
-    "qy_sol_missing", "qy_solid_missing", "qy_aggr_missing", "qy_crys_missing",
-    "tau_sol_missing", "tau_solid_missing", "tau_aggr_missing", "tau_crys_missing",
-    "absorption_missing", "tested_solvent_missing",
+    # Missing indicators (train-only)
+    "emission_solid_missing", "emission_aggr_missing",
 ]
 
 # BLOCKED FIELDS: Never include in reports (privacy/sensitivity)
@@ -109,9 +89,8 @@ def fetch_command(args):
             print(f"Record id={args.id}")
             print(f"  InChIKey: {record.get('inchikey', 'N/A')}")
             print(f"  SMILES: {record.get('canonical_smiles', 'N/A')}")
-            print(f"  Emission (sol): {record.get('emission_sol', 'N/A')}")
-            print(f"  QY (sol): {record.get('qy_sol', 'N/A')}")
-            print(f"  Tau (sol): {record.get('tau_sol', 'N/A')}")
+            print(f"  Emission (solid): {record.get('emission_solid', 'N/A')}")
+            print(f"  Emission (aggr): {record.get('emission_aggr', 'N/A')}")
 
     except ValueError as e:
         logger.error(str(e))
@@ -162,7 +141,7 @@ def run_command(args):
     """Full orchestration: fetch + atb + assemble + report."""
     try:
         # Step 1: Fetch record
-        logger.info(f"[1/4] Fetching record id={args.id}")
+        logger.info(f"[1/5] Fetching record id={args.id}")
         data_agent = DataAgent(data_dir=args.data_dir)
         record = data_agent.get_record_by_id(args.id)
 
@@ -174,11 +153,11 @@ def run_command(args):
             sys.exit(1)
 
         # Step 2: Get missing summary
-        logger.info("[2/4] Computing missing value summary")
+        logger.info("[2/5] Computing missing value summary")
         missing_summary = data_agent.get_missing_summary(record)
 
         # Step 3: Check aTB cache
-        logger.info("[3/4] Checking aTB cache")
+        logger.info("[3/5] Checking aTB cache")
         atb_agent = ATBAgent(cache_dir=args.cache_dir)
         cache_summary = atb_agent.get_cache_summary(inchikey)
 
@@ -201,20 +180,91 @@ def run_command(args):
             atb_agent.mark_pending(inchikey, smiles)
             atb_status = "pending"
 
-        # Step 4: Assemble output
-        logger.info("[4/4] Assembling output")
+        # Step 4: Load UQ scores if available
+        logger.info("[4/6] Loading UQ scores (P5a)")
+        uq_info = None
+        uq_path = Path(args.data_dir) / "uq_scores_pre_atb.parquet"
+        
+        if uq_path.exists():
+            try:
+                import pandas as pd
+                uq_df = pd.read_parquet(uq_path)
+                uq_row = uq_df[uq_df['id'] == args.id]
+                
+                if len(uq_row) > 0:
+                    row = uq_row.iloc[0]
+                    uq_info = {
+                        "coverage": float(row['coverage']) if pd.notna(row['coverage']) else None,
+                        "C_sim": float(row['C_sim']) if pd.notna(row['C_sim']) else None,
+                        "C_meta": float(row['C_meta']) if pd.notna(row['C_meta']) else None,
+                        "novelty": float(row['novelty']) if pd.notna(row['novelty']) else None,
+                        "aleatoric": float(row['aleatoric']) if pd.notna(row['aleatoric']) else None,
+                        "router_action": str(row['router_action']),
+                        "recommended_next_steps": json.loads(row['recommended_next_steps']) if isinstance(row['recommended_next_steps'], str) else row['recommended_next_steps'],
+                        "notes": row.get('notes', '')
+                    }
+                    logger.info(f"  P5a loaded: router_action={uq_info['router_action']}")
+                else:
+                    logger.warning(f"  Record id={args.id} not found in UQ scores")
+            except Exception as e:
+                logger.warning(f"  Failed to load UQ scores: {e}")
+        else:
+            logger.info(f"  UQ scores not computed yet ({uq_path} not found)")
+            logger.info("  Run: python -m src.uq.compute_uq_pre_atb")
+
+        # Step 5: Load P5b UQ scores if available
+        logger.info("[5/6] Loading UQ scores (P5b with mechanism_entropy)")
+        uq_info_p5b = None
+        uq_p5b_path = Path(args.data_dir) / "uq_scores_pre_atb_p5b.parquet"
+        
+        if uq_p5b_path.exists():
+            try:
+                import pandas as pd
+                uq_p5b_df = pd.read_parquet(uq_p5b_path)
+                uq_p5b_row = uq_p5b_df[uq_p5b_df['id'] == args.id]
+                
+                if len(uq_p5b_row) > 0:
+                    row = uq_p5b_row.iloc[0]
+                    uq_info_p5b = {
+                        "mechanism_entropy": float(row['mechanism_entropy']) if pd.notna(row['mechanism_entropy']) else None,
+                        "M_eff": int(row['M_eff']) if pd.notna(row['M_eff']) else None,
+                        "top_label": str(row['top_label']) if pd.notna(row['top_label']) else None,
+                        "router_action_p5b": str(row['router_action_p5b']),
+                        "recommended_next_steps_p5b": json.loads(row['recommended_next_steps_p5b']) if isinstance(row['recommended_next_steps_p5b'], str) else row['recommended_next_steps_p5b']
+                    }
+                    logger.info(f"  P5b loaded: router_action_p5b={uq_info_p5b['router_action_p5b']}")
+                else:
+                    logger.warning(f"  Record id={args.id} not found in P5b UQ scores")
+            except Exception as e:
+                logger.warning(f"  Failed to load P5b UQ scores: {e}")
+        else:
+            logger.info(f"  P5b UQ scores not computed yet ({uq_p5b_path} not found)")
+            logger.info("  Run: python -m src.uq.compute_uq_pre_atb_p5b")
+
+        # Step 6: Assemble output
+        logger.info("[6/6] Assembling output")
 
         # Filter record fields using strict allowlist (excludes sensitive fields like "comment")
         filtered_fields = filter_record_fields(record)
+
+        # Determine primary router action (prefer P5b if available)
+        primary_router_action = None
+        if uq_info_p5b:
+            primary_router_action = uq_info_p5b.get('router_action_p5b')
+        elif uq_info:
+            primary_router_action = uq_info.get('router_action')
 
         output = {
             "id": args.id,
             "inchikey": inchikey,
             "canonical_smiles": smiles,
+            "primary_router_action": primary_router_action,  # P5b preferred
             "record_fields": filtered_fields,
             "missing_summary": missing_summary,
             "atb_status": atb_status,
             "atb_features": atb_features,
+            "uq_scores": uq_info,
+            "uq_scores_p5b": uq_info_p5b,
             "paths": {
                 "cache_dir": cache_summary["cache_path"],
                 "status_file": cache_summary["status_file"],
@@ -247,6 +297,584 @@ def run_command(args):
         sys.exit(1)
 
 
+# ============================================================================
+# Online UQ for arbitrary SMILES (uq --smiles)
+# ============================================================================
+
+def canonicalize_smiles(smiles: str) -> Tuple[Optional[str], Optional[str]]:
+    """
+    Canonicalize SMILES using RDKit and compute InChIKey.
+
+    Returns:
+        (canonical_smiles, inchikey) or (None, None) if invalid
+    """
+    try:
+        from rdkit import Chem
+        mol = Chem.MolFromSmiles(smiles)
+        if mol is None:
+            return None, None
+        canonical = Chem.MolToSmiles(mol, canonical=True)
+        inchikey = Chem.MolToInchiKey(mol)
+        return canonical, inchikey
+    except Exception:
+        return None, None
+
+
+def compute_ecfp_fingerprint(smiles: str) -> Optional[np.ndarray]:
+    """
+    Compute ECFP4 fingerprint (2048 bits) for a SMILES.
+
+    Returns:
+        np.ndarray of shape (2048,) or None if invalid
+    """
+    try:
+        from rdkit import Chem
+        from rdkit.Chem import AllChem
+
+        mol = Chem.MolFromSmiles(smiles)
+        if mol is None:
+            return None
+
+        # Try new API first (rdFingerprintGenerator)
+        try:
+            from rdkit.Chem import rdFingerprintGenerator
+            generator = rdFingerprintGenerator.GetMorganGenerator(radius=2, fpSize=2048)
+            fp = generator.GetFingerprintAsNumPy(mol)
+            return fp.astype(np.int8)
+        except (ImportError, AttributeError):
+            # Fallback to old API
+            fp = AllChem.GetMorganFingerprintAsBitVect(mol, radius=2, nBits=2048)
+            return np.array(list(fp), dtype=np.int8)
+    except Exception:
+        return None
+
+
+def to_binary_fingerprint(fp: np.ndarray) -> np.ndarray:
+    """Coerce fingerprint to binary (0/1) uint8 array."""
+    fp_array = np.asarray(fp)
+    return (fp_array > 0).astype(np.uint8)
+
+
+def tanimoto_similarity(fp1: np.ndarray, fp2: np.ndarray) -> float:
+    """Compute Tanimoto similarity between two binary fingerprints."""
+    fp1_bin = to_binary_fingerprint(fp1)
+    fp2_bin = to_binary_fingerprint(fp2)
+
+    intersection = np.sum(np.logical_and(fp1_bin, fp2_bin))
+    union = np.sum(np.logical_or(fp1_bin, fp2_bin))
+
+    if union == 0:
+        return 0.0
+    return float(intersection / union)
+
+
+def compute_softmax_weights(similarities: np.ndarray, beta: float = 10.0) -> np.ndarray:
+    """Compute softmax weights from similarities."""
+    scaled = beta * similarities
+    # Numerically stable softmax
+    scaled = scaled - np.max(scaled)
+    exp_scaled = np.exp(scaled)
+    return exp_scaled / np.sum(exp_scaled)
+
+
+def compute_mechanism_entropy_online(
+    neighbor_labels: List[str],
+    neighbor_sims: np.ndarray,
+    beta: float = 10.0,
+    exclude_labels: Optional[List[str]] = None
+) -> Dict:
+    """
+    Compute mechanism_entropy for neighbors.
+
+    Args:
+        neighbor_labels: List of mechanism labels for each neighbor
+        neighbor_sims: Array of similarities for each neighbor
+        beta: Softmax temperature (higher = more weight on high-similarity neighbors)
+        exclude_labels: Labels to exclude from entropy calculation (default: ["other", "unknown"])
+
+    Returns:
+        Dict with mechanism_entropy, M_eff, top_label, n_excluded_neighbors
+    """
+    if exclude_labels is None:
+        exclude_labels = ["other", "unknown"]
+
+    if len(neighbor_labels) == 0:
+        return {
+            'mechanism_entropy': None,
+            'M_eff': 0,
+            'top_label': None,
+            'n_excluded_neighbors': 0,
+            'excluded_labels': exclude_labels
+        }
+
+    weights = compute_softmax_weights(neighbor_sims, beta)
+    n_excluded = sum(1 for label in neighbor_labels if label in exclude_labels)
+
+    # Aggregate weights by label, excluding specified labels
+    label_weights = {}
+    for label, weight in zip(neighbor_labels, weights):
+        if label not in exclude_labels:
+            label_weights[label] = label_weights.get(label, 0.0) + weight
+
+    # If all neighbors are excluded, return None entropy
+    if len(label_weights) == 0:
+        # Find top label from ALL neighbors (including excluded) for reference
+        all_label_weights = {}
+        for label, weight in zip(neighbor_labels, weights):
+            all_label_weights[label] = all_label_weights.get(label, 0.0) + weight
+        all_labels = list(all_label_weights.keys())
+        all_probs = np.array([all_label_weights[l] for l in all_labels])
+        top_label = all_labels[np.argmax(all_probs)] if all_labels else None
+
+        return {
+            'mechanism_entropy': None,
+            'M_eff': 0,
+            'top_label': top_label,
+            'n_excluded_neighbors': int(n_excluded),
+            'excluded_labels': exclude_labels,
+            'note': 'All neighbors have excluded labels (other/unknown)'
+        }
+
+    # Re-normalize weights after exclusion
+    labels = list(label_weights.keys())
+    raw_probs = np.array([label_weights[label] for label in labels])
+    probs = raw_probs / np.sum(raw_probs)  # Re-normalize to sum to 1
+
+    M_eff = len(labels)
+
+    if M_eff <= 1:
+        mechanism_entropy = 0.0
+    else:
+        # Compute normalized entropy
+        probs_nonzero = probs[probs > 0]
+        H = -np.sum(probs_nonzero * np.log(probs_nonzero))
+        mechanism_entropy = H / np.log(M_eff)
+
+    top_idx = np.argmax(probs)
+    top_label = labels[top_idx]
+
+    return {
+        'mechanism_entropy': float(mechanism_entropy),
+        'M_eff': int(M_eff),
+        'top_label': top_label,
+        'n_excluded_neighbors': int(n_excluded),
+        'excluded_labels': exclude_labels
+    }
+
+
+def search_neighbors(
+    query_fp: np.ndarray,
+    query_inchikey: Optional[str],
+    rdkit_df: pd.DataFrame,
+    k: int = 10
+) -> List[Dict]:
+    """
+    Search for top-k neighbors by Tanimoto similarity.
+
+    Args:
+        query_fp: Query fingerprint
+        query_inchikey: Query InChIKey (to exclude self)
+        rdkit_df: DataFrame with inchikey and ecfp_2048 columns
+        k: Number of neighbors
+
+    Returns:
+        List of {inchikey, sim} sorted by similarity descending
+    """
+    similarities = []
+
+    for _, row in rdkit_df.iterrows():
+        neighbor_ik = row['inchikey']
+
+        # Skip self
+        if query_inchikey and neighbor_ik == query_inchikey:
+            continue
+
+        neighbor_fp = row['ecfp_2048']
+        if neighbor_fp is None:
+            continue
+
+        sim = tanimoto_similarity(query_fp, neighbor_fp)
+        similarities.append({'inchikey': neighbor_ik, 'sim': sim})
+
+    # Sort by similarity descending
+    similarities.sort(key=lambda x: x['sim'], reverse=True)
+
+    return similarities[:k]
+
+
+def uq_command(args):
+    """Online UQ for arbitrary SMILES."""
+    notes = []
+
+    # Check for empty SMILES
+    if not args.smiles or args.smiles.strip() == "":
+        error_output = {
+            "error": "Empty SMILES provided",
+            "input_smiles": args.smiles,
+            "query": {"canonical_smiles": None, "inchikey": None}
+        }
+        print(json.dumps(error_output, indent=2))
+        sys.exit(1)
+
+    # Step 1: Canonicalize SMILES
+    canonical_smiles, inchikey = canonicalize_smiles(args.smiles)
+
+    if canonical_smiles is None or canonical_smiles == "":
+        error_output = {
+            "error": "Invalid SMILES",
+            "input_smiles": args.smiles,
+            "query": {"canonical_smiles": None, "inchikey": None}
+        }
+        print(json.dumps(error_output, indent=2))
+        sys.exit(1)
+
+    # Step 2: Compute ECFP fingerprint
+    query_fp = compute_ecfp_fingerprint(canonical_smiles)
+    if query_fp is None:
+        error_output = {
+            "error": "Failed to compute ECFP fingerprint",
+            "input_smiles": args.smiles,
+            "query": {"canonical_smiles": canonical_smiles, "inchikey": inchikey}
+        }
+        print(json.dumps(error_output, indent=2))
+        sys.exit(1)
+
+    # Step 3: Load reference fingerprints
+    rdkit_path = Path(args.data_dir) / "rdkit_features.parquet"
+    if not rdkit_path.exists():
+        error_output = {
+            "error": f"Reference fingerprints not found: {rdkit_path}",
+            "query": {"canonical_smiles": canonical_smiles, "inchikey": inchikey}
+        }
+        print(json.dumps(error_output, indent=2))
+        sys.exit(1)
+
+    rdkit_df = pd.read_parquet(rdkit_path)
+    # Filter out empty inchikeys
+    rdkit_df = rdkit_df[rdkit_df['inchikey'].notna() & (rdkit_df['inchikey'] != '')]
+
+    # Step 4: Search neighbors
+    neighbors = search_neighbors(query_fp, inchikey, rdkit_df, k=args.k)
+
+    if len(neighbors) == 0:
+        error_output = {
+            "error": "No neighbors found",
+            "query": {"canonical_smiles": canonical_smiles, "inchikey": inchikey}
+        }
+        print(json.dumps(error_output, indent=2))
+        sys.exit(1)
+
+    # Step 5: Load mechanism labels
+    label_map_path = Path(args.data_dir) / "mechanism_label_map.parquet"
+    neighbor_labels = []
+
+    if label_map_path.exists():
+        label_map_df = pd.read_parquet(label_map_path)
+        label_dict = dict(zip(label_map_df['inchikey'], label_map_df['mechanism_label']))
+
+        for n in neighbors:
+            label = label_dict.get(n['inchikey'], 'unknown')
+            n['mechanism_label'] = label
+            neighbor_labels.append(label)
+    else:
+        notes.append("mechanism_label_map.parquet not found, labels set to unknown")
+        for n in neighbors:
+            n['mechanism_label'] = 'unknown'
+            neighbor_labels.append('unknown')
+
+    # Step 6: Compute UQ scores
+    neighbor_sims = np.array([n['sim'] for n in neighbors])
+
+    # C_sim = mean of top-k similarities
+    C_sim = float(np.mean(neighbor_sims))
+
+    # C_meta = 0.0 for SMILES-only queries (no experimental evidence)
+    C_meta = 0.0
+    missing_fields = ["emission_solid", "emission_aggr"]
+
+    # coverage = 0.7*C_sim + 0.3*C_meta
+    coverage = 0.7 * C_sim + 0.3 * C_meta
+
+    # novelty: use top1_sim
+    top1_sim = neighbor_sims[0] if len(neighbor_sims) > 0 else 0.0
+    novelty_raw = 1.0 - top1_sim
+
+    # Load thresholds from manifest or use defaults
+    manifest_path = Path(args.data_dir) / "uq_manifest_pre_atb_p5b.json"
+    thresholds = {}
+    beta = 10.0
+
+    if manifest_path.exists():
+        with open(manifest_path) as f:
+            manifest = json.load(f)
+        thresholds = manifest.get('thresholds', {})
+        notes.append(f"Loaded thresholds from {manifest_path.name}")
+    else:
+        # Try to compute from existing data
+        uq_path = Path(args.data_dir) / "uq_scores_pre_atb_p5b.parquet"
+        if uq_path.exists():
+            uq_df = pd.read_parquet(uq_path)
+            valid = uq_df[uq_df['C_sim'].notna()]
+            thresholds = {
+                'cov_low': float(valid['coverage'].quantile(0.20)),
+                'cov_high': float(valid['coverage'].quantile(0.80)),
+                'nov_high': float(valid['novelty'].quantile(0.80)),
+                'mech_ent_high': 0.8  # default
+            }
+            notes.append("Computed thresholds from uq_scores_pre_atb_p5b.parquet")
+        else:
+            # Fallback defaults
+            thresholds = {
+                'cov_low': 0.4,
+                'cov_high': 0.6,
+                'nov_high': 0.7,
+                'mech_ent_high': 0.8
+            }
+            notes.append("Using default thresholds (manifest not found)")
+
+    # Percentile-normalize novelty using p05/p95 from neighbors file
+    neighbors_path = Path(args.data_dir) / "anchor_neighbors_ecfp.parquet"
+    p05, p95 = 0.0, 1.0  # defaults
+
+    if neighbors_path.exists():
+        neighbors_df = pd.read_parquet(neighbors_path)
+        top1_df = neighbors_df[neighbors_df['rank'] == 1]
+        novelty_raw_all = 1.0 - top1_df['tanimoto_sim']
+        p05 = float(novelty_raw_all.quantile(0.05))
+        p95 = float(novelty_raw_all.quantile(0.95))
+
+    if p95 > p05:
+        novelty = float(np.clip((novelty_raw - p05) / (p95 - p05), 0, 1))
+    else:
+        novelty = novelty_raw
+
+    # Compute mechanism_entropy
+    mech_result = compute_mechanism_entropy_online(neighbor_labels, neighbor_sims, beta)
+    mechanism_entropy = mech_result['mechanism_entropy']
+
+    # Router action (P5b policy)
+    cov_low = thresholds.get('cov_low', 0.4)
+    cov_high = thresholds.get('cov_high', 0.6)
+    nov_high = thresholds.get('nov_high', 0.7)
+    mech_ent_high = thresholds.get('mech_ent_high', 0.8)
+
+    if coverage < cov_low:
+        router_action = "Evidence-insufficient"
+    elif novelty >= nov_high and (coverage < cov_high or (mechanism_entropy is not None and mechanism_entropy >= mech_ent_high)):
+        router_action = "Novelty-candidate"
+    elif mechanism_entropy is not None and mechanism_entropy >= mech_ent_high:
+        router_action = "In-domain ambiguous"
+    else:
+        router_action = "Known/Stable"
+
+    # recommended_next_steps
+    recommended_next_steps = []
+    if router_action == "Evidence-insufficient":
+        recommended_next_steps = ["check_smiles_validity", "collect_experimental_data"] + missing_fields[:5]
+    elif router_action == "Novelty-candidate":
+        recommended_next_steps = ["manual_review", "request_atb_compute_on_linux", "literature_search"]
+    elif router_action == "In-domain ambiguous":
+        recommended_next_steps = ["compare_with_neighbors", "check_mechanism_label_consistency"]
+
+    # Build output
+    output = {
+        "query": {
+            "canonical_smiles": canonical_smiles,
+            "inchikey": inchikey
+        },
+        "neighbors": neighbors,
+        "uq": {
+            "C_sim": round(C_sim, 4),
+            "C_meta": C_meta,
+            "coverage": round(coverage, 4),
+            "novelty": round(novelty, 4),
+            "novelty_raw": round(novelty_raw, 4),
+            "top1_sim": round(top1_sim, 4),
+            "mechanism_entropy": round(mechanism_entropy, 4) if mechanism_entropy is not None else None,
+            "M_eff": mech_result['M_eff'],
+            "top_label": mech_result['top_label'],
+            "router_action_p5b": router_action,
+            "recommended_next_steps_p5b": recommended_next_steps
+        },
+        "diagnostics": {
+            "used_thresholds": {
+                "cov_low": round(cov_low, 4),
+                "cov_high": round(cov_high, 4),
+                "nov_high": round(nov_high, 4),
+                "mech_ent_high": round(mech_ent_high, 4)
+            },
+            "novelty_percentiles": {"p05": round(p05, 4), "p95": round(p95, 4)},
+            "used_beta": beta,
+            "k": args.k,
+            "missing_fields": missing_fields,
+            "notes": notes
+        }
+    }
+
+    print(json.dumps(output, indent=2))
+
+
+# ============================================================================
+# P6a Report Generation (report --id)
+# ============================================================================
+
+# ============================================================================
+# Case File Commands (SMILES-first workflow)
+# ============================================================================
+
+def case_command(args):
+    """Create a Case File from SMILES."""
+    try:
+        from src.cases.create_case_from_smiles import create_case_from_smiles
+
+        logger.info(f"Creating case from SMILES: {args.smiles[:50]}...")
+
+        case = create_case_from_smiles(
+            smiles=args.smiles,
+            k=args.k,
+            outdir=args.outdir
+        )
+
+        case_path = Path(args.outdir) / f"{case['case_id']}.json"
+
+        # Summary output
+        print(f"Case created: {case_path}")
+        print(f"  case_id: {case['case_id']}")
+        print(f"  inchikey: {case['query']['inchikey']}")
+        print(f"  top1_sim: {case['risk_scores']['top1_sim']}")
+        print(f"  mechanism_hint: {case['risk_scores']['mechanism_hint']}")
+        print(f"  cache_status: {case['evidence_readiness']['atb']['cache_status']}")
+        print(f"  request_status: {case['evidence_readiness']['atb']['request_status']}")
+        
+        # V0.7 fields
+        atb = case['evidence_readiness']['atb']
+        er = case['evidence_readiness']
+        if atb.get('features_summary'):
+            print(f"  features_summary: present ({len(atb['features_summary'])} fields)")
+        else:
+            print(f"  features_summary: absent")
+        # Neighbor metrics are at evidence_readiness top-level (not under atb)
+        print(f"  neighbor_atb_success_rate: {er.get('neighbor_atb_success_rate')}")
+        print(f"  neighbor_atb_keyfield_rate: {er.get('neighbor_atb_keyfield_rate')}")
+        
+        candidates = case.get('candidate_mechanisms', [])
+        if candidates:
+            top_mech = candidates[0]
+            print(f"  top_candidate: {top_mech['label']} (prob={top_mech['prob']:.3f})")
+        
+        print(f"  ready_for_reasoning: {case['evidence_readiness']['current_gate']['ready_for_reasoning']}")
+        print(f"  action_plan: {case['action_plan']}")
+
+        # Print full JSON if requested
+        if args.print_json:
+            print("\nFull case JSON:")
+            print(json.dumps(case, indent=2))
+
+    except ValueError as e:
+        logger.error(f"Invalid input: {e}")
+        sys.exit(1)
+    except FileNotFoundError as e:
+        logger.error(f"Required data file not found: {e}")
+        logger.error("Ensure data/rdkit_features.parquet and data/mechanism_label_map.parquet exist")
+        sys.exit(1)
+    except Exception as e:
+        logger.error(f"Failed to create case: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
+
+
+def case_update_command(args):
+    """Update a Case File with an action (Chem Agent stub)."""
+    try:
+        from src.cases.chem_agent_update_case_stub import update_case_file
+
+        if not Path(args.case).exists():
+            logger.error(f"Case file not found: {args.case}")
+            sys.exit(1)
+
+        logger.info(f"Updating case: {args.case}")
+        logger.info(f"Action: {args.action}")
+
+        case = update_case_file(args.case, args.action)
+
+        # Summary output
+        atb = case['evidence_readiness']['atb']
+        # Support both new (cache_status) and legacy (status) schema for display
+        cache_status = atb.get('cache_status') or atb.get('status', 'unknown')
+        request_status = atb.get('request_status', 'N/A')
+        print(f"\nUpdated state:")
+        print(f"  atb.cache_status: {cache_status}")
+        print(f"  atb.request_status: {request_status}")
+        print(f"  literature.status: {case['evidence_readiness']['literature']['status']}")
+        print(f"  experiment.status: {case['evidence_readiness']['experiment']['status']}")
+        print(f"  ready_for_reasoning: {case['evidence_readiness']['current_gate']['ready_for_reasoning']}")
+        print(f"  reason: {case['evidence_readiness']['current_gate']['reason']}")
+        print(f"  action_plan: {case.get('action_plan', [])}")
+        print(f"  history events: {len(case['history'])}")
+
+        # Print full JSON if requested
+        if args.print_json:
+            print("\nFull case JSON:")
+            print(json.dumps(case, indent=2))
+
+    except ValueError as e:
+        logger.error(f"Invalid case file: {e}")
+        sys.exit(1)
+    except Exception as e:
+        logger.error(f"Failed to update case: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
+
+
+def report_command(args):
+    """Generate P6a pre-aTB report for a specific record."""
+    try:
+        from src.reports.generate_reports_pre_atb_p5b import (
+            load_data, generate_report
+        )
+
+        # Load all required data
+        logger.info("Loading data for report generation...")
+        private_clean, uq_scores, neighbors, mechanism_labels, manifest = load_data()
+
+        # Generate report
+        logger.info(f"Generating report for id={args.id}")
+        report = generate_report(
+            args.id, private_clean, uq_scores, neighbors, mechanism_labels, manifest
+        )
+
+        if 'error' in report:
+            logger.error(report['error'])
+            sys.exit(1)
+
+        # Write to file if requested
+        if args.write:
+            reports_dir = Path(args.output_dir)
+            reports_dir.mkdir(parents=True, exist_ok=True)
+            report_path = reports_dir / f"{args.id}.json"
+
+            with open(report_path, 'w') as f:
+                json.dump(report, f, indent=2)
+
+            logger.info(f"Report written to {report_path}")
+
+        # Print report to stdout
+        print(json.dumps(report, indent=2))
+
+    except FileNotFoundError as e:
+        logger.error(f"Required data file not found: {e}")
+        logger.error("Run the following first:")
+        logger.error("  python -m src.uq.compute_uq_pre_atb_p5b")
+        sys.exit(1)
+    except Exception as e:
+        logger.error(f"Failed to generate report: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
+
+
 def main():
     """Main CLI entry point."""
     parser = argparse.ArgumentParser(
@@ -257,6 +885,10 @@ Examples:
   python -m src.cli fetch --id 1
   python -m src.cli compute-atb --id 1
   python -m src.cli run --id 1 --write-report
+  python -m src.cli uq --smiles "c1ccccc1" --k 10
+  python -m src.cli report --id 1 --write
+  python -m src.cli case --smiles "c1ccccc1" --write
+  python -m src.cli case-update --case cases/XXX.json --action compute_target_atb
         """
     )
 
@@ -290,6 +922,42 @@ Examples:
     run_parser.add_argument("--id", type=int, required=True, help="Record id")
     run_parser.add_argument("--write-report", action="store_true", help="Write report to reports/{id}.json")
     run_parser.set_defaults(func=run_command)
+
+    # uq command (online UQ for arbitrary SMILES)
+    uq_parser = subparsers.add_parser("uq", help="Online UQ for arbitrary SMILES (pre-P6 test)")
+    uq_parser.add_argument("--smiles", type=str, required=True, help="SMILES string")
+    uq_parser.add_argument("--k", type=int, default=10, help="Number of neighbors (default: 10)")
+    uq_parser.set_defaults(func=uq_command)
+
+    # report command (P6a pre-aTB report generation)
+    report_parser = subparsers.add_parser("report", help="Generate P6a pre-aTB report for a record")
+    report_parser.add_argument("--id", type=int, required=True, help="Record id")
+    report_parser.add_argument("--write", action="store_true", help="Write report to output directory")
+    report_parser.add_argument("--output-dir", type=str, default="reports",
+                               help="Output directory for reports (default: reports)")
+    report_parser.set_defaults(func=report_command)
+
+    # case command (Create Case File from SMILES)
+    case_parser = subparsers.add_parser("case", help="Create Case File from SMILES (SMILES-first workflow)")
+    case_parser.add_argument("--smiles", type=str, required=True, help="Input SMILES string")
+    case_parser.add_argument("--k", type=int, default=10, help="Number of neighbors (default: 10)")
+    case_parser.add_argument("--outdir", type=str, default="cases",
+                             help="Output directory for case files (default: cases)")
+    case_parser.add_argument("--print", action="store_true", dest="print_json",
+                             help="Print full case JSON to stdout")
+    case_parser.set_defaults(func=case_command)
+
+    # case-update command (Update Case File with action)
+    case_update_parser = subparsers.add_parser("case-update",
+                                                help="Update Case File with action (Chem Agent stub)")
+    case_update_parser.add_argument("--case", type=str, required=True,
+                                    help="Path to case JSON file")
+    case_update_parser.add_argument("--action", type=str, required=True,
+                                    help="Action to perform (compute_target_atb, literature_search, "
+                                         "request_min_experiment_emission, simulate_atb_success, etc.)")
+    case_update_parser.add_argument("--print", action="store_true", dest="print_json",
+                                    help="Print full case JSON to stdout")
+    case_update_parser.set_defaults(func=case_update_command)
 
     args = parser.parse_args()
 

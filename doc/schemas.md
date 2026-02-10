@@ -9,62 +9,30 @@
 
 ## 1. `data/private_clean.parquet`
 
-Standardized private dataset with unit normalization and missing masks.
+Train-only facts table (authoritative source: `data/train.csv`) plus a small set of derived columns.
 
-> **Note**: Invalid SMILES produce null `canonical_smiles`/`inchikey` and are routed to "Evidence-insufficient" by the UQ router.
+> **Rules**
+> - Business columns are constrained to the train CSV schema.
+> - Allowed derived columns: `canonical_smiles`, `inchikey`, and explicit missing indicators.
+> - `data/test.csv` is NOT merged into this table.
+> - Invalid SMILES produce null `canonical_smiles`/`inchikey` and are routed conservatively downstream.
 
 | Column | Type | Nullable | Description |
 |--------|------|----------|-------------|
-| id | int64 | No | Original row ID |
+| id | int64 | No | Record ID from train.csv |
 | code | string | Yes | Molecule code |
-| smiles | string | No | Original SMILES (as-is from CSV) |
-| canonical_smiles | string | Yes | RDKit-canonicalized SMILES (null if invalid SMILES) |
-| inchikey | string | Yes | InChIKey from canonical SMILES (null if invalid SMILES) |
-| molecular_weight | float64 | Yes | MW (g/mol) |
-| absorption | string | Yes | Raw absorption field (unparsed) |
-| absorption_peak_nm | float64 | Yes | Parsed peak wavelength (nm), if extractable |
-| emission_sol | float64 | Yes | Emission wavelength in solution (nm) |
-| emission_solid | float64 | Yes | Emission wavelength in solid (nm) |
-| emission_aggr | float64 | Yes | Emission wavelength in aggregate (nm) |
-| emission_crys | float64 | Yes | Emission wavelength in crystal (nm) |
-| qy_sol | float64 | Yes | Quantum yield in solution, normalized [0,1] |
-| qy_solid | float64 | Yes | Quantum yield in solid, normalized [0,1] |
-| qy_aggr | float64 | Yes | Quantum yield in aggregate, normalized [0,1] |
-| qy_crys | float64 | Yes | Quantum yield in crystal, normalized [0,1] |
-| qy_sol_raw | float64 | Yes | Raw qy_sol (percent, 0–100) |
-| qy_solid_raw | float64 | Yes | Raw qy_solid (percent) |
-| qy_aggr_raw | float64 | Yes | Raw qy_aggr (percent) |
-| qy_crys_raw | float64 | Yes | Raw qy_crys (percent) |
-| qy_unit_inferred | string | No | "percent" (constant for this dataset) |
-| tau_sol | float64 | Yes | Lifetime in solution (ns) |
-| tau_solid | float64 | Yes | Lifetime in solid (ns) |
-| tau_aggr | float64 | Yes | Lifetime in aggregate (ns) |
-| tau_crys | float64 | Yes | Lifetime in crystal (ns) |
-| tau_sol_raw | float64 | Yes | Raw tau_sol |
-| tau_solid_raw | float64 | Yes | Raw tau_solid |
-| tau_aggr_raw | float64 | Yes | Raw tau_aggr |
-| tau_crys_raw | float64 | Yes | Raw tau_crys |
-| tau_sol_outlier | bool | Yes | True if tau_sol > outlier threshold |
-| tau_solid_outlier | bool | Yes | True if tau_solid > outlier threshold |
-| tau_aggr_outlier | bool | Yes | True if tau_aggr > outlier threshold |
-| tau_crys_outlier | bool | Yes | True if tau_crys > outlier threshold |
-| tested_solvent | string | Yes | Solvent used in testing |
-| mechanism_id | string | Yes | Coarse mechanism label (aggregated per inchikey for P5b mechanism_entropy) |
-| features_id | int64 | Yes | Features label |
-| emission_sol_missing | bool | No | True if emission_sol is null |
-| emission_solid_missing | bool | No | True if emission_solid is null |
-| emission_aggr_missing | bool | No | True if emission_aggr is null |
-| emission_crys_missing | bool | No | True if emission_crys is null |
-| qy_sol_missing | bool | No | True if qy_sol is null |
-| qy_solid_missing | bool | No | True if qy_solid is null |
-| qy_aggr_missing | bool | No | True if qy_aggr is null |
-| qy_crys_missing | bool | No | True if qy_crys is null |
-| tau_sol_missing | bool | No | True if tau_sol is null |
-| tau_solid_missing | bool | No | True if tau_solid is null |
-| tau_aggr_missing | bool | No | True if tau_aggr is null |
-| tau_crys_missing | bool | No | True if tau_crys is null |
-| absorption_missing | bool | No | True if absorption is null |
-| tested_solvent_missing | bool | No | True if tested_solvent is null |
+| SMILES | string | No | Original SMILES from train.csv |
+| reference | string | Yes | Source/reference field from train.csv |
+| molecular_weight | float64 | Yes | Molecular weight |
+| emission_solid | float64 | Yes | Emission in solid state (nm) |
+| emission_aggr | float64 | Yes | Emission in aggregate state (nm) |
+| features_id | int64 | Yes | Feature ID |
+| mechanism_id | string | Yes | Mechanism label (string) |
+| doi | string | Yes | DOI (train-only field) |
+| canonical_smiles | string | Yes | RDKit-canonicalized SMILES |
+| inchikey | string | Yes | InChIKey from canonical SMILES |
+| emission_solid_missing | bool | No | True if emission_solid is missing/invalid |
+| emission_aggr_missing | bool | No | True if emission_aggr is missing/invalid |
 
 ---
 
@@ -76,6 +44,7 @@ Unique molecules by InChIKey with ID mapping.
 |--------|------|----------|-------------|
 | inchikey | string | No | **Primary key**, unique |
 | canonical_smiles | string | No | RDKit-canonicalized SMILES |
+| source_smiles | string | Yes | Representative original SMILES from private_clean (`SMILES`) |
 | id_list | list[int64] | No | List of original IDs mapping to this molecule |
 | n_records | int64 | No | Count of records for this molecule |
 
@@ -319,7 +288,7 @@ Minimal mapping (examples):
 | evidence_id | string | No | UUID/string |
 | subject_inchikey | string | Yes | Molecule InChIKey (nullable if unknown) |
 | evidence_type | string | No | enum: private_observation \| atb_computation \| literature_claim |
-| field | string | No | e.g., emission_sol, qy_aggr, delta_gap, excitation_energy |
+| field | string | No | e.g., emission_solid, emission_aggr, delta_gap, excitation_energy |
 | value_num | float64 | Yes | Parsed numeric value when possible (for filtering/aggregation); null if not parseable/applicable |
 | value | string | Yes | Raw extracted string value (audit/debug); always keep original text when available |
 | unit | string | Yes | Unit or null |
@@ -340,6 +309,8 @@ Notes:
 - `unit` should be the canonical unit corresponding to `field` when `value_num` is used.
 - confidence is 1.0 for internal sources in V1-P1 (private_db/atb_cache); literature_claim will use extraction confidence (<1) in V1-P4.
 - Evidence table preserves raw values; data-quality issues are annotated (quality_flag/quality_score) rather than corrected. Downstream components may downweight low-quality evidence.
+- Train-only facts policy: `private_observation` rows are restricted to `field in {"emission_solid","emission_aggr"}`.
+- For train-only private observations, `condition_state` should be `solid` (emission_solid) or `aggr` (emission_aggr); no `sol` private-observation rows are expected.
 
 ### `data/graph_nodes.parquet` (V1 Light Graph)
 | Column | Type | Nullable | Description |
@@ -448,7 +419,9 @@ The Case File is the central artifact for SMILES-first workflow. It is created b
 | risk_scores | object | Yes | SMILES-computable UQ scores |
 | evidence_readiness | object | Yes | State machine for evidence collection |
 | neighbors | list[object] | Yes | Top-k structural neighbors with aTB evidence |
-| action_plan | list[string] | Yes | Ordered evidence ladder actions |
+| action_plan | list[object] | Yes | Ordered LLM-friendly action objects (**legacy**: list[string]) |
+| action_rationale | list[string] | No | Short ordered rationale strings for the action plan |
+| post_uq | object | No | Reserved: Post-UQ agent output (V1-P6 stub; updates gate/actions, no write-back) |
 | history | list[object] | Yes | Append-only event log |
 | candidate_mechanisms | list[object] | Yes | Top-3 candidate mechanisms with probabilities |
 | mechanism_signatures | object | Yes | Signature templates for candidate mechanisms |
@@ -473,6 +446,43 @@ The Case File is the central artifact for SMILES-first workflow. It is created b
 | mechanism_entropy | float | Yes | Neighbor label entropy [0,1] or null |
 | mechanism_hint | string | Yes | Top mechanism label from neighbors |
 | hint_confidence | float | Yes | Probability of top label [0,1] |
+| atb_neighbor_consistency | object | No | Robust outlier check: target aTB delta vs neighbors' aTB delta distribution (see below) |
+
+#### risk_scores.atb_neighbor_consistency (optional)
+
+This block is computed from **structure-only** top-k neighbors (ECFP retrieval unchanged). aTB is used only as evidence/readiness augmentation.
+
+**Inclusion rule for neighbor distribution**:
+- Use only neighbors with `neighbor_atb.cache_status == "success"` AND all required delta fields present in `neighbor_atb.features_summary`.
+- Neighbors with failed/partial/missing delta fields are excluded from the distribution.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| enabled | bool | Yes | Whether this check is enabled in the pipeline |
+| sample_size | int | Yes | Number of neighbors used in the distribution |
+| fields_used | list[string] | Yes | Delta fields used (e.g., ["delta_gap","delta_dihedral","delta_volume"]) |
+| target_vector | object | No | Map: field -> float (target delta values); present when target is available |
+| neighbor_median | object | No | Map: field -> float (median of neighbor deltas); present when sample_size is sufficient |
+| neighbor_mad | object | No | Map: field -> float (MAD of neighbor deltas); present when sample_size is sufficient |
+| z_scores | object | No | Map: field -> float (robust z-score); present when sample_size is sufficient |
+| outlier_score_max | float | No | max(|z_d|) across fields; present when sample_size is sufficient |
+| outlier_score_rss | float | No | sqrt(mean(z_d^2)) across fields; present when sample_size is sufficient |
+| outlier_dims | list[string] | No | Fields with |z_d| >= threshold (e.g., 3.5) |
+| flag | string | Yes | "inlier" / "borderline" / "outlier" / "insufficient_sample" / "target_missing" |
+| reliability | string | No | "high" / "medium" / "low" (heuristic from sample_size/MAD/neighbor_label_entropy) |
+
+### post_uq (reserved; V1-P6 stub)
+
+This block is reserved for a **dedicated Post-UQ agent** that reads (`case_file` + `master_output`) and emits a gating decision + next actions.
+It is defined here for forward compatibility; it may be absent until V1-P6 is implemented.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| status | string | Yes | "not_run" / "completed" / "error" |
+| confidence | float | No | Agent confidence in its decision [0,1] (not LLM self-confidence) |
+| contradictions | list[object] | No | Detected contradictions/conflicts with evidence (optional) |
+| missing_evidence | list[string] | No | Missing evidence fields blocking or weakening conclusions |
+| recommended_actions | list[object] | No | Recommended next actions (same object shape as `action_plan`) |
 
 ### evidence_readiness
 
@@ -515,17 +525,50 @@ Evidence readiness contains the state machine for evidence collection across thr
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| status | string | Yes | "not_started" / "pending" / "found" / "not_found" |
-| sources | list[string] | Yes | Found source identifiers (DOIs, URLs) |
+| status | string | Yes | "not_started" / "pending" / "found" / "not_found" (workflow state) |
+| mode | string | No | "relaxed" / "strict" (strict requires auditable citations before writeback) |
+| verification_status | string | No | "absent" / "candidates_only" / "verified" / "blocked" (writeback gate) |
+| candidates | list[object] | No | Candidate papers/leads (relaxed; `verification="unverified"`); not written to evidence_table |
+| verified_sources | list[object] | No | Strict-only verified sources with locator info; only these may write EvidenceClaim rows |
+| sources | list[string] | Yes | Legacy list of identifiers (DOIs, URLs) |
 | last_update | string | Yes | ISO 8601 timestamp |
 | notes | string | No | Free-form notes from search |
+
+**candidates[]** item fields (relaxed; unverified):
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| title | string | Yes | Paper title |
+| year | int | No | Publication year |
+| doi | string | No | DOI if present; may be null/unverified |
+| url | string | No | Landing page URL (may be null) |
+| pdf_url | string | No | Direct PDF URL if clearly available |
+| source_url | string | No | Source/citation URL if gateway surfaces it |
+| verification | string | Yes | Always "unverified" for candidates |
+| why_relevant | string | No | Short relevance note |
+| retrieved_at | string | No | ISO 8601 when retrieved (optional) |
+
+**verified_sources[]** item fields (strict; auditable; writeback allowed):
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| source_url | string | Yes | Source URL from web_search citations/sources |
+| doi | string | No | DOI (must be verified from source); null if unknown |
+| title | string | No | Paper title |
+| locator | object | Yes | Locator for claims (e.g., {type: page|table|snippet, value: ...}) |
+| retrieved_at | string | Yes | ISO 8601 when fetched |
+| verification | string | Yes | Always "verified" |
+
+**Writeback rule (V1)**:
+- Only `verified_sources[]` entries may be used to create `literature_claim` rows written back into `data/evidence_table.parquet`.
+- `candidates[]` are leads only; do NOT write them into evidence_table.
 
 #### evidence_readiness.experiment
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | status | string | Yes | "not_requested" / "requested" / "received_partial" / "received_full" |
-| requested_fields | list[string] | Yes | Fields requested (e.g., ["emission_sol", "qy_sol"]) |
+| requested_fields | list[string] | Yes | Fields requested (train-only baseline: ["emission_solid", "emission_aggr"]) |
 | received_fields | list[string] | Yes | Fields actually received |
 | last_update | string | Yes | ISO 8601 timestamp |
 | notes | string | No | Free-form notes |
@@ -534,10 +577,10 @@ Evidence readiness contains the state machine for evidence collection across thr
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| has_emission | bool | Yes | At least one emission_* field available |
-| has_qy | bool | Yes | At least one qy_* field available |
-| has_tau | bool | Yes | At least one tau_* field available |
-| has_solvent | bool | Yes | tested_solvent available |
+| has_emission | bool | Yes | At least one of {emission_solid, emission_aggr} available |
+| has_qy | bool | Yes | Reserved for future datasets; typically false in train-only facts |
+| has_tau | bool | Yes | Reserved for future datasets; typically false in train-only facts |
+| has_solvent | bool | Yes | Reserved for future datasets; typically false in train-only facts |
 
 #### evidence_readiness.current_gate
 
@@ -545,6 +588,7 @@ Evidence readiness contains the state machine for evidence collection across thr
 |-------|------|----------|-------------|
 | ready_for_reasoning | bool | Yes | True when sufficient evidence exists |
 | reason | string | Yes | Human-readable explanation |
+| reasoning_mode | string | No | "blocked" / "normal" / "conservative" (LLM-friendly behavior mode) |
 
 **Gate logic (V0.7)**:
 - `ready_for_reasoning = true` if:
@@ -554,8 +598,8 @@ Evidence readiness contains the state machine for evidence collection across thr
 - **Note**: Gate uses `cache_status` (historical fact), not `request_status` (workflow state)
 
 **Action plan consistency (V0.7)**:
-- If `ready_for_reasoning == true`: action_plan = `["run_master_reasoner"]`
-- Else: Follow evidence ladder (compute_target_atb → literature_search → request_min_experiment_emission)
+- New case files use structured action objects and may include non-blocking follow-ups even when `ready_for_reasoning == true`.
+- **Legacy**: older docs/cases used `action_plan = ["run_master_reasoner"]` when ready; keep as backward compatibility reference.
 
 ### neighbors
 
@@ -579,13 +623,34 @@ List of top-k structural neighbors (typically k=10) with attached aTB evidence.
 
 ### action_plan
 
-Ordered list of evidence ladder actions. Each action is a string:
-- `"compute_target_atb"` - run aTB computation
-- `"literature_search"` - search for literature evidence
-- `"request_min_experiment_emission"` - request emission measurement
-- `"request_min_experiment_qy"` - request QY measurement
-- `"collect_{field}"` - collect specific missing field
-- `"run_master_reasoner"` - proceed to reasoning (only when ready_for_reasoning=true)
+Ordered list of LLM-friendly action objects.
+
+**Current schema (v0.7+)**:
+Each action is an object:
+- `action`: string enum (see below)
+- `priority`: int (1..N), strictly increasing
+- `status`: "not_started" | "pending" | "done" | "skipped"
+- `inputs`: object (action-specific)
+- `expected_outputs`: list[string] (high-level expected artifacts/fields)
+- `blocking`: bool (true if this action gates readiness)
+- `notes`: string (short guidance for an LLM controller)
+
+**Allowed actions (minimum set)**:
+- `run_master_reasoner`
+- `compute_target_atb`
+- `retry_target_atb_alt_settings`
+- `literature_search_web`
+- `mineru_extract_pdf`
+- `request_min_experiment_emission`
+- `request_experiment_qy`
+- `request_experiment_tau`
+- `request_experiment_solvent_details`
+- `expand_structure_neighbors`
+
+**Legacy (backward compatibility)**:
+Older case files may contain `action_plan: list[string]` with values like:
+`["compute_target_atb","literature_search","request_min_experiment_emission"]`.
+Validators should accept both formats, but new case creation should write the object form.
 
 ### candidate_mechanisms
 
@@ -667,6 +732,10 @@ Append-only event log tracking all updates to the case file.
     },
     "literature": {
       "status": "not_started",
+      "mode": "relaxed",
+      "verification_status": "absent",
+      "candidates": [],
+      "verified_sources": [],
       "sources": [],
       "last_update": "2026-01-22T10:30:00Z",
       "notes": null

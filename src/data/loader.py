@@ -54,12 +54,12 @@ def load_csv_with_fallback(csv_path: str) -> Tuple[pd.DataFrame, str]:
     )
 
 
-def load_private_dataset(csv_path: str = "data/data.csv") -> Tuple[pd.DataFrame, str]:
+def load_private_dataset(csv_path: str = "data/train.csv") -> Tuple[pd.DataFrame, str]:
     """
     Load the private AIE dataset with encoding fallback.
 
     Args:
-        csv_path: Path to CSV file (default: data/data.csv)
+        csv_path: Path to CSV file (default: data/train.csv)
 
     Returns:
         Tuple of (DataFrame, encoding_used)

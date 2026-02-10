@@ -40,49 +40,20 @@ CONDITION_STATES = {"sol", "solid", "aggr", "crys", "unknown"}
 
 QUALITY_FLAGS = {
     "OK",
-    "OUT_OF_RANGE_NEGATIVE",
-    "OUT_OF_RANGE_GT1",
-    "OUTLIER_TAU_EXTREME",
     "OUT_OF_RANGE_NONPOSITIVE",
     "PARSE_WARNING",
 }
 
 
 PRIVATE_FIELDS = [
-    "absorption",
-    "absorption_peak_nm",
-    "emission_sol",
     "emission_solid",
     "emission_aggr",
-    "emission_crys",
-    "qy_sol",
-    "qy_solid",
-    "qy_aggr",
-    "qy_crys",
-    "tau_sol",
-    "tau_solid",
-    "tau_aggr",
-    "tau_crys",
-    "tested_solvent",
 ]
 
 
 PRIVATE_UNITS: Dict[str, Optional[str]] = {
-    "absorption": None,
-    "absorption_peak_nm": "nm",
-    "emission_sol": "nm",
     "emission_solid": "nm",
     "emission_aggr": "nm",
-    "emission_crys": "nm",
-    "qy_sol": "fraction",
-    "qy_solid": "fraction",
-    "qy_aggr": "fraction",
-    "qy_crys": "fraction",
-    "tau_sol": "ns",
-    "tau_solid": "ns",
-    "tau_aggr": "ns",
-    "tau_crys": "ns",
-    "tested_solvent": None,
 }
 
 
@@ -145,22 +116,20 @@ def make_evidence_id(
 
 
 def infer_condition_state(field: str) -> str:
-    if field in {"absorption", "absorption_peak_nm"}:
-        return "sol"
-    for prefix in ("emission_", "qy_", "tau_"):
-        if field.startswith(prefix):
-            suffix = field[len(prefix):]
-            if suffix in {"sol", "solid", "aggr", "crys"}:
-                return suffix
+    if field == "emission_solid":
+        return "solid"
+    if field == "emission_aggr":
+        return "aggr"
+    if field.startswith("emission_"):
+        # Defensive fallback if a future emission_* field appears.
+        suffix = field[len("emission_"):]
+        if suffix in {"sol", "solid", "aggr", "crys"}:
+            return suffix
     return "unknown"
 
 
-def infer_condition_solvent(tested_solvent: Any, condition_state: str, field: str) -> str:
-    solvent = norm_str(tested_solvent)
-    if field == "tested_solvent":
-        return solvent or "unknown"
-    if condition_state == "sol":
-        return solvent or "unknown"
+def infer_condition_solvent(condition_state: str, field: str) -> str:
+    # Train-only facts currently do not include solvent metadata.
     return "unknown"
 
 
@@ -185,39 +154,22 @@ def build_private_observations(
                 continue
 
             condition_state = infer_condition_state(field)
-            condition_solvent = infer_condition_solvent(r.get("tested_solvent"), condition_state, field)
+            condition_solvent = infer_condition_solvent(condition_state, field)
             unit = PRIVATE_UNITS.get(field)
 
             value_num: Optional[float] = None
             parse_ok = True
-            if field == "absorption_peak_nm":
-                # Enforce float-parsable value string for absorption_peak_nm
-                value_num, parse_ok = safe_float(val)
-                if value_num is None or not parse_ok:
-                    parse_fail_by_field[field] += 1
-                    if len(invalid_samples) < 50:
-                        invalid_samples.append({
-                            "evidence_type": "private_observation",
-                            "source_id": source_id,
-                            "field": field,
-                            "reason": "absorption_peak_nm_parse_failed",
-                            "value": raw,
-                        })
-                    continue
-                raw = str(value_num)
-                unit = "nm"
-            elif field not in {"absorption", "tested_solvent"}:
-                value_num, parse_ok = safe_float(val)
-                if not parse_ok:
-                    parse_fail_by_field[field] += 1
-                    if len(invalid_samples) < 50:
-                        invalid_samples.append({
-                            "evidence_type": "private_observation",
-                            "source_id": source_id,
-                            "field": field,
-                            "reason": "value_num_parse_failed",
-                            "value": raw,
-                        })
+            value_num, parse_ok = safe_float(val)
+            if not parse_ok:
+                parse_fail_by_field[field] += 1
+                if len(invalid_samples) < 50:
+                    invalid_samples.append({
+                        "evidence_type": "private_observation",
+                        "source_id": source_id,
+                        "field": field,
+                        "reason": "value_num_parse_failed",
+                        "value": raw,
+                    })
 
             evidence_id = make_evidence_id(
                 evidence_type="private_observation",
@@ -394,24 +346,14 @@ def main():
     df["quality_flag"] = "OK"
     df["quality_score"] = 1.0
 
-    # qy_* should be in [0,1]
-    qy = df["field"].astype(str).str.startswith("qy_") & df["value_num"].notna()
-    qy_neg = qy & (df["value_num"] < 0)
-    df.loc[qy_neg, "quality_flag"] = "OUT_OF_RANGE_NEGATIVE"
-    df.loc[qy_neg, "quality_score"] = 0.3
-    qy_gt1 = qy & (df["value_num"] > 1)
-    df.loc[qy_gt1, "quality_flag"] = "OUT_OF_RANGE_GT1"
-    df.loc[qy_gt1, "quality_score"] = 0.3
-
-    # tau_* extreme outliers (ns)
-    tau_ext = df["field"].astype(str).str.startswith("tau_") & df["value_num"].notna() & (df["value_num"] > 1e6)
-    df.loc[tau_ext, "quality_flag"] = "OUTLIER_TAU_EXTREME"
-    df.loc[tau_ext, "quality_score"] = 0.3
-
-    # absorption_peak_nm should be positive
-    abs_peak_bad = (df["field"] == "absorption_peak_nm") & df["value_num"].notna() & (df["value_num"] <= 0)
-    df.loc[abs_peak_bad, "quality_flag"] = "OUT_OF_RANGE_NONPOSITIVE"
-    df.loc[abs_peak_bad, "quality_score"] = 0.3
+    # Emission values should be positive (train-only private observations).
+    emission_bad = (
+        df["field"].isin(["emission_solid", "emission_aggr"])
+        & df["value_num"].notna()
+        & (df["value_num"] <= 0)
+    )
+    df.loc[emission_bad, "quality_flag"] = "OUT_OF_RANGE_NONPOSITIVE"
+    df.loc[emission_bad, "quality_score"] = 0.3
 
     # Parse warnings: fields expected to be numeric but value_num couldn't be parsed.
     # Keep these as WARN (not errors) because they come from source data quality.
@@ -420,7 +362,6 @@ def main():
         & df["evidence_type"].isin(["private_observation", "atb_computation"])
         & df["value_num"].isna()
         & df["value"].notna()
-        & (~df["field"].isin(["absorption", "tested_solvent"]))
     )
     df.loc[parse_warn, "quality_flag"] = "PARSE_WARNING"
     df.loc[parse_warn, "quality_score"] = 0.7
@@ -463,11 +404,7 @@ def main():
     counts_by_quality_flag = df["quality_flag"].value_counts(dropna=False).head(10).to_dict()
     out_of_range_fields_mask = (
         (df["quality_flag"] != "OK")
-        & (
-            df["field"].astype(str).str.startswith("qy_")
-            | df["field"].astype(str).str.startswith("tau_")
-            | (df["field"] == "absorption_peak_nm")
-        )
+        & df["field"].isin(["emission_solid", "emission_aggr"])
     )
     counts_by_field_out_of_range = df.loc[out_of_range_fields_mask, "field"].value_counts(dropna=False).to_dict()
 
@@ -476,7 +413,7 @@ def main():
         .value_counts(dropna=False)
         .to_dict()
     )
-    sol_fields = {"emission_sol", "qy_sol", "tau_sol", "absorption_peak_nm", "absorption"}
+    sol_fields = {"emission_solid", "emission_aggr"}
     n_sol_unknown_solvent = int(
         ((df["field"].isin(sol_fields)) & (df["condition_solvent"] == "unknown")).sum()
     )

@@ -130,18 +130,24 @@ def create_molecule_table(df: pd.DataFrame) -> pd.DataFrame:
     # Group by InChIKey
     logger.info(f"Creating molecule table from {len(valid_df)} valid rows")
 
-    molecule_table = (
-        valid_df.groupby("inchikey")
-        .agg(
-            {
-                "canonical_smiles": "first",  # Should be same for all rows with same InChIKey
-                "id": lambda x: list(x),  # Collect all IDs
-            }
-        )
-        .reset_index()
-    )
+    agg_spec = {
+        "canonical_smiles": "first",  # Should be same for all rows with same InChIKey
+        "id": lambda x: list(x),  # Collect all IDs
+    }
+    if "SMILES" in valid_df.columns:
+        agg_spec["SMILES"] = "first"
+    if "code" in valid_df.columns:
+        agg_spec["code"] = "first"
+    if "reference" in valid_df.columns:
+        agg_spec["reference"] = "first"
+    if "doi" in valid_df.columns:
+        agg_spec["doi"] = "first"
+
+    molecule_table = valid_df.groupby("inchikey").agg(agg_spec).reset_index()
 
     molecule_table.rename(columns={"id": "id_list"}, inplace=True)
+    if "SMILES" in molecule_table.columns:
+        molecule_table.rename(columns={"SMILES": "source_smiles"}, inplace=True)
     molecule_table["n_records"] = molecule_table["id_list"].apply(len)
 
     logger.info(f"Molecule table created: {len(molecule_table)} unique molecules")

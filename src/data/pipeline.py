@@ -62,7 +62,7 @@ def get_package_versions() -> dict:
 
 
 def run_p1_pipeline(
-    input_csv: str = "data/data.csv",
+    input_csv: str = "data/train.csv",
     output_dir: str = "data",
 ):
     """
@@ -70,7 +70,7 @@ def run_p1_pipeline(
 
     Steps:
     1. Load CSV with encoding fallback
-    2. Standardize dataset (qy/tau normalization, missing masks)
+    2. Standardize dataset (train-only schema + emission missing masks)
     3. Add canonical SMILES + InChIKey
     4. Create molecule table (unique by InChIKey)
     5. Compute RDKit features
@@ -78,7 +78,7 @@ def run_p1_pipeline(
     7. Generate run manifest
 
     Args:
-        input_csv: Path to input CSV (default: data/data.csv)
+        input_csv: Path to input CSV (default: data/train.csv)
         output_dir: Output directory (default: data)
     """
     output_path = Path(output_dir)
@@ -139,11 +139,17 @@ def run_p1_pipeline(
         "timestamp": datetime.now().isoformat(),
         "git_commit": get_git_commit(),
         **get_package_versions(),
+        "input_csv": str(input_csv),
+        "fact_schema_version": "v2026-02-09-train-only",
         "encoding_used": encoding_used,
         "n_molecules_input": int(n_input_rows),
         "n_molecules_processed": int(len(df_clean)),
         "n_unique_molecules": int(len(molecule_table)),
         "n_valid_inchikeys": int(df_clean["inchikey"].notna().sum()),
+        "counts": {
+            "records": int(len(df_clean)),
+            "molecules": int(len(molecule_table)),
+        },
         "artifacts": {
             "private_clean": str(clean_path),
             "molecule_table": str(mol_table_path),

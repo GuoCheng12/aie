@@ -131,10 +131,8 @@ class DataAgent:
         """
         # Critical fields with {field}_missing indicators
         critical_fields = [
-            "emission_sol", "emission_solid", "emission_aggr", "emission_crys",
-            "qy_sol", "qy_solid", "qy_aggr", "qy_crys",
-            "tau_sol", "tau_solid", "tau_aggr", "tau_crys",
-            "absorption", "tested_solvent"
+            "emission_solid",
+            "emission_aggr",
         ]
 
         missing_fields: List[str] = []

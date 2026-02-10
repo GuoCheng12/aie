@@ -55,9 +55,6 @@ CONDITION_STATES = {"sol", "solid", "aggr", "crys", "unknown"}
 ATB_TIMESTAMP_SOURCES = {"atb_qc", "build_fallback"}
 QUALITY_FLAGS = {
     "OK",
-    "OUT_OF_RANGE_NEGATIVE",
-    "OUT_OF_RANGE_GT1",
-    "OUTLIER_TAU_EXTREME",
     "OUT_OF_RANGE_NONPOSITIVE",
     "PARSE_WARNING",
 }
@@ -191,7 +188,7 @@ def print_summary(df: pd.DataFrame) -> None:
     logger.info(f"Rows with value_num non-null: {int(df['value_num'].notna().sum())}")
     atb_ts = df[df["evidence_type"] == "atb_computation"]["timestamp_source"].value_counts(dropna=False).to_dict()
     logger.info(f"atb timestamp_source counts: {atb_ts}")
-    sol_fields = {"emission_sol", "qy_sol", "tau_sol", "absorption_peak_nm", "absorption"}
+    sol_fields = {"emission_solid", "emission_aggr"}
     n_sol_unknown = int(((df["field"].isin(sol_fields)) & (df["condition_solvent"] == "unknown")).sum())
     logger.info(f"sol-state rows with condition_solvent=='unknown': {n_sol_unknown}")
     if "quality_flag" in df.columns:

@@ -6,6 +6,7 @@ Tests for DataAgent (fetch by id/inchikey from parquet files).
 
 import pytest
 from pathlib import Path
+import pandas as pd
 
 from src.agents.data_agent import DataAgent
 
@@ -18,14 +19,20 @@ class TestDataAgent:
         """Create DataAgent instance."""
         return DataAgent(data_dir="data")
 
-    def test_get_record_by_id_success(self, agent):
+    @pytest.fixture
+    def existing_id(self):
+        """Get one valid id from current private_clean.parquet."""
+        df = pd.read_parquet("data/private_clean.parquet")
+        assert len(df) > 0
+        return int(df["id"].iloc[0])
+
+    def test_get_record_by_id_success(self, agent, existing_id):
         """Test fetching a valid record by id."""
-        # Use id=1 (should exist in private_clean.parquet)
-        record = agent.get_record_by_id(1)
+        record = agent.get_record_by_id(existing_id)
 
         # Check required fields
         assert "id" in record
-        assert record["id"] == 1
+        assert record["id"] == existing_id
         assert "inchikey" in record
         assert "canonical_smiles" in record
 
@@ -39,10 +46,10 @@ class TestDataAgent:
         with pytest.raises(ValueError, match="not found"):
             agent.get_record_by_id(999999)
 
-    def test_get_missing_summary(self, agent):
+    def test_get_missing_summary(self, agent, existing_id):
         """Test missing value summary computation."""
         # Fetch a record
-        record = agent.get_record_by_id(1)
+        record = agent.get_record_by_id(existing_id)
 
         # Get missing summary
         summary = agent.get_missing_summary(record)
@@ -57,10 +64,10 @@ class TestDataAgent:
         # n_missing should be non-negative
         assert summary["n_missing"] >= 0
 
-    def test_get_molecule_by_inchikey_success(self, agent):
+    def test_get_molecule_by_inchikey_success(self, agent, existing_id):
         """Test fetching a molecule by InChIKey."""
         # First get a record to extract a valid InChIKey
-        record = agent.get_record_by_id(1)
+        record = agent.get_record_by_id(existing_id)
         inchikey = record.get("inchikey")
 
         if inchikey:
@@ -81,13 +88,13 @@ class TestDataAgent:
         with pytest.raises(ValueError, match="not found"):
             agent.get_molecule_by_inchikey(fake_inchikey)
 
-    def test_private_clean_caching(self, agent):
+    def test_private_clean_caching(self, agent, existing_id):
         """Test that private_clean.parquet is cached after first load."""
         # First call loads from disk
-        record1 = agent.get_record_by_id(1)
+        record1 = agent.get_record_by_id(existing_id)
 
         # Second call should use cached DataFrame
-        record2 = agent.get_record_by_id(1)
+        record2 = agent.get_record_by_id(existing_id)
 
         # Should return identical data
         assert record1["id"] == record2["id"]

@@ -3,11 +3,20 @@
 ## Process Summary (Living Log)
 
 ## Current stable interfaces/files
+- `data/train.csv` (authoritative facts input)
+- `data/test.csv` (simulation/eval input only; not merged into facts)
 - `cases/{case_id}.json` (case file schema v0.7)
 - `data/uq_scores_pre_atb_p5b.parquet`
 - `data/anchor_neighbors_ecfp.parquet`
 - `cache/atb/.../status.json` + `cache/atb/.../features.json`
-Current blocker: P2 full aTB on Linux
+- `src/agents/web_search_candidate_papers.py` (literature candidate retrieval via Responses API + web_search)
+  - strict mode: requires paper.source_url ∈ returned citations/sources (auditable; may return empty if gateway redacts sources)
+  - relaxed mode: keeps candidate papers even if citations/sources are incomplete (**NOT** safe for strict evidence write-back)
+
+Current blocker: Literature evidence loop (web_search citations/sources not reliably surfaced by gateway; strict write-back blocked; relaxed candidate mode available).
+aTB: DONE (full batch complete and cached)
+Literature: PARTIAL (relaxed candidate retrieval works; strict citations not guaranteed)
+Data refresh: IN PROGRESS (train-only facts migration; test isolated from fact writeback)
 
 > Rules:
 > - Update this file AFTER each planning chunk is implemented.
@@ -16,6 +25,117 @@ Current blocker: P2 full aTB on Linux
 > - Do NOT paste large raw private data; keep it summarized and privacy-safe.
 
 ---
+
+## 2026-02-09 — Literature gateway status (web_search citations passthrough)
+
+- Call chain works: multiple `web_search_call` items complete and a final `message` output can be produced.
+- Problem: `sources`/citations are often missing or incomplete, so returned `papers` can disagree with citations (strict provenance cannot be guaranteed).
+- Conclusion: treat outputs as candidate leads only; do NOT perform strict evidence write-back until gateway reliably surfaces citations/sources.
+
+## 2026-02-10 — Train-only facts migration kickoff (data source refresh)
+
+- Declared `data/train.csv` as the sole source for `data/private_clean.parquet` (facts DB).
+- Declared `data/test.csv` as non-fact input (simulation/eval only); excluded from private_clean/evidence private_observation.
+- Migration scope set for ingestion + UQ + reports + evidence/graph + case semantics to remove hard dependency on legacy private fields (`absorption/qy/tau/tested_solvent`).
+
+## 2026-02-10 — Train-only facts migration completed (code + rebuild)
+
+- Ingestion defaults switched from `data/data.csv` to `data/train.csv` (`src/data/loader.py`, `src/data/pipeline.py`).
+- `private_clean` schema converged to train columns + derived fields (`canonical_smiles`, `inchikey`, `emission_*_missing`) via new train-only standardizer (`src/data/standardizer.py`).
+- UQ/reports/evidence/case paths removed hard dependency on legacy private fields:
+  - UQ `C_meta` now uses only `emission_solid_missing` + `emission_aggr_missing`.
+  - P6 report/queue `has_emission` and missing-critical logic now train-only.
+  - V1 evidence_table private_observation is restricted to `emission_solid` / `emission_aggr`.
+  - Case action plan request fields switched to `["emission_solid", "emission_aggr"]`.
+- Added eval-only utility: `python -m src.cases.build_cases_from_test_csv` (reads `data/test.csv`, writes case files only).
+
+Rebuild + validation snapshot:
+- P1 outputs: `private_clean=500` rows (from `train.csv` 506 rows, 6 invalid-id rows dropped), `molecule_table=433`, `rdkit_features=433`.
+- Anchor: `anchor_neighbors_ecfp=4320` rows (`432` queries, `k=10` exact).
+- UQ: `uq_scores_pre_atb_p5b=500` rows; router counts = Known/Stable 283, Evidence-insufficient 132, In-domain ambiguous 48, Novelty-candidate 37.
+- P6 reports regenerated to `reports_train_only/` with `500` JSON files; validator passed (`7/7` checks).
+- V1: `evidence_table=4778` rows (`private_observation` fields = emission_solid/emission_aggr only), `graph_nodes=5384`, `graph_edges=12062`; evidence/graph/retrieval validators passed.
+
+## 2026-02-09 — Docs: Post-UQ agent slot (stub)
+
+- Added a Post-UQ agent slot to the V1/V2 plan: a dedicated agent reads (`case_file` + `master_output`) and emits gating + next actions.
+- Reserved a `post_uq` block in the Case File schema for forward compatibility (no write-back in V1).
+
+## 2026-02-02 — Plan: aTB neighborhood consistency check (delta outlier score)
+
+Goal: add a small, auditable signal to the Case File for the Master Reasoner: compare target aTB delta features vs the distribution of neighbors' aTB delta features (structure retrieval unchanged).
+
+Plan (docs-first, then code):
+1) Docs: add the "aTB Neighborhood Consistency Check" subsection in `doc/process.md`, and add `risk_scores.atb_neighbor_consistency` schema in `doc/schemas.md`.
+2) Code location:
+   - Core math in `src/cases/atb_neighbor_consistency.py` (unit-testable helper).
+   - Hook into `src/cases/create_case_from_smiles.py` after target/neighbor aTB packs are attached; write to `risk_scores.atb_neighbor_consistency`.
+3) Computable conditions:
+   - Target `evidence_readiness.atb.cache_status == "success"` AND target delta fields exist.
+   - Neighbor distribution uses only neighbors with `neighbor_atb.cache_status == "success"` AND required delta fields present.
+   - If neighbor sample_size < 5: flag="insufficient_sample" and do not compute z-scores.
+4) Stats:
+   - Robust z per field using median + MAD: z = (x - median) / (1.4826*MAD + eps).
+   - outlier_score_max and outlier_score_rss + outlier_dims.
+5) Tests/acceptance checks:
+   - Unit tests in `tests/test_atb_neighbor_consistency.py` for filtering, median/MAD/z math, flag thresholds, target_missing behavior.
+   - Demo: `python -m src.cli case --smiles "<SMILES>" --print` shows `risk_scores.atb_neighbor_consistency` with sample_size and flag.
+
+## 2026-02-02 — Implemented: aTB neighborhood consistency check (case-file signal)
+
+What shipped:
+- Added robust aTB neighborhood outlier scoring (median/MAD z-scores on delta_gap/delta_dihedral/delta_volume) and stored it at `risk_scores.atb_neighbor_consistency`.
+- Retrieval/indexing unchanged: still structure-only (ECFP); aTB is used only as evidence/readiness augmentation.
+
+Code + tests:
+- New helper: `src/cases/atb_neighbor_consistency.py`
+- Case creation hook: `src/cases/create_case_from_smiles.py`
+- Unit tests: `tests/test_atb_neighbor_consistency.py` (PASS)
+
+Demo (example):
+- `python -m src.cli case --smiles 'CC1=N/C(=C\\c2ccccc2)C(=O)O1' --outdir /tmp/cases_demo`
+  - Produced `risk_scores.atb_neighbor_consistency.sample_size=9`, `flag="inlier"`, with z-scores and outlier scores populated.
+
+## 2026-02-02 — Plan: LLM-friendly structured action_plan + reasoning_mode
+
+Goal: upgrade SMILES-first Case File so an LLM controller can follow a concrete, auditable plan (structured action objects + rationale), while keeping retrieval structure-only (ECFP) and using aTB only for evidence/readiness.
+
+Plan:
+1) Docs: update `doc/process.md` and `doc/schemas.md` to define:
+   - `current_gate.reasoning_mode ∈ {"blocked","normal","conservative"}`
+   - `action_plan` as list[object] (legacy list[string] accepted) + `action_rationale`
+   - decision rules for aTB success+inlier/outlier vs failed/absent/pending/partial
+2) Code:
+   - Update `src/cases/create_case_from_smiles.py` to emit structured actions and rationale, and set reasoning_mode.
+   - Update validators: `src/cases/case_schema.py` and `src/cases/validate_case_file.py` to accept both legacy and new action_plan formats.
+   - Update Chem Agent stub to handle action objects (mark status done / remove legacy strings).
+3) Tests:
+   - Add `tests/test_case_action_plan_semantics.py` for the new mode/action rules.
+   - Update existing case-file tests that assume string action_plan.
+4) Demo:
+   - Run 3 case creations (success+inlier, success+outlier if available, absent/failed) and print only current_gate + first 3 actions + rationale.
+
+## 2026-02-02 — Implemented: LLM-friendly structured action_plan + reasoning_mode
+
+What changed:
+- Case creation now emits `action_plan` as a list of structured action objects (LLM-friendly) plus `action_rationale`.
+- Added `evidence_readiness.current_gate.reasoning_mode ∈ {blocked, normal, conservative}`.
+- Mode/action rules incorporate:
+  - target aTB cache_status
+  - aTB neighborhood outlier flag (inlier vs outlier)
+  - minimal experiment availability flags (emission/solvent)
+- Retrieval/indexing unchanged: still structure-only ECFP; aTB is used only for evidence/readiness augmentation.
+
+Files changed:
+- `src/cases/create_case_from_smiles.py` (new plan builder; emits action objects + rationale; sets reasoning_mode)
+- `src/cases/case_schema.py` (validate action_plan objects; reasoning_mode allowlist)
+- `src/cases/validate_case_file.py` (semantic checks aware of action objects)
+- `src/cases/chem_agent_update_case_stub.py` (mark action status done for object action_plan; accept literature_search_web)
+- Tests: `tests/test_case_action_plan_semantics.py` + updated `tests/test_case_file_semantics.py`
+
+Validation:
+- `pytest` PASS (201 tests)
+- Demo excerpts (3 cases): success+inlier => mode=normal; success+outlier => mode=conservative; absent => mode=blocked, with blocking compute_target_atb first.
 
 ## P2 Notes (historical) — moved from process.md
 
@@ -2717,5 +2837,33 @@ python -m src.graph.validate_evidence_table
 python -m src.graph.build_light_graph_v1_p2
 python -m src.graph.validate_graph_tables
 ```
+
+---
+
+## 2026-01-29 — V1-P3 Subgraph Retrieval API (GraphRAG context)
+
+### Implemented
+- Added retrieval API: `src/graph/retrieval.py`
+  - `get_subgraph(inchikey, hops=2, max_nodes=50, max_edges=200, ...)` returns `{nodes, edges, provenance_refs, stats}` (deterministic ordering)
+  - Prioritization: target evidence → SIMILAR_TO neighbors → neighbor evidence → condition nodes
+  - Budget enforcement: hard caps on nodes/edges; records truncation + dropped counts in stats
+  - Stats/logs: included target evidence counts (obs/comp), included neighbor counts, neighbor evidence total, dropped condition count
+- Added validation/smoke: `src/graph/validate_retrieval.py`
+  - Prints per-target global HAS_COMPUTATION/HAS_OBSERVATION counts and confirms "only_observation" target has 0 computation edges
+- Added tests: `tests/test_graph_retrieval_v1_p3.py`
+- Added optional smoke report (no API): `src/graph/smoke_test_p2.py` (kept as P2 analysis helper)
+
+### How to run
+```bash
+python -m src.graph.retrieval --inchikey <INCHIKEY> --hops 2 --max_nodes 50 --max_edges 200
+python -m src.graph.validate_retrieval
+python -m unittest -v tests.test_graph_retrieval_v1_p3
+```
+
+### Validation examples (max_nodes=50, max_edges=200)
+- with_computation (AAAQKTZ...): nodes={'Molecule': 11, 'Evidence': 33, 'Condition': 6}; edges={'HAS_COMPUTATION': 20, 'HAS_OBSERVATION': 13, 'UNDER_CONDITION': 33, 'SIMILAR_TO': 10}; truncated=True (hit node budget)
+- only_observation (AAFDQFV...): nodes={'Molecule': 11, 'Evidence': 34, 'Condition': 5}; edges={'HAS_COMPUTATION': 5, 'HAS_OBSERVATION': 29, 'UNDER_CONDITION': 34, 'SIMILAR_TO': 10}; truncated=True
+- random (QWKYTVA...): nodes={'Molecule': 11, 'Evidence': 31, 'Condition': 8}; edges={'HAS_COMPUTATION': 12, 'HAS_OBSERVATION': 19, 'UNDER_CONDITION': 31, 'SIMILAR_TO': 10}; truncated=True
+- Validator: ALL CASES PASS (no dangling edges, no budget violations, provenance_refs consistent)
 
 ---
