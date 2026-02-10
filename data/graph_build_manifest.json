@@ -1,42 +1,42 @@
 {
-  "build_timestamp": "2026-01-29T02:41:30.050523",
+  "build_timestamp": "2026-02-10T13:27:29.120067",
   "inputs": {
     "evidence_table_path": "data/evidence_table.parquet",
-    "evidence_table_rows": 12181,
+    "evidence_table_rows": 4778,
     "anchor_neighbors_path": "data/anchor_neighbors_ecfp.parquet",
-    "anchor_neighbors_rows": 10490
+    "anchor_neighbors_rows": 4320
   },
   "nodes": {
     "counts_by_node_type": {
-      "Evidence": 12181,
-      "Molecule": 1042,
-      "Condition": 50
+      "Evidence": 4778,
+      "Molecule": 603,
+      "Condition": 3
     },
-    "total_nodes": 13273
+    "total_nodes": 5384
   },
   "edges": {
     "counts_by_rel_type": {
-      "UNDER_CONDITION": 12181,
-      "SIMILAR_TO": 10394,
-      "HAS_OBSERVATION": 7330,
-      "HAS_COMPUTATION": 4400
+      "UNDER_CONDITION": 4778,
+      "HAS_COMPUTATION": 4400,
+      "SIMILAR_TO": 2542,
+      "HAS_OBSERVATION": 342
     },
-    "total_edges": 34305
+    "total_edges": 12062
   },
   "integrity": {
     "counts_by_rel_type": {
-      "UNDER_CONDITION": 12181,
-      "SIMILAR_TO": 10394,
-      "HAS_OBSERVATION": 7330,
-      "HAS_COMPUTATION": 4400
+      "UNDER_CONDITION": 4778,
+      "HAS_COMPUTATION": 4400,
+      "SIMILAR_TO": 2542,
+      "HAS_OBSERVATION": 342
     },
     "evidence_edges": {
-      "n_subject_inchikey_null_skipped_mol_to_ev": 451
+      "n_subject_inchikey_null_skipped_mol_to_ev": 36
     },
     "similarity_edges": {
-      "total_anchor_rows": 10490,
-      "kept_similar_to": 10394,
-      "dropped_missing_molecule_nodes": 96,
+      "total_anchor_rows": 4320,
+      "kept_similar_to": 2542,
+      "dropped_missing_molecule_nodes": 1778,
       "dropped_null_inchikey": 0,
       "dropped_bad_weight": 0
     }

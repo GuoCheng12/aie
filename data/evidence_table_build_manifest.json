@@ -1,0 +1,58 @@
+{
+  "build_timestamp": "2026-02-10T13:27:28.083106",
+  "inputs": {
+    "n_private_clean_records": 500,
+    "n_atb_features_rows": 440,
+    "n_atb_qc_rows": 1050
+  },
+  "counts_by_evidence_type": {
+    "atb_computation": 4400,
+    "private_observation": 378
+  },
+  "counts_by_field": {
+    "delta_volume": 440,
+    "delta_gap": 440,
+    "delta_dihedral": 440,
+    "excitation_energy": 440,
+    "s0_volume": 440,
+    "s1_volume": 440,
+    "s0_homo_lumo_gap": 440,
+    "s1_homo_lumo_gap": 440,
+    "s0_dihedral_avg": 440,
+    "s1_dihedral_avg": 440,
+    "emission_solid": 268,
+    "emission_aggr": 110
+  },
+  "counts_by_evidence_type_field": {
+    "atb_computation": {
+      "delta_volume": 440,
+      "delta_gap": 440,
+      "delta_dihedral": 440,
+      "excitation_energy": 440,
+      "s0_volume": 440,
+      "s1_volume": 440,
+      "s0_homo_lumo_gap": 440,
+      "s1_homo_lumo_gap": 440,
+      "s0_dihedral_avg": 440,
+      "s1_dihedral_avg": 440
+    },
+    "private_observation": {
+      "emission_solid": 268,
+      "emission_aggr": 110
+    }
+  },
+  "counts_by_quality_flag": {
+    "OK": 4778
+  },
+  "counts_by_field_out_of_range": {},
+  "invalid": {
+    "n_rows_subject_inchikey_null": 36,
+    "parse_failures_by_field_private": {},
+    "parse_failures_by_field_atb": {},
+    "atb_timestamp_source_counts": {
+      "atb_qc": 4400
+    },
+    "n_sol_state_rows_solvent_unknown": 378,
+    "invalid_samples": []
+  }
+}

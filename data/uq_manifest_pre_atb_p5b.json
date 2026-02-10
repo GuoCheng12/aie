@@ -1,0 +1,34 @@
+{
+  "timestamp": "2026-02-10T13:26:55.745600",
+  "input_files": {
+    "uq_p5a": "data/uq_scores_pre_atb.parquet",
+    "mechanism_entropy": "data/mechanism_entropy_pre_atb.parquet"
+  },
+  "n_records": 500,
+  "thresholds": {
+    "cov_low": 0.3225191867291372,
+    "cov_high": 0.5806553448561385,
+    "nov_high": 0.6860192203808587,
+    "mech_ent_high": 0.8787651423705142,
+    "mech_ent_high_source": "molecule_level",
+    "n_molecules_for_mech_ent_high": 417,
+    "n_records_for_cov_nov": 442
+  },
+  "action_counts_p5b": {
+    "Known/Stable": 283,
+    "Evidence-insufficient": 132,
+    "In-domain ambiguous": 48,
+    "Novelty-candidate": 37
+  },
+  "action_counts_p5a": {
+    "Known/Stable": 284,
+    "Evidence-insufficient": 135,
+    "In-domain ambiguous": 42,
+    "Novelty-candidate": 39
+  },
+  "mechanism_entropy_summary": {
+    "min": 0.0,
+    "median": 0.4726705835886449,
+    "max": 0.9999859373735906
+  }
+}

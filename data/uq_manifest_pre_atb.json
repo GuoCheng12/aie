@@ -1,0 +1,43 @@
+{
+  "timestamp": "2026-02-10T13:26:55.283132",
+  "input_files": {
+    "private_clean": "data/private_clean.parquet",
+    "anchor_neighbors": "data/anchor_neighbors_ecfp.parquet"
+  },
+  "n_records": 500,
+  "n_molecules_in_neighbor_table": 432,
+  "k_neighbors": 10,
+  "thresholds": {
+    "cov_low": 0.32555760673900275,
+    "cov_high": 0.5812618872393074,
+    "nov_high": 0.6757037320644407,
+    "ale_high": 0.996993178662457
+  },
+  "novelty_percentiles": {
+    "p05": 0.0,
+    "p95": 0.6438940092165898
+  },
+  "action_counts": {
+    "Known/Stable": 284,
+    "Evidence-insufficient": 135,
+    "In-domain ambiguous": 42,
+    "Novelty-candidate": 39
+  },
+  "scores_summary": {
+    "coverage": {
+      "min": 0.07755781192750519,
+      "median": 0.4809633946696845,
+      "max": 0.8649177610608185
+    },
+    "novelty": {
+      "min": 0.0,
+      "median": 0.3882626587940598,
+      "max": 1.0
+    },
+    "aleatoric": {
+      "min": 0.8857908336923077,
+      "median": 0.9921260626802241,
+      "max": 0.9998062656332635
+    }
+  }
+}
