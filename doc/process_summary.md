@@ -27,6 +27,26 @@ Orchestrator refactor: IN PROGRESS (moving from CLI-centered flows to patch-scop
 
 ---
 
+## 2026-02-24 — Plan: integrate aTB neighbor consistency into release runtime
+
+- Scope locked for release orchestrator runtime (`case-run` path, not example paths):
+  - ChemAgent computes `risk_scores.atb_neighbor_consistency` from target aTB deltas vs neighbor aTB deltas.
+  - Inputs include only neighbors with `neighbor_atb.cache_status=="success"` and complete required fields.
+  - Retrieval remains structure-only (ECFP unchanged); this is a risk/readiness signal only.
+- ReadyAgent integration:
+  - reads `risk_scores.atb_neighbor_consistency.flag/reliability`,
+  - if `flag=="outlier"` and reliability is `medium|high`, force/keep conservative reasoning mode and add non-blocking verification actions,
+  - if `target_missing` or `insufficient_neighbors`, only add rationale (no overreaction beyond current gating policy).
+- Guardrails reaffirmed:
+  - ReadyAgent remains sole writer of `current_gate.*` and `action_rationale`.
+  - No `evidence_table` writeback path is introduced.
+- Planned validation:
+  - unit tests for robust z-score/MAD-zero/flag logic,
+  - orchestration integration test for ChemAgent write + ReadyAgent conservative mode reaction,
+  - explicit no-touch evidence_table guard remains active.
+
+---
+
 ## 2026-02-24 — Multi-agent framework refactor kickoff (NOW path)
 
 - Repo audit conclusions (current code reality):
@@ -46,6 +66,57 @@ Orchestrator refactor: IN PROGRESS (moving from CLI-centered flows to patch-scop
   - other agents cannot patch gate fields directly.
 - Current next action:
   - finish framework wiring + tests + one-command demo for one `test.csv` sample (`run_one` entrypoint) using offline PDF mode where supplied.
+
+## 2026-02-24 — E0 evidence-table guard hardening (no mtime dependency)
+
+- Replaced fragile `mtime`-based no-touch check with explicit code-path guard semantics in `src/cases/example_a_first_runner.py`:
+  - added single evidence-table writer hook `_write_evidence_table_rows(...)`,
+  - hook always raises in E0 (writeback forbidden),
+  - runner calls this hook only when writeback is requested, which fails fast by design.
+- Updated policy wording in `doc/process.md`:
+  - no-touch guarantee now defined as runtime guard + monkeypatchable writer-hook tests,
+  - file `mtime` is explicitly downgraded to optional smoke signal only.
+- Tests updated in `tests/test_example_a_first_runner.py`:
+  - assert writer hook is **not called** in normal E0 execution,
+  - assert writeback request fails fast and routes through the guarded writer hook.
+- Validation:
+  - `pytest -q tests/test_example_a_first_runner.py` passed (16/16).
+
+## 2026-02-24 — Release runtime hardening (de-example path + platform guards)
+
+- Promoted E0 semantics to orchestrator-level invariants:
+  - step replay contract now requires `01_raw_outputs.json` (plus optional split raw files/index),
+  - idempotency key now includes `run_config_hash` (lane/config scope),
+  - `agent_runs[]` now carries `status_reason_code`.
+- Added standardized skipped reason codes in core types:
+  - `idempotency_hit`, `gate_blocked_reasoning`, `lane_disabled`, `missing_required_input`, `upstream_failed`, `not_applicable`.
+- Enforced global gate ownership in orchestrator:
+  - only `ready_agent` may patch `/current_gate/*`, `/action_rationale`, `/action_plan`;
+  - non-owner writes fail fast at patch-validation stage and stop subsequent steps.
+- Added no-touch content guard for `data/evidence_table.parquet` in orchestrator runtime:
+  - hash before/after run must match (or file must remain absent).
+- Release command path finalized:
+  - added official `case-run` command in `src/cli.py` (wraps `src/orchestration/run_one.py`),
+  - default lane is `atb_cache_only`,
+  - optional stage snapshots output (`data_agent_case`, `chem_agent_case`, `ready_agent_case`).
+- Compatibility aliases retained for one version:
+  - `case-e0`, `case-e2e`, `case-e2e-atb` now forward to `case-run` with deprecation warnings.
+- Judge write scope tightened:
+  - Judge no longer writes `action_plan`; it writes `post_uq` only.
+- New/updated tests:
+  - `tests/test_orchestrator_replay_contract.py`
+  - `tests/test_orchestrator_idempotency.py`
+  - `tests/test_orchestrator_skip_reason_codes.py`
+  - `tests/test_gate_owner_enforcement.py`
+  - `tests/test_ready_agent_can_write_gate.py`
+  - `tests/test_evidence_table_no_touch_behavior.py`
+  - `tests/test_evidence_table_no_touch_content_hash.py`
+  - `tests/test_case_run_atb_success_lane.py`
+  - `tests/test_cli_case_run.py`
+  - updated alias tests: `tests/test_cli_case_e2e.py`, `tests/test_cli_case_e2e_atb.py`
+- Validation:
+  - targeted: `13 passed`
+  - full suite: `247 passed, 5 skipped` (`pytest -q`)
 
 ## 2026-02-09 — Literature gateway status (web_search citations passthrough)
 

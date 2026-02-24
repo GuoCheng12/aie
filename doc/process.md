@@ -20,6 +20,44 @@ All writes must be RFC6902 patch writes with:
 - per-step idempotency key
 - replay artifacts (input snapshot, raw outputs, patch, case before/after/diff, manifest)
 
+### Release-hard constraints (promotion from E0 semantics)
+
+The following are platform rules for the release path (not example-only behavior):
+
+1) **Patch semantics are mandatory in orchestrator**
+- RFC6902 only (`add|replace|test`)
+- validate before apply
+- per-agent whitelist + append-only enforcement
+
+2) **Idempotency key must include run lane/config**
+- `case_id + agent_name + agent_version + inputs_hash + run_config_hash`
+
+3) **Replay contract is step-level and mandatory**
+- Each `artifacts/<run_id>/<step_idx>_<agent>/` must include:
+  - `00_input_snapshot.json`
+  - `01_raw_outputs.json`
+  - `03_patch.json`
+  - `04_case_before.json`
+  - `05_case_after.json`
+  - `06_case_diff.json`
+  - `manifest.json` (sha256 for all step files)
+
+4) **Structured skipped reason codes**
+- When `status=skipped`, `status_reason_code` is required in `agent_runs[]`.
+- Standard codes: `idempotency_hit`, `gate_blocked_reasoning`, `lane_disabled`,
+  `missing_required_input`, `upstream_failed`, `not_applicable`.
+
+5) **Gate ownership is enforced globally**
+- Only `ready_agent` may write:
+  - `/current_gate/*`
+  - `/action_rationale`
+  - `/action_plan`
+- Non-owner writes must fail fast in orchestrator validation.
+
+6) **evidence_table no-touch uses behavior + content safeguards**
+- No orchestrator write path to evidence_table.
+- Integration checks verify `data/evidence_table.parquet` content hash unchanged (or file remains absent).
+
 ### Agent write permissions (hard policy)
 
 - **Data Agent**
@@ -27,7 +65,10 @@ All writes must be RFC6902 patch writes with:
   - forbidden: `current_gate`, `action_rationale`, `action_plan`, `target_fields*`
 - **Chem Agent**
   - allowed: `evidence_readiness.atb.*`, `evidence_readiness.literature.*`, `evidence_readiness.experiment.*`,
-    `target_fields*`, `target_fields_provenance*`, `evidence_candidates_staging[]`, `agent_runs[]`
+    `target_fields*`, `target_fields_provenance*`, `evidence_candidates_staging[]`,
+    `risk_scores.atb_neighbor_consistency`, `agent_runs[]`
+  - responsibility: compute `risk_scores.atb_neighbor_consistency` from target+neighbor successful aTB deltas only
+    (ignore failed/missing neighbors; retrieval remains ECFP-only)
   - forbidden: `current_gate`, `action_rationale`
 - **Ready Agent (gate owner)**
   - allowed: `current_gate.*`, `action_rationale`, `action_plan`, optional `risk_scores.readiness_*`, `agent_runs[]`
@@ -36,8 +77,15 @@ All writes must be RFC6902 patch writes with:
   - allowed: `reasoning.*`, `agent_runs[]`
   - forbidden: `current_gate`, `action_rationale`, `target_fields*`
 - **Judge Agent**
-  - allowed: `post_uq.*`, append-only `action_plan[]` suggestions, `agent_runs[]`
-  - forbidden: `current_gate` (only Ready Agent may write gate)
+  - allowed: `post_uq.*`, `agent_runs[]`
+  - forbidden: `current_gate`, `action_rationale`, `action_plan` (only Ready Agent may write gate/plan)
+
+### Official runtime entrypoint (release)
+
+- `python -m src.cli case-run` is the official release command.
+- Default lane: `--run-lane atb_cache_only` (skip unfinished literature/wet-lab branches).
+- Output default: final case + run summary; optional `--emit-stage-snapshots`.
+- `case-e0`, `case-e2e`, `case-e2e-atb` remain one-version compatibility aliases and must forward to `case-run`.
 
 ### Offline PDF / web_search switch
 
@@ -151,32 +199,41 @@ All writes must be RFC6902 patch writes with:
 - EvidenceClaim values should be typed: use `value_num` when parseable (filterable), and keep raw extracted text in `value` for audit/fallback.
 
 ### aTB Neighborhood Consistency Check (structure retrieval unchanged)
-This is an **extra case-file signal** for the Master Reasoner / post-UQ. It does **NOT** affect anchor retrieval or neighbor indexing (still ECFP/structure-only).
+This is a **ChemAgent-computed risk signal** for ReadyAgent reasoning-mode control.  
+It does **NOT** change retrieval/indexing (retrieval remains ECFP-only), and it does **NOT** write to `data/evidence_table.parquet`.
 
-**When to compute**:
-- Use existing top-k **STRUCTURE neighbors** (from ECFP retrieval already in the case).
-- Require target `evidence_readiness.atb.cache_status == "success"` AND target delta fields exist.
-- Build neighbor distribution using only neighbors with:
-  - `neighbor_atb.cache_status == "success"`, AND
-  - all required delta fields present in `neighbor_atb.features_summary`.
+**Where computed**:
+- ChemAgent, after target aTB cache is loaded and neighbor aTB packs are available.
+- Target vector fields (default): `delta_gap`, `delta_dihedral`, `delta_volume`.
+- Neighbor distribution includes only neighbors where:
+  - `neighbor_atb.cache_status == "success"`, and
+  - all required delta fields are present and numeric.
+- Missing/failed/partial neighbor aTB entries are ignored.
 
-**Robust z-scores (per delta dimension)**:
-- For each delta field `d`:
-  - `median_d = median(neighbor_vals_d)`
-  - `mad_d = median(|neighbor_vals_d - median_d|)`
-  - `z_d = (target_d - median_d) / (1.4826 * mad_d + eps)`
+**Math**:
+- `z_i = (x_i - median_i) / (1.4826 * MAD_i)`
+- `MAD_i = median(|neighbor_i - median_i|)`
+- If `MAD_i == 0`:
+  - if `x_i == median_i`: use `z_i = 0`
+  - else: `z_i = null` and warning `mad_zero:<field>`
+- Aggregates:
+  - `outlier_score_max = max(|z_i|)` over valid dimensions
+  - `outlier_score_rss = sqrt(mean(z_i^2))` over valid dimensions
 
-**Outputs (case file)**:
-- `outlier_score_max = max(|z_d|)`
-- `outlier_score_rss = sqrt(mean(z_d^2))` (optional)
-- `outlier_dims = [d for d if |z_d| >= 3.5]`
-- `sample_size` = number of neighbors used in the distribution
+**Flag semantics**:
+- `target_missing`: target aTB unavailable/incomplete
+- `insufficient_neighbors`: valid neighbor sample size `< min_sample_size` (default 5)
+- `inlier`: sample sufficient and `outlier_score_max < z_max` (default 3.5)
+- `outlier`: sample sufficient and `outlier_score_max >= z_max`
 
-**Interpretation** (suggested thresholds on `outlier_score_max`):
-- `< 2`: inlier
-- `[2, 3.5)`: borderline
-- `>= 3.5`: outlier
-- If `sample_size < 5`: insufficient_sample (do not compute z-scores)
+**Reliability heuristic**:
+- `low`: sample_size < 8 OR any MAD zero OR <2 valid z dimensions
+- `medium`: sample_size >= 8 and 2+ valid dimensions and no MAD zero
+- `high`: sample_size >= 15 and 3 valid dimensions and stable MADs
+
+**Case file target**:
+- ChemAgent writes full object to `risk_scores.atb_neighbor_consistency`.
+- ReadyAgent may mirror a scalar shortcut to `risk_scores.readiness_atb_neighbor_flag` for rationale/readability.
 
 ### Case file action plan semantics (LLM-friendly)
 The Case File action plan is designed to be **directly executable by an LLM** (as a controller/reasoner). It is an ordered list of **structured action objects**, plus a short rationale list.
@@ -190,15 +247,14 @@ The Case File action plan is designed to be **directly executable by an LLM** (a
 - `action_rationale`: ordered short strings explaining why these actions were chosen and prioritized.
 
 **Decision rules (pre-UQ / SMILES-first)**:
-- If target `atb.cache_status=="success"` AND `risk_scores.atb_neighbor_consistency.flag ∈ {"inlier","borderline"}`:
-  - `reasoning_mode="normal"`, `ready_for_reasoning=true`
-- If target `atb.cache_status=="success"` AND `flag=="outlier"`:
-  - `reasoning_mode="conservative"`, `ready_for_reasoning=true` (do NOT block)
-  - Must add evidence escalation actions (literature/MinerU/expand neighbors) to validate mechanism hypotheses
-- If target `atb.cache_status ∈ {"failed","absent","pending","partial"}` AND `has_emission==false`:
-  - `reasoning_mode="blocked"`, `ready_for_reasoning=false`
-- If target `atb.cache_status=="failed"` AND `has_emission==true`:
-  - `reasoning_mode="conservative"`, `ready_for_reasoning=true`
+- ReadyAgent is the sole gate owner.
+- If `risk_scores.atb_neighbor_consistency.flag=="outlier"` and reliability is `medium|high`:
+  - use/keep `reasoning_mode="conservative"` (do not force hard block by this signal alone),
+  - add non-blocking verification actions (e.g., `literature_search_web`, `request_manual_pdf`, `request_min_experiment_emission`).
+- If flag is `target_missing` or `insufficient_neighbors`:
+  - include rationale token, but do not overreact beyond existing gating policy.
+- If flag is `inlier` and other evidence is healthy:
+  - keep normal path.
 
 **Important**:
 - aTB-outlier does NOT change structure retrieval; it only changes `reasoning_mode` and the recommended next actions.
@@ -338,31 +394,30 @@ The Case File action plan is designed to be **directly executable by an LLM** (a
   - ready states -> priority=1 `run_master_reasoner` / `run_master_reasoner_stub`
   - aTB failures in ready states -> queue `retry_target_atb`
 - CLI integration (current):
-  - `case`, `case-update`, `case-e0`, and `case-e2e` all invoke READY_AGENT after primary agent writes.
+  - `case-run` is the official release entrypoint.
+  - `case-e0`, `case-e2e`, `case-e2e-atb` are compatibility aliases and forward to `case-run`.
   - READY_AGENT is the final writer for `current_gate`, `action_rationale`, and `action_plan`.
 
 ### Single-sample execution plan (test.csv, aTB-success lane)
-- Target: run one `test.csv` sample end-to-end with **Example A-first E0**:
-  `offline_pdf -> patch + staging + replay`, while `master/post-uq` remain stubs.
+- Target: run one `test.csv` sample end-to-end with release runtime in
+  `run_lane=atb_cache_only` (skip unfinished literature/wet-lab).
 - Steps:
-  1) Create case from sample SMILES (`create_case_from_smiles`).
-  2) Run E0 runner with `mode=offline_pdf`.
-  3) Parse offline extraction payloads, normalize candidates, and stage them in case.
-  4) Select deterministic writeback candidates for emission fields.
-  5) Apply RFC6902 patch to case, append `agent_runs[]`, write replay artifacts.
-  6) Run `master_reasoner_stub` + `post_uq_stub` (accounting only).
-  7) Preserve append-only `history[]` events for each E0 agent write (`offline_pdf_emission_agent`, `master_reasoner_stub`, `post_uq_stub`).
+  1) Resolve input (`--code` from `test.csv`, `--row-index`, or direct `--smiles`).
+  2) Build initial case and run orchestrator sequence:
+     Data -> Chem(aTB cache lane) -> Ready -> (conditional) Reasoning -> Judge -> Ready.
+  3) For each step: validate RFC6902 patch, append `agent_runs[]`, persist replay artifacts.
+  4) If reasoning is skipped by gate, step must carry structured `status_reason_code=gate_blocked_reasoning`.
 - Acceptance output:
   - final case file with complete `agent_runs[]` lineage,
-  - append-only `history[]` with per-agent write events,
-  - `evidence_candidates_staging[]` populated,
   - `artifacts/{run_id}/00..06 + manifest.json`,
+  - optional stage snapshots (`data_agent_case`, `chem_agent_case`, `ready_agent_case`),
   - no `evidence_table` writeback.
 
-### One-shot command (SMILES/code -> case build -> E0)
-- Added CLI entrypoint `python -m src.cli case-e2e` to run the minimal end-to-end lane in one command:
-  - resolve input (`--smiles` directly or `--code` from `data/test.csv`)
-  - create base case (`create_case_from_smiles`)
+### One-shot command (release)
+- Official:
+  - `python -m src.cli case-run --test-csv data/test.csv --code <CODE> --run-lane atb_cache_only`
+- Optional:
+  - add `--emit-stage-snapshots --stage-snapshots-dir cases/stage_snapshots` for per-stage case snapshots.
   - snapshot `before_case_e0`
   - run E0 writeback (`sidecar_only` or `mineru_llm`)
   - emit compact JSON summary with before/after case paths + run artifact location
@@ -485,7 +540,11 @@ The Case File action plan is designed to be **directly executable by an LLM** (a
 ### E0 writeback boundary (hard guard)
 - `WRITEBACK_EVIDENCE_TABLE = false` in E0 runner.
 - Any request to enable evidence-table writeback must fail fast.
-- Tests must assert evidence-table no-touch behavior.
+- Primary safety check is code-path gating, not file mtime:
+  - all evidence-table writes must route through a single internal writer hook,
+  - E0 never calls that hook in normal runs,
+  - tests monkeypatch the hook and assert it is not invoked.
+- `mtime` can be kept only as a secondary smoke signal (non-authoritative).
 
 ### Execution-ready criteria (E0)
 - Patch whitelist/ops are enforced and fail fast on violations.

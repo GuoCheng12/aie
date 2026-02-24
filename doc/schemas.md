@@ -24,9 +24,10 @@ The orchestrator path uses Case File as the single mutable artifact. All agents 
 - `evidence_candidates_staging[]`: candidate evidence rows (append-only)
 - `current_gate.*`: readiness gate (Ready Agent only)
 - `action_rationale`: rationale text (Ready Agent only)
-- `action_plan[]`: prioritized actions (Ready Agent owns ordering; Judge appends suggestions only)
+- `action_plan[]`: prioritized actions (Ready Agent only)
 - `post_uq.*`: judge output namespace
 - `agent_runs[]`: per-step auditable run records (append-only)
+- `runtime.run_lane`: release lane selector (`atb_cache_only|offline_pdf|full`)
 
 ### `agent_runs[]` (required)
 
@@ -37,6 +38,7 @@ Each step must append one run row:
   "agent_name": "chem_agent",
   "version": "1.0.0",
   "status": "success",
+  "status_reason_code": null,
   "started_at": "2026-02-24T00:00:00Z",
   "ended_at": "2026-02-24T00:00:02Z",
   "inputs_hash": "sha256...",
@@ -45,6 +47,15 @@ Each step must append one run row:
   "warnings": []
 }
 ```
+
+`status_reason_code` is required when `status="skipped"`.
+Allowed values:
+- `idempotency_hit`
+- `gate_blocked_reasoning`
+- `lane_disabled`
+- `missing_required_input`
+- `upstream_failed`
+- `not_applicable`
 
 ### `evidence_candidates_staging[]` (Chem Agent)
 
@@ -77,17 +88,17 @@ Each step must append one run row:
 - Only **Ready Agent** may write:
   - `current_gate.*`
   - `action_rationale`
-  - `action_plan` (reorder/replace)
+  - `action_plan`
   - optional `risk_scores.readiness_*`
-- **Judge Agent** may append action suggestions only via `/action_plan/-`.
-- Data/Chem/Reasoning/Judge must not write `current_gate` directly.
+- Data/Chem/Reasoning/Judge must not write `current_gate`, `action_rationale`, or `action_plan`.
 
 ### Replay artifact contract (per run step)
 
 For each `{run_id}/{step}` directory:
 
 - `00_input_snapshot.json`
-- raw outputs (`*.json`, including LLM request/response where applicable)
+- `01_raw_outputs.json` (aggregated raw outputs)
+- optional split raw files (`01_raw_*.json`) with `01_raw_index.json`
 - `03_patch.json`
 - `04_case_before.json`
 - `05_case_after.json`
@@ -668,21 +679,39 @@ This block is computed from **structure-only** top-k neighbors (ECFP retrieval u
 **Inclusion rule for neighbor distribution**:
 - Use only neighbors with `neighbor_atb.cache_status == "success"` AND all required delta fields present in `neighbor_atb.features_summary`.
 - Neighbors with failed/partial/missing delta fields are excluded from the distribution.
+- If the target aTB is missing/non-success, set `flag="target_missing"` and leave z-score aggregates null.
+
+**Robust z-score math**:
+- For each field `f`: `z_f = (x_f - median_f) / (1.4826 * MAD_f)`.
+- If `MAD_f == 0`:
+  - if `x_f == median_f`, use `z_f = 0`;
+  - else use `z_f = null` and add warning `mad_zero:<field>`.
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | enabled | bool | Yes | Whether this check is enabled in the pipeline |
 | sample_size | int | Yes | Number of neighbors used in the distribution |
 | fields_used | list[string] | Yes | Delta fields used (e.g., ["delta_gap","delta_dihedral","delta_volume"]) |
-| target_vector | object | No | Map: field -> float (target delta values); present when target is available |
-| neighbor_median | object | No | Map: field -> float (median of neighbor deltas); present when sample_size is sufficient |
-| neighbor_mad | object | No | Map: field -> float (MAD of neighbor deltas); present when sample_size is sufficient |
-| z_scores | object | No | Map: field -> float (robust z-score); present when sample_size is sufficient |
-| outlier_score_max | float | No | max(|z_d|) across fields; present when sample_size is sufficient |
-| outlier_score_rss | float | No | sqrt(mean(z_d^2)) across fields; present when sample_size is sufficient |
-| outlier_dims | list[string] | No | Fields with |z_d| >= threshold (e.g., 3.5) |
-| flag | string | Yes | "inlier" / "borderline" / "outlier" / "insufficient_sample" / "target_missing" |
-| reliability | string | No | "high" / "medium" / "low" (heuristic from sample_size/MAD/neighbor_label_entropy) |
+| median | object | Yes | Map: field -> float\|null (neighbor median per field) |
+| mad | object | Yes | Map: field -> float\|null (neighbor MAD per field) |
+| z_scores | object | Yes | Map: field -> float\|null (robust z-score per field) |
+| outlier_score_max | float\|null | Yes | `max(abs(z_f))` over valid dimensions |
+| outlier_score_rss | float\|null | Yes | `sqrt(mean(z_f^2))` over valid dimensions |
+| outlier_dims | list[string] | Yes | Fields where `abs(z_f) >= thresholds.z_max` |
+| flag | string | Yes | `"target_missing" | "insufficient_neighbors" | "inlier" | "outlier"` |
+| reliability | string | Yes | `"low" | "medium" | "high"` |
+| thresholds | object | Yes | `{ "z_max": float, "min_sample_size": int }` |
+| warnings | list[string] | Yes | Deterministic warning codes (e.g., `mad_zero:delta_gap`) |
+| updated_at | string | Yes | ISO8601 UTC timestamp when this block is computed |
+
+**Reliability heuristic**:
+- `low`: `sample_size < 8`, OR any `MAD_f == 0`, OR fewer than 2 valid z-score dimensions.
+- `medium`: `sample_size >= 8`, at least 2 valid dimensions, and all MADs stable (`MAD_f > 0`).
+- `high`: `sample_size >= 15`, 3 valid dimensions, and all MADs stable.
+
+**Optional shortcut signal**:
+- `risk_scores.readiness_atb_neighbor_flag` may mirror `atb_neighbor_consistency.flag` for gate/rationale convenience.  
+  This is optional and must not replace the full object.
 
 ### post_uq (reserved; V1-P6 stub)
 

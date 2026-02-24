@@ -121,19 +121,21 @@ Introduce a domain knowledge graph as explicit external memory:
 ## Milestone tracking (update periodically)
 - Current version: V1
 - V0 status: completed (P1–P6/P7 delivered; structure-only anchors retained)
-- Current milestone: **V1-MA-P1** (multi-agent framework baseline)
-  - Deliverable: one-shot orchestrator loop for one `test.csv` sample with auditable patch-based case evolution.
+- Current milestone: **V1-MA-P2** (release runtime hardening)
+  - Deliverable: official release entrypoint `case-run` with platform-level replay/patch/idempotency/no-touch guarantees.
   - Sequence: Data Agent -> Chem Agent -> Ready Agent -> (conditional) Reasoning Agent -> Judge Agent -> Ready Agent.
+  - Checklist add-on: integrate `risk_scores.atb_neighbor_consistency` in ChemAgent (compute) and ReadyAgent (reasoning-mode/rationale actioning) without changing structure retrieval.
 - Parallel lane:
   - **P4-pre (offline_pdf lane)**: run single-sample emission completion with MinerU + LLM extraction.
   - **P4 (web_search lane, teammate owner)**: stabilize citations/sources passthrough before strict writeback.
 - Blockers:
   - web_search strict evidence chain remains unstable (candidate-only acceptable, strict writeback blocked).
-  - not blocking MA-P1 because offline_pdf lane is the current unblocker.
+  - not blocking MA-P2 because `atb_cache_only` lane is the current release default.
 - Notes:
   - aTB cache is complete and remains first-choice chem evidence source when available.
   - Case file stays the single mutable artifact; evidence_table remains read-only during this refactor.
-  - Ready Agent is the sole gate/action owner (`current_gate`, `action_rationale`, action-plan ordering).
+  - Ready Agent is the sole gate/action owner (`current_gate`, `action_rationale`, `action_plan`).
+  - `case-e0` / `case-e2e` / `case-e2e-atb` are compatibility aliases only and forward to `case-run`.
 ## 2026-02 Addendum: Emission completion lane split (offline_pdf unblocker first)
 
 ### Current milestone update (doc-level)
