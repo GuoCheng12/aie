@@ -8,6 +8,15 @@ import pandas as pd
 from pathlib import Path
 from typing import Optional, Dict, Any, List
 
+from src.agents.base import CaseAgent
+from src.cases.create_case_from_smiles import (
+    canonicalize_smiles,
+    compute_ecfp,
+    compute_risk_scores,
+    search_neighbors,
+)
+from src.core.types import AgentContext, AgentResult
+
 from src.utils.logging import get_logger
 
 logger = get_logger(__name__)
@@ -158,3 +167,135 @@ def get_molecule_by_inchikey(inchikey: str, data_dir: str = "data") -> Dict[str,
     """Fetch molecule by InChIKey (convenience function)."""
     agent = DataAgent(data_dir=data_dir)
     return agent.get_molecule_by_inchikey(inchikey)
+
+
+class DataCaseAgent(CaseAgent):
+    """
+    Multi-agent Data Agent.
+
+    Write scope:
+    - /query/*
+    - /neighbors
+    - /risk_scores/*
+    - /agent_runs/- (added by orchestrator)
+    """
+
+    name = "data_agent"
+    version = "1.0.0"
+    allowed_patch_prefixes = (
+        "/query/",
+        "/neighbors",
+        "/risk_scores/",
+        "/agent_runs/-",
+    )
+    append_only_prefixes = ("/agent_runs",)
+
+    def __init__(
+        self,
+        *,
+        rdkit_features_path: str = "data/rdkit_features.parquet",
+        mechanism_label_map_path: str = "data/mechanism_label_map.parquet",
+        top_k: int = 10,
+    ) -> None:
+        self.rdkit_features_path = Path(rdkit_features_path)
+        self.mechanism_label_map_path = Path(mechanism_label_map_path)
+        self.top_k = int(top_k)
+
+    def build_inputs(self, case: Dict[str, Any], ctx: AgentContext) -> Dict[str, Any]:
+        query = case.get("query") or {}
+        return {
+            "case_id": case.get("case_id"),
+            "input_smiles": query.get("input_smiles"),
+            "top_k": self.top_k,
+            "rdkit_features_path": str(self.rdkit_features_path),
+            "mechanism_label_map_path": str(self.mechanism_label_map_path),
+        }
+
+    def run(self, case: Dict[str, Any], ctx: AgentContext, inputs: Dict[str, Any]) -> AgentResult:
+        smiles = str(inputs.get("input_smiles") or "").strip()
+        if not smiles:
+            return AgentResult(
+                patch=[
+                    {"op": "replace", "path": "/neighbors", "value": []},
+                    {"op": "add", "path": "/risk_scores/top1_sim", "value": 0.0},
+                    {"op": "add", "path": "/risk_scores/mean_topk_sim", "value": 0.0},
+                    {"op": "add", "path": "/risk_scores/neighbor_gap", "value": 0.0},
+                    {"op": "add", "path": "/risk_scores/novelty_struct", "value": 1.0},
+                    {"op": "add", "path": "/risk_scores/mechanism_entropy", "value": None},
+                    {"op": "add", "path": "/risk_scores/mechanism_hint", "value": "unknown"},
+                    {"op": "add", "path": "/risk_scores/hint_confidence", "value": 0.0},
+                ],
+                status="failed",
+                warnings=["missing_input_smiles"],
+                raw_outputs={"data_agent_raw": {"neighbors": [], "risk_scores": {}}},
+            )
+
+        canonical, inchikey = canonicalize_smiles(smiles)
+        if canonical is None or inchikey is None:
+            risk = {
+                "top1_sim": 0.0,
+                "mean_topk_sim": 0.0,
+                "neighbor_gap": 0.0,
+                "novelty_struct": 1.0,
+                "mechanism_entropy": None,
+                "mechanism_hint": "unknown",
+                "hint_confidence": 0.0,
+            }
+            patch = [
+                {"op": "replace", "path": "/query/canonical_smiles", "value": None},
+                {"op": "replace", "path": "/query/inchikey", "value": None},
+                {"op": "replace", "path": "/neighbors", "value": []},
+            ]
+            for k, v in risk.items():
+                patch.append({"op": "add", "path": f"/risk_scores/{k}", "value": v})
+            return AgentResult(
+                patch=patch,
+                status="partial",
+                warnings=["invalid_smiles"],
+                raw_outputs={"data_agent_raw": {"canonical_smiles": None, "inchikey": None, "neighbors": [], "risk_scores": risk}},
+            )
+
+        fp = compute_ecfp(canonical)
+        if fp is None:
+            return AgentResult(
+                patch=[
+                    {"op": "replace", "path": "/query/canonical_smiles", "value": canonical},
+                    {"op": "replace", "path": "/query/inchikey", "value": inchikey},
+                    {"op": "replace", "path": "/neighbors", "value": []},
+                ],
+                status="failed",
+                warnings=["ecfp_compute_failed"],
+                raw_outputs={"data_agent_raw": {"canonical_smiles": canonical, "inchikey": inchikey}},
+            )
+
+        rdkit_df = pd.read_parquet(self.rdkit_features_path)
+        label_map = pd.read_parquet(self.mechanism_label_map_path)
+        neighbors = search_neighbors(
+            query_fp=fp,
+            query_inchikey=inchikey,
+            rdkit_df=rdkit_df,
+            label_map=label_map,
+            k=self.top_k,
+        )
+        risk = compute_risk_scores(neighbors)
+
+        patch = [
+            {"op": "replace", "path": "/query/canonical_smiles", "value": canonical},
+            {"op": "replace", "path": "/query/inchikey", "value": inchikey},
+            {"op": "replace", "path": "/neighbors", "value": neighbors},
+        ]
+        for k, v in risk.items():
+            patch.append({"op": "add", "path": f"/risk_scores/{k}", "value": v})
+        return AgentResult(
+            patch=patch,
+            status="success",
+            warnings=[],
+            raw_outputs={
+                "data_agent_raw": {
+                    "canonical_smiles": canonical,
+                    "inchikey": inchikey,
+                    "neighbors_count": len(neighbors),
+                    "risk_scores": risk,
+                }
+            },
+        )
