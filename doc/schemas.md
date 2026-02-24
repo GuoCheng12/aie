@@ -645,6 +645,10 @@ The Case File is the central artifact for SMILES-first workflow. It is created b
 | neighbors | list[object] | Yes | Top-k structural neighbors with aTB evidence |
 | action_plan | list[object] | Yes | Ordered LLM-friendly action objects (**legacy**: list[string]) |
 | action_rationale | list[string] | No | Short ordered rationale strings for the action plan |
+| master_reasoning | object\|null | No | Master reasoner structured output (strict JSON) |
+| master_reasoning_meta | object | No | Run metadata: model/prompt versions/hashes/errors |
+| master_reasoning_status | string | No | `completed` / `failed_schema_validation` / `failed_llm` / `stubbed` |
+| master_reasoning_used_evidence_paths | list[string] | No | Canonical case-path references used by master output |
 | post_uq | object | No | Reserved: Post-UQ agent output (V1-P6 stub; updates gate/actions, no write-back) |
 | history | list[object] | Yes | Append-only event log |
 | candidate_mechanisms | list[object] | Yes | Top-3 candidate mechanisms with probabilities |
@@ -725,6 +729,25 @@ It is defined here for forward compatibility; it may be absent until V1-P6 is im
 | contradictions | list[object] | No | Detected contradictions/conflicts with evidence (optional) |
 | missing_evidence | list[string] | No | Missing evidence fields blocking or weakening conclusions |
 | recommended_actions | list[object] | No | Recommended next actions (same object shape as `action_plan`) |
+
+### master_reasoning* (release runtime)
+
+Master output is written to top-level root keys to avoid collision with legacy `reasoning.*` payloads.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| master_reasoning | object\|null | No | Strict schema output from master reasoner |
+| master_reasoning_meta | object | No | `{run_id, inputs_hash, pack_hash, pack_version, prompt_bundle_version, template_version, model, status, errors[], updated_at}` |
+| master_reasoning_status | string | No | `completed` / `failed_schema_validation` / `failed_llm` / `stubbed` |
+| master_reasoning_used_evidence_paths | list[string] | No | Deduplicated referenced case paths validated against reasoning pack allowlist |
+
+#### master_reasoning evidence reference contract
+
+- Every `evidence_used` entry must use object form:
+  - `{case_path, note, role}`
+- `case_path` must:
+  - be present in `reasoning_pack.allowed_evidence_paths`,
+  - resolve to an existing path in case JSON (value may be null; existence check only).
 
 ### evidence_readiness
 

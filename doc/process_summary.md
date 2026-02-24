@@ -78,6 +78,43 @@ Orchestrator refactor: IN PROGRESS (moving from CLI-centered flows to patch-scop
 
 ---
 
+## 2026-02-24 — Implemented: Master Reasoner v2.1 (pack-only + strict JSON + master_reasoning*)
+
+- Added pure-function reasoning core:
+  - `src/reasoning/master_reasoner.py`
+  - capabilities:
+    - `build_reasoning_pack` (deterministic minimal projection)
+    - `build_master_prompt_bundle` (versioned system/instructions/payload/schema)
+    - strict semantic validation for evidence path allowlist + path existence
+    - conservative-mode guardrails (confidence cap + required limits statements)
+    - RFC6902 patch builder for `master_reasoning*` writeback
+- Refactored `src/agents/reasoning_agent.py`:
+  - write targets switched from legacy `/reasoning/*` to top-level:
+    - `/master_reasoning`
+    - `/master_reasoning_meta`
+    - `/master_reasoning_status`
+    - `/master_reasoning_used_evidence_paths`
+  - execution condition:
+    - gate must be ready,
+    - `action_plan` must contain `run_master_reasoner` (top1 optional; default disabled).
+  - idempotency now binds to pack hash + prompt/template/model scope via agent inputs.
+- Updated `src/agents/judge_agent.py`:
+  - reads `master_reasoning` first, falls back to legacy `reasoning.master_output` for compatibility.
+- New tests:
+  - `tests/test_reasoning_pack_builder.py`
+  - `tests/test_master_output_validation.py`
+  - `tests/test_reasoning_agent_patch_scope.py`
+  - `tests/test_reasoning_agent_idempotency.py`
+  - `tests/test_orchestration_run_one_master_reasoning.py`
+- Validation:
+  - targeted set: `15 passed`
+  - full suite: `259 passed, 5 skipped`
+- Runtime demo:
+  - `python -m src.cli case-run --smiles ... --run-lane atb_cache_only ...`
+  - produced case with `master_reasoning_status=failed_llm` when `OPENAI_API_KEY` missing, while preserving auditable patch/artifact trail and no evidence_table writes.
+
+---
+
 ## 2026-02-24 — Multi-agent framework refactor kickoff (NOW path)
 
 - Repo audit conclusions (current code reality):

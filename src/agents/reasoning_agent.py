@@ -4,73 +4,127 @@ Reasoning Agent (master) for case-level hypothesis generation.
 
 from __future__ import annotations
 
+from datetime import datetime, timezone
 from typing import Any, Dict, List
 
 from src.agents.base import CaseAgent
-from src.core.types import AgentContext, AgentResult
+from src.core.hashing import sha256_json
+from src.core.types import AgentContext, AgentResult, SKIPPED_REASON_NOT_APPLICABLE
+from src.reasoning.master_reasoner import (
+    MASTER_PACK_VERSION,
+    MASTER_PROMPT_BUNDLE_VERSION,
+    build_master_patch,
+    build_master_prompt_bundle,
+    build_reasoning_pack,
+    run_master_reasoner_once,
+)
 from src.tools.llm_client import LLMClientError, ResponsesLLMClient
 
 
-def _reasoning_schema() -> Dict[str, Any]:
-    return {
-        "type": "object",
-        "additionalProperties": False,
-        "properties": {
-            "summary": {"type": "string"},
-            "hypotheses": {
-                "type": "array",
-                "items": {
-                    "type": "object",
-                    "additionalProperties": False,
-                    "properties": {
-                        "name": {"type": "string"},
-                        "confidence": {"type": "number"},
-                        "evidence_basis": {"type": "string"},
-                    },
-                    "required": ["name", "confidence", "evidence_basis"],
-                },
-            },
-            "limitations": {"type": "array", "items": {"type": "string"}},
-        },
-        "required": ["summary", "hypotheses", "limitations"],
-    }
+def _now_iso8601() -> str:
+    return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def _action_plan_has_master_action(action_plan: Any, *, require_top1: bool) -> bool:
+    if not isinstance(action_plan, list):
+        return False
+    candidates = {"run_master_reasoner", "run_master_reasoner_stub"}
+    rows = [x for x in action_plan if isinstance(x, dict)]
+    if not rows:
+        return False
+    if require_top1:
+        pending = [x for x in rows if str(x.get("status") or "pending") in {"pending", "not_started"}]
+        if not pending:
+            pending = rows
+        top = sorted(pending, key=lambda x: int(x.get("priority") or 10**9))[0]
+        return str(top.get("action") or "") in candidates
+    return any(str(x.get("action") or "") in candidates for x in rows)
 
 
 class ReasoningAgent(CaseAgent):
     name = "reasoning_agent"
     version = "1.0.0"
     allowed_patch_prefixes = (
-        "/reasoning/",
+        "/master_reasoning",
+        "/master_reasoning_meta",
+        "/master_reasoning_status",
+        "/master_reasoning_used_evidence_paths",
         "/agent_runs/-",
     )
     append_only_prefixes = ("/agent_runs",)
 
-    def __init__(self, *, use_llm: bool = True) -> None:
+    def __init__(self, *, use_llm: bool = True, require_top1_for_master: bool = False) -> None:
         self.use_llm = bool(use_llm)
+        self.require_top1_for_master = bool(require_top1_for_master)
 
     def build_inputs(self, case: Dict[str, Any], ctx: AgentContext) -> Dict[str, Any]:
+        reasoning_config = {
+            "run_lane": ctx.run_lane,
+            "model": ctx.model,
+            "reasoning_effort": ctx.llm_reasoning_effort,
+            "pack_version": MASTER_PACK_VERSION,
+            "prompt_bundle_version": MASTER_PROMPT_BUNDLE_VERSION,
+            "require_top1_for_master": self.require_top1_for_master,
+            "conservative_confidence_cap": 0.65,
+        }
+        reasoning_pack = build_reasoning_pack(case, reasoning_config)
+        prompt_bundle = build_master_prompt_bundle(reasoning_pack, reasoning_config)
+        gate = case.get("current_gate") or {}
+        action_plan = case.get("action_plan") or []
+        has_master_action = _action_plan_has_master_action(
+            action_plan,
+            require_top1=self.require_top1_for_master,
+        )
         return {
             "case_id": case.get("case_id"),
-            "inchikey": (case.get("query") or {}).get("inchikey"),
-            "risk_scores": case.get("risk_scores") or {},
-            "target_fields": case.get("target_fields") or {},
-            "mechanism_hint": (case.get("risk_scores") or {}).get("mechanism_hint"),
-            "neighbors_top3": (case.get("neighbors") or [])[:3],
+            "ready_for_reasoning": bool(gate.get("ready_for_reasoning") is True or str(gate.get("state") or "") in {"ready_for_reasoning", "ready_conservative"}),
+            "has_master_action": has_master_action,
+            "reasoning_config": reasoning_config,
+            "pack_hash": sha256_json(reasoning_pack),
+            "template_version": prompt_bundle.get("template_version"),
+            "reasoning_pack": reasoning_pack,
         }
 
     def run(self, case: Dict[str, Any], ctx: AgentContext, inputs: Dict[str, Any]) -> AgentResult:
+        if not bool(inputs.get("ready_for_reasoning")):
+            return AgentResult(
+                patch=[],
+                status="skipped",
+                status_reason_code=SKIPPED_REASON_NOT_APPLICABLE,
+                warnings=["reasoning_not_ready"],
+                raw_outputs={"skip": {"reason": "reasoning_not_ready"}},
+            )
+        if not bool(inputs.get("has_master_action")):
+            return AgentResult(
+                patch=[],
+                status="skipped",
+                status_reason_code=SKIPPED_REASON_NOT_APPLICABLE,
+                warnings=["master_action_missing"],
+                raw_outputs={"skip": {"reason": "master_action_missing"}},
+            )
+
+        reasoning_config = dict(inputs.get("reasoning_config") or {})
         raw: Dict[str, Any] = {}
         if not self.use_llm:
-            stub = {
-                "summary": "Reasoning stub executed.",
-                "hypotheses": [],
-                "limitations": ["llm_disabled"],
+            meta = {
+                "run_id": ctx.run_id,
+                "inputs_hash": inputs.get("pack_hash"),
+                "pack_hash": inputs.get("pack_hash"),
+                "pack_version": reasoning_config.get("pack_version"),
+                "prompt_bundle_version": reasoning_config.get("prompt_bundle_version"),
+                "template_version": inputs.get("template_version"),
+                "model": ctx.model,
+                "status": "stubbed",
+                "updated_at": _now_iso8601(),
             }
-            patch = [
-                {"op": "add", "path": "/reasoning/status", "value": "stubbed"},
-                {"op": "add", "path": "/reasoning/master_output", "value": stub},
-            ]
-            return AgentResult(patch=patch, status="stubbed", raw_outputs={"reasoning_stub": stub})
+            patch = build_master_patch(
+                case,
+                None,
+                status="stubbed",
+                used_paths=[],
+                meta=meta,
+            )
+            return AgentResult(patch=patch, status="stubbed", raw_outputs={"reasoning_stub": meta})
 
         try:
             llm = ResponsesLLMClient(
@@ -80,40 +134,68 @@ class ReasoningAgent(CaseAgent):
                 max_output_tokens=ctx.llm_max_output_tokens,
                 reasoning_effort=ctx.llm_reasoning_effort,
             )
-            prompt = (
-                "You are the master reasoner for AIE mechanism discovery.\n"
-                "Use only the provided structured case context.\n"
-                "Do not claim certainty if evidence is missing.\n\n"
-                f"Case context:\n{inputs}"
+            run_out = run_master_reasoner_once(
+                case_json=case,
+                reasoning_config=reasoning_config,
+                llm_client=llm,
+                reasoning_pack=inputs.get("reasoning_pack"),
             )
-            out = llm.responses_json(
-                instructions="Return strict JSON only.",
-                input_text=prompt,
-                schema_name="reasoning_master_output_v1",
-                schema=_reasoning_schema(),
-            )
-            parsed = out["parsed"]
-            raw["llm_request"] = out["request"]
-            raw["llm_response"] = out["response"]
-            patch = [
-                {"op": "add", "path": "/reasoning/status", "value": "completed"},
-                {"op": "add", "path": "/reasoning/master_output", "value": parsed},
-            ]
-            return AgentResult(patch=patch, status="success", raw_outputs=raw)
-        except LLMClientError as exc:
-            stub = {
-                "summary": "Reasoning fallback stub due to LLM error.",
-                "hypotheses": [],
-                "limitations": [f"llm_error:{exc}"],
+            status = "completed" if run_out["status"] == "success" else "failed_schema_validation"
+            meta = {
+                "run_id": ctx.run_id,
+                "inputs_hash": inputs.get("pack_hash"),
+                "pack_hash": run_out.get("pack_hash"),
+                "pack_version": reasoning_config.get("pack_version"),
+                "prompt_bundle_version": reasoning_config.get("prompt_bundle_version"),
+                "template_version": run_out.get("prompt_bundle", {}).get("template_version"),
+                "model": ctx.model,
+                "status": status,
+                "errors": run_out.get("validation_errors") or [],
+                "updated_at": _now_iso8601(),
             }
-            patch = [
-                {"op": "add", "path": "/reasoning/status", "value": "stubbed"},
-                {"op": "add", "path": "/reasoning/master_output", "value": stub},
-            ]
+            patch = build_master_patch(
+                case,
+                run_out.get("normalized_output") if run_out["status"] == "success" else None,
+                status=status,
+                used_paths=run_out.get("used_case_paths") or [],
+                meta=meta,
+            )
+            raw.update(
+                {
+                    "master_prompt_bundle": run_out.get("prompt_bundle"),
+                    "reasoning_pack": run_out.get("reasoning_pack"),
+                    "llm_request": run_out.get("llm_request"),
+                    "llm_response_raw": run_out.get("llm_response_raw"),
+                    "master_output_parsed": run_out.get("master_output_parsed"),
+                    "master_patch_preview": patch,
+                    "validation_errors": run_out.get("validation_errors") or [],
+                }
+            )
+            if run_out["status"] == "success":
+                return AgentResult(patch=patch, status="success", raw_outputs=raw)
+            return AgentResult(
+                patch=patch,
+                status="partial",
+                warnings=["master_output_validation_failed"],
+                raw_outputs=raw,
+            )
+        except LLMClientError as exc:
+            meta = {
+                "run_id": ctx.run_id,
+                "inputs_hash": inputs.get("pack_hash"),
+                "pack_hash": inputs.get("pack_hash"),
+                "pack_version": reasoning_config.get("pack_version"),
+                "prompt_bundle_version": reasoning_config.get("prompt_bundle_version"),
+                "template_version": inputs.get("template_version"),
+                "model": ctx.model,
+                "status": "failed_llm",
+                "errors": [f"llm_error:{exc}"],
+                "updated_at": _now_iso8601(),
+            }
+            patch = build_master_patch(case, None, status="failed_llm", used_paths=[], meta=meta)
             return AgentResult(
                 patch=patch,
                 status="partial",
                 warnings=[f"reasoning_llm_failed:{exc}"],
-                raw_outputs={"reasoning_stub": stub},
+                raw_outputs={"validation_errors": [f"llm_error:{exc}"], "master_patch_preview": patch},
             )
-

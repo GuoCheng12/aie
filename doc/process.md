@@ -74,7 +74,8 @@ The following are platform rules for the release path (not example-only behavior
   - allowed: `current_gate.*`, `action_rationale`, `action_plan`, optional `risk_scores.readiness_*`, `agent_runs[]`
   - forbidden: `target_fields*`, `evidence_candidates_staging[]`, `evidence_readiness.*`
 - **Reasoning Agent**
-  - allowed: `reasoning.*`, `agent_runs[]`
+  - allowed: `master_reasoning`, `master_reasoning_meta`, `master_reasoning_status`,
+    `master_reasoning_used_evidence_paths`, `agent_runs[]`
   - forbidden: `current_gate`, `action_rationale`, `target_fields*`
 - **Judge Agent**
   - allowed: `post_uq.*`, `agent_runs[]`
@@ -103,6 +104,18 @@ The following are platform rules for the release path (not example-only behavior
 - Evidence table is **read-only** in this refactor (no writeback).
 - Every agent step must append an `agent_runs[]` audit row with `inputs_hash` + `idempotency_key`.
 - Replay artifacts are mandatory per run/step for deterministic audit.
+- Master reasoner consumes `reasoning_pack` only (not full case payload in prompt), and all evidence references must resolve to allowed case paths.
+
+### Master Reasoner runtime contract (release)
+
+- **Input**: `case.json` + `reasoning_config`
+- **Internal projection**: build `reasoning_pack` (`master_pack_v1`) as the only model-facing context
+- **Prompt bundle**: `master_prompt_bundle_v1` with `{system, instructions, user_payload, schema}`
+- **Output**: strict JSON + semantic validation (evidence path allowlist/existence, conservative caps)
+- **Writeback**: RFC6902 patch to `master_reasoning*` root keys only
+- **Execution condition**:
+  - gate is ready (`ready_for_reasoning=true` or ready state),
+  - `action_plan` contains `run_master_reasoner` (position-independent by default; top1 check optional via config)
 
 ---
 

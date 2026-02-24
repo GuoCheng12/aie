@@ -32,26 +32,31 @@ class JudgeAgent(CaseAgent):
     allowed_patch_prefixes = (
         "/post_uq",
         "/post_uq/",
-        "/action_plan/-",
         "/agent_runs/-",
     )
-    append_only_prefixes = ("/action_plan", "/agent_runs")
+    append_only_prefixes = ("/agent_runs",)
 
     def __init__(self, *, use_llm: bool = False) -> None:
         self.use_llm = bool(use_llm)
 
     def build_inputs(self, case: Dict[str, Any], ctx: AgentContext) -> Dict[str, Any]:
+        master_reasoning = case.get("master_reasoning")
+        if not isinstance(master_reasoning, dict):
+            master_reasoning = ((case.get("reasoning") or {}).get("master_output") or {})
+        master_status = case.get("master_reasoning_status")
+        if master_status is None:
+            master_status = ((case.get("reasoning") or {}).get("status"))
         return {
             "case_id": case.get("case_id"),
             "gate": case.get("current_gate") or {},
             "target_fields": case.get("target_fields") or {},
-            "reasoning": case.get("reasoning") or {},
+            "master_reasoning": master_reasoning,
+            "master_reasoning_status": master_status,
             "risk_scores": case.get("risk_scores") or {},
         }
 
     def _heuristic_judge(self, inputs: Dict[str, Any]) -> Dict[str, Any]:
-        reasoning = inputs.get("reasoning") or {}
-        master = reasoning.get("master_output") or {}
+        master = inputs.get("master_reasoning") or {}
         has_reasoning = bool(master)
         missing = []
         if not inputs.get("target_fields"):
@@ -103,22 +108,6 @@ class JudgeAgent(CaseAgent):
             judged = self._heuristic_judge(inputs)
 
         patch = [{"op": "add", "path": "/post_uq", "value": judged}]
-        for action in judged.get("recommended_actions") or []:
-            patch.append(
-                {
-                    "op": "add",
-                    "path": "/action_plan/-",
-                    "value": {
-                        "action": str(action),
-                        "priority": 999,
-                        "status": "pending",
-                        "inputs": {},
-                        "expected_outputs": [],
-                        "blocking": False,
-                        "notes": "judge_agent_suggestion",
-                    },
-                }
-            )
         return AgentResult(
             patch=patch,
             status="success",
