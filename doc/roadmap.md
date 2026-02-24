@@ -35,7 +35,7 @@ Build a working pipeline that:
 - Report generator: per-molecule report + novelty log
 
 **Definition of Done**
-See `CLAUDE.md` § "V0 Acceptance Criteria" for the authoritative checklist.
+See `.codex/AGENTS.md` and archived `doc/process_v0.md` for the authoritative V0 acceptance checklist/history.
 
 **Key risks**
 - Unit normalization (qy/tau/emission fields) — see `doc/process_v0.md` P1 for rules
@@ -51,12 +51,20 @@ Add:
 - Evidence table with source, conditions, and weights
 - Light graph connections: Molecule ↔ Evidence ↔ Condition
 - Retrieval for reasoning: return relevant evidence snippets and structured conditions
+- Lightweight Orchestrator + plugin Agents to execute Case-file-driven workflows (single source of truth stays in case file)
 
 **Deliverables**
 - `data/evidence_table.parquet` with provenance fields
 - Graph layer (networkx/neo4j-lite) linking evidence to molecules and conditions
 - Updated reports: include evidence provenance IDs and conditions
 - V1 deliverable is a provenance-first Evidence Graph; GraphRAG context retrieval returns evidence-backed subgraphs.
+- Orchestrator framework blueprint (`src/orchestrator/*`, `src/agents/*`, `src/artifacts/*`) with auditable `agent_runs` writeback into case file.
+
+**V1 Orchestrator milestones (parallel with P4/P5)**
+- **V1-ORCH-P0**: Define orchestrator/agent contracts (case-in, patch/artifact-out, audit fields).
+- **V1-ORCH-P1**: Single-sample run loop (`test.csv` aTB-success lane) with deterministic agent ordering.
+- **V1-ORCH-P2**: Wire literature agent slot as parallel workstream (owned by teammate), keep strict/relaxed writeback policy gates.
+- **V1-ORCH-P3**: Bridge orchestrator outputs to P5 reports and post-UQ review slot.
 
 **UQ changes**
 - Coverage includes evidence mass/quality (not just feature-space density)
@@ -112,12 +120,44 @@ Introduce a domain knowledge graph as explicit external memory:
 
 ## Milestone tracking (update periodically)
 - Current version: V1
-- V0 status: completed (P1–P6/P7 delivered; P2 cache integrated; P3b X_full built; structure-only anchors)
-- Current milestone: V1-P4-pre + train-only facts migration (facts DB refresh to `train.csv` schema)
-- Blockers: Literature evidence chain (gateway does not reliably pass through citations/sources; strict evidence writeback is blocked)
-  - Literature search tool (web_search / deep research / external gateway): call chain works, but citations/sources passthrough is limited or unstable (strict provenance blocked)
-  - MinerU: depends on obtaining PDF / landing URLs (blocked by the above)
+- V0 status: completed (P1–P6/P7 delivered; structure-only anchors retained)
+- Current milestone: **V1-MA-P1** (multi-agent framework baseline)
+  - Deliverable: one-shot orchestrator loop for one `test.csv` sample with auditable patch-based case evolution.
+  - Sequence: Data Agent -> Chem Agent -> Ready Agent -> (conditional) Reasoning Agent -> Judge Agent -> Ready Agent.
+- Parallel lane:
+  - **P4-pre (offline_pdf lane)**: run single-sample emission completion with MinerU + LLM extraction.
+  - **P4 (web_search lane, teammate owner)**: stabilize citations/sources passthrough before strict writeback.
+- Blockers:
+  - web_search strict evidence chain remains unstable (candidate-only acceptable, strict writeback blocked).
+  - not blocking MA-P1 because offline_pdf lane is the current unblocker.
 - Notes:
-  - aTB status in this repo: DONE (full cache available; readiness uses cache_status + keyfield completeness + neighborhood consistency)
-  - Data refresh track: private facts are train-only; test set is non-fact evaluation input
-  - V1 planning started; V0 process archived in doc/process_v0.md
+  - aTB cache is complete and remains first-choice chem evidence source when available.
+  - Case file stays the single mutable artifact; evidence_table remains read-only during this refactor.
+  - Ready Agent is the sole gate/action owner (`current_gate`, `action_rationale`, action-plan ordering).
+## 2026-02 Addendum: Emission completion lane split (offline_pdf unblocker first)
+
+### Current milestone update (doc-level)
+
+- aTB lane: complete (full run done)
+- Literature web-search lane: partial (candidate retrieval available, strict citation/sources writeback still unstable)
+- Current unblocker for end-to-end demo: `offline_pdf` mode
+
+### Deliverables (V1/P4 lane refinement)
+
+- **P4-pre E0 (offline_pdf lane; current execution target)**:
+  - single-sample end-to-end emission completion from `test.csv`
+  - outputs locked to: `agent_patch (RFC6902) + evidence_candidates_staging + replay artifacts`
+  - includes 4-state gate, idempotency key with extractor/normalizer config hashes, and no evidence-table writeback
+- **P4-pre E1 (offline_pdf lane hardening)**:
+  - deterministic rerun behavior, clearer failure buckets, stronger replay verification
+- **P4-pre E2 (post-closure abstraction)**:
+  - extract registry/policy/types after E0/E1 behavior is stable
+- **P4 (web_search lane, parallel teammate track)**:
+  - replace/augment offline lane with `web_search + pdf_fetch`
+  - gated by stable citations/sources passthrough
+  - strict evidence writeback only after traceability is satisfied
+
+### Architecture continuity
+
+- Keep one orchestrator and one case schema.
+- Switch only `evidence_acquire.emission.mode` (`offline_pdf` <-> `web_search`) without architecture rewrite.

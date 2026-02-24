@@ -17,6 +17,7 @@ Current blocker: Literature evidence loop (web_search citations/sources not reli
 aTB: DONE (full batch complete and cached)
 Literature: PARTIAL (relaxed candidate retrieval works; strict citations not guaranteed)
 Data refresh: IN PROGRESS (train-only facts migration; test isolated from fact writeback)
+Orchestrator refactor: IN PROGRESS (moving from CLI-centered flows to patch-scoped multi-agent runtime)
 
 > Rules:
 > - Update this file AFTER each planning chunk is implemented.
@@ -25,6 +26,26 @@ Data refresh: IN PROGRESS (train-only facts migration; test isolated from fact w
 > - Do NOT paste large raw private data; keep it summarized and privacy-safe.
 
 ---
+
+## 2026-02-24 — Multi-agent framework refactor kickoff (NOW path)
+
+- Repo audit conclusions (current code reality):
+  - `src/cases/*` contains most case logic and patch/replay behavior; `src/cli.py` currently orchestrates many flows directly.
+  - `src/features/anchor_hybrid_ecfp_atb_partial.py`, `src/features/anchor_two_stage_partial_atb.py`, and related validators/manifests are legacy experimental tracks that conflict with the current “structure-only retrieval” decision.
+  - `src/cases/example_a_first_runner.py` is useful as a locked behavior reference, but is not the final orchestration surface.
+- Target architecture adopted:
+  - `src/core/` for patch enforcement + hashing + artifact IO,
+  - `src/tools/` for LLM/MinerU adapters,
+  - `src/agents/` for role-scoped agents,
+  - `src/orchestration/` for registry + policies + loop entrypoint.
+- Execution contract now locked:
+  - all agent writes through RFC6902 patch with whitelist + append-only enforcement,
+  - per-step idempotency key + `agent_runs[]` row + replay artifacts.
+- Ready Agent ownership remains strict:
+  - only writer of `current_gate` and `action_rationale`,
+  - other agents cannot patch gate fields directly.
+- Current next action:
+  - finish framework wiring + tests + one-command demo for one `test.csv` sample (`run_one` entrypoint) using offline PDF mode where supplied.
 
 ## 2026-02-09 — Literature gateway status (web_search citations passthrough)
 
@@ -37,6 +58,266 @@ Data refresh: IN PROGRESS (train-only facts migration; test isolated from fact w
 - Declared `data/train.csv` as the sole source for `data/private_clean.parquet` (facts DB).
 - Declared `data/test.csv` as non-fact input (simulation/eval only); excluded from private_clean/evidence private_observation.
 - Migration scope set for ingestion + UQ + reports + evidence/graph + case semantics to remove hard dependency on legacy private fields (`absorption/qy/tau/tested_solvent`).
+
+## 2026-02-16 — Multi-Agent doc refresh (orchestrator blueprint, doc-only)
+
+- Current blocker corrected:
+  - aTB: DONE (cache + tables complete; case uses `evidence_readiness.atb.cache_status` and neighborhood consistency risk signals).
+  - Literature: PARTIAL (web_search pipeline is usable for candidate leads, but citation/source passthrough is unstable for strict evidence writeback).
+- Literature lane policy remains:
+  - relaxed mode: candidate-only writeback to case file,
+  - strict evidence-table writeback remains gated by provenance completeness.
+- Consolidated planning blueprint into canonical docs:
+  - `doc/process.md` now includes phased implementation plan + Example A acceptance criteria.
+  - `doc/process_summary.md` remains the execution/change log.
+  - standalone `doc/PLAN.md` / `doc/PLAN_SUMMARY.md` removed to avoid doc-source divergence.
+- Next execution step:
+  - single-sample end-to-end from `test.csv` on aTB-success lane (case build → graph retrieval → atb pack + consistency → master reasoner), with full `agent_runs` trace.
+
+## 2026-02-17 — Example A-first E0 lock + implementation (patch/staging/replay)
+
+- Execution strategy reordered to `Example A-first`:
+  - E0 first: minimal runner + agent patch + candidate staging + full replay artifacts.
+  - `master_reasoner` / `post_uq` remain stubs in E0.
+  - `evidence_table` writeback remains hard-disabled in E0.
+- Locked gate state machine (4 states):
+  - `blocked_input_missing`
+  - `failed_extract`
+  - `extracted_no_writeback`
+  - `ready_for_reasoning`
+- Locked idempotency key material to include extractor + normalizer config hashes and page-selection hash (not only PDF hash).
+- Locked patch format to RFC6902 JSON Patch with strict whitelist and append-only paths for `agent_runs`/`staging`/`reasons`/`next_actions`.
+- Implemented runner:
+  - `src/cases/example_a_first_runner.py`
+  - CLI bridge: `python -m src.cli case-e0 ...`
+- Added tests:
+  - `tests/test_example_a_first_runner.py`
+  - covers gate transitions, idempotent skip, film-priority deterministic selection, patch whitelist fail-fast, and evidence-table no-touch guard.
+
+## 2026-02-18 — E0 `mineru_llm` integration (dual extractor mode)
+
+- Extended E0 runner to support two extractor paths without changing downstream patch/staging/replay logic:
+  - `extractor_mode=sidecar_only` (existing sidecar JSON path),
+  - `extractor_mode=mineru_llm` (MinerU output resolution/CLI fallback + LLM JSON extraction).
+- Added new extractor module:
+  - `src/cases/mineru_llm_extractor.py`
+  - capabilities: resolve existing MinerU bundle (`.md` + `_content_list_v2.json`), optional CLI run fallback, OpenAI-compatible Responses extraction with strict JSON schema, candidate sanitization.
+- Updated E0 runner + CLI:
+  - `src/cases/example_a_first_runner.py`
+  - `src/cli.py` (`case-e0`) with new flags for `extractor_mode`, MinerU path/options, and LLM config.
+- E0 writeback/audit extensions:
+  - case patch now records `evidence_acquire.emission.extractor_mode`, `mineru_output_hash`, `llm_prompt_version` (plus `llm_model`/`llm_schema_version`),
+  - idempotency key now includes extractor mode + MinerU output hash + LLM prompt/schema/model dimensions,
+  - replay artifacts add `01a..01e` (`mineru_inputs`, `md_excerpt`, `content_list_v2_excerpt`, `llm_request`, `llm_response_raw`) when using `mineru_llm`.
+- Guardrails unchanged:
+  - evidence-table writeback remains hard-disabled in E0.
+  - gate states remain `blocked_input_missing | failed_extract | extracted_no_writeback | ready_for_reasoning`.
+- Tests added/extended:
+  - `tests/test_example_a_first_runner.py`: mineru_llm success/failure/no-writeback paths + replay artifact checks.
+  - `tests/test_mineru_llm_extractor.py`: MinerU precomputed bundle resolution + LLM payload parsing normalization.
+- Validation run:
+  - `pytest -q tests/test_example_a_first_runner.py tests/test_mineru_llm_extractor.py`
+  - result: `13 passed`.
+
+## 2026-02-19 — One-shot E2E command + case history retention
+
+- Added one-shot CLI command:
+  - `python -m src.cli case-e2e`
+  - input supports `--smiles` or `--code` (resolved from `data/test.csv`)
+  - pipeline executed in one command: case build -> snapshot before -> E0 writeback -> summary JSON.
+- Added append-only case history writes for E0 agents:
+  - `offline_pdf_emission_agent` writes `literature_updated`
+  - `master_reasoner_stub` writes `action_marked`
+  - `post_uq_stub` writes `gate_evaluated`
+- Patch whitelist/append-only paths updated to include `/history/-` for audit-safe event accumulation.
+- Added tests:
+  - `tests/test_cli_case_e2e.py` (one-shot command flow via mocks)
+  - extended `tests/test_example_a_first_runner.py` to assert history event persistence.
+- Validation run:
+  - `pytest -q tests/test_example_a_first_runner.py tests/test_mineru_llm_extractor.py tests/test_cli_case_e2e.py tests/test_cli.py`
+  - result: `20 passed`.
+
+## 2026-02-19 — Output simplification: final case + stable run log
+
+- Added stable per-case run log output for E0/E2E:
+  - path: `{artifacts_dir}/{case_id}.run_log.json`
+  - includes run metadata, gate result, reasons/next_actions, extractor diagnostics, and LLM request/response trace.
+- Kept replay mode unchanged for debugging (`artifact_mode=full`), but added clean operator mode:
+  - `artifact_mode=final_case_only` now suppresses `artifacts/{run_id}/...` replay files and keeps only:
+    - final case file
+    - stable run log file above
+- CLI summary now returns `run_log_path` for `case-e2e`.
+- Tests:
+  - `tests/test_example_a_first_runner.py`: added final-case-only + run-log assertion.
+  - `tests/test_cli_case_e2e.py`: updated mocked summary to include `run_log_path`.
+- Validation run:
+  - `pytest -q tests/test_example_a_first_runner.py tests/test_cli_case_e2e.py`
+  - result: `13 passed`.
+
+## 2026-02-20 — MinerU source-binding fix for rewritten `*_origin.pdf`
+
+- Root cause identified for repeated `mineru_output_missing` on DMA-AM:
+  - E0 preflight used strict hash/size matching against MinerU `*_origin.pdf`.
+  - Some MinerU runs rewrite/canonicalize `*_origin.pdf` bytes, so hash no longer equals input PDF even when `.md` + `_content_list_v2.json` are valid.
+- Fix:
+  - `src/cases/mineru_llm_extractor.py` now keeps strict hash matching for existing artifacts, but after a successful CLI run falls back to `output_root/<pdf_stem>/...` bundle discovery.
+  - New resolve mode: `cli_run_stem_fallback` with `source_binding=stem_fallback_after_cli_run`.
+- Effect:
+  - Prevents false `mineru_output_missing` immediately after successful MinerU CLI execution.
+  - LLM stage can proceed when output bundle exists but origin PDF hash differs.
+- Added regression test:
+  - `tests/test_mineru_llm_extractor.py::test_resolve_or_run_mineru_cli_stem_fallback_when_origin_pdf_rewritten`
+- Validation run:
+  - `pytest -q tests/test_mineru_llm_extractor.py tests/test_example_a_first_runner.py tests/test_cli_case_e2e.py`
+  - result: `20 passed`.
+
+## 2026-02-20 — Relaxed writeback policy to avoid E0 deadlock on missing page
+
+- Problem observed in live DMA-AM run:
+  - MinerU + LLM produced a valid solid/powder candidate (`578 nm`, locator present, identity matched),
+  - but page was missing, so candidate stayed `unverified`,
+  - previous selector required `verification_status=verified` for any writeback, causing `extracted_no_writeback`.
+- Policy adjustment in `src/cases/example_a_first_runner.py`:
+  - `strictness=relaxed` (default): allow case-field writeback from non-rejected candidates with:
+    - normalized nm value,
+    - mapped target field,
+    - `identity_match != unmatched`,
+    - non-empty `source_locator`.
+  - `strictness=strict`: unchanged; still requires `verification_status=verified` (page+locator+unit+identity).
+- Ranking update:
+  - `emission_aggr_nm` now also prefers verified candidates first (then source kind/confidence/page).
+- Logging:
+  - run log now records `strictness` at top level for easier diagnosis.
+- Tests added:
+  - relaxed mode accepts unverified writeback,
+  - strict mode rejects same candidate without page.
+- Validation run:
+  - `pytest -q tests/test_example_a_first_runner.py tests/test_mineru_llm_extractor.py tests/test_cli_case_e2e.py`
+  - result: `23 passed`.
+
+## 2026-02-20 — Verified rule update (scheme-1): structured locator can replace page
+
+- User decision: keep MinerU preflight constraints, but relax `verified` semantics for writeback.
+- Implemented in `src/cases/example_a_first_runner.py`:
+  - `verification_status=verified` now requires:
+    - locator present,
+    - page present **or** locator is structured (`Table`/`Fig`/`Figure`),
+    - nm-normalized value,
+    - mapped target field,
+    - `identity_match != unmatched`.
+- Effect:
+  - candidates like `Fig. 2 ...` without explicit page can still become `verified`.
+  - strict mode remains strict on non-structured/no-page text locators.
+- Tests updated:
+  - strict mode with structured locator and missing page -> `ready_for_reasoning`.
+  - strict mode with plain text locator and missing page -> `extracted_no_writeback`.
+- Validation run:
+  - `pytest -q tests/test_example_a_first_runner.py tests/test_mineru_llm_extractor.py tests/test_cli_case_e2e.py`
+  - result: `24 passed`.
+
+## 2026-02-24 — Fix: evidence_readiness.literature/current_gate state sync after E0 writeback
+
+- Issue:
+  - Case had successful emission writeback (`target_fields` + `current_gate.state=ready_for_reasoning`) but
+    `case_sections.for_master_reasoning.evidence_readiness.literature.status` remained `not_started`.
+- Root cause:
+  - E0 runner wrote top-level `current_gate` and emission fields, but did not update:
+    - `evidence_readiness.literature.*`
+    - `evidence_readiness.current_gate.*`
+- Fix in `src/cases/example_a_first_runner.py`:
+  - Scaffold now ensures `evidence_readiness.literature` and `evidence_readiness.current_gate` defaults exist.
+  - Patch whitelist now allows:
+    - `/evidence_readiness/literature/*`
+    - `/evidence_readiness/current_gate/*`
+  - E0 now writes synchronized readiness fields each run:
+    - literature: `status`, `sources`, `last_update`, `notes`
+    - nested gate: `ready_for_reasoning`, `reason`, `reasoning_mode`
+    - top gate also gets `reasoning_mode` for consistency.
+  - Literature status mapping:
+    - `not_started`: no offline PDF/mode mismatch
+    - `not_found`: extraction failure or no candidates
+    - `found`: staged candidates exist
+    - idempotent skip keeps prior literature status/sources.
+- Tests updated:
+  - blocked input -> literature `not_started`
+  - extractor failure -> literature `not_found`
+  - successful writeback -> literature `found` + nested gate `reasoning_mode=normal`
+- Validation run:
+  - `pytest -q tests/test_example_a_first_runner.py tests/test_mineru_llm_extractor.py tests/test_cli_case_e2e.py`
+  - result: `24 passed`.
+
+## 2026-02-24 — Case slimming for final_case_only (reasoning-focused case file)
+
+- User request: keep case file lean for reasoning and move operational/audit payload out of case.
+- Implemented in `src/cases/example_a_first_runner.py`:
+  - when `artifact_mode=final_case_only`, persisted case is compacted to reasoning essentials only.
+  - retained keys:
+    - `case_id`, `case_version`, `query`, `current_gate`, `risk_scores`, `evidence_readiness`,
+    - `neighbors`, `candidate_mechanisms`, `mechanism_signatures`,
+    - `action_plan`, `action_rationale`, `target_fields`, `target_fields_provenance`.
+  - removed from persisted case in this mode:
+    - `history`, `agent_runs`, `reasons`, `next_actions`, `evidence_candidates_staging`, and other operational fields.
+  - added marker:
+    - `_case_compaction.mode = "reasoning_only"`.
+- Operational audit remains in stable run log:
+  - `{artifacts_dir}/{case_id}.run_log.json` (includes LLM request/response, reasons, staged candidates, etc.).
+- Validation run:
+  - `pytest -q tests/test_example_a_first_runner.py tests/test_mineru_llm_extractor.py tests/test_cli_case_e2e.py`
+  - result: `24 passed`.
+
+## 2026-02-24 — READY_AGENT introduced (independent gate/rationale/plan writer)
+
+- Added new agent:
+  - `src/agents/ready_agent.py`
+  - public API: `review_case_and_patch(case_json) -> RFC6902 patch`
+  - optional applier: `apply_ready_agent_patch(...)`
+- Write-scope enforcement:
+  - READY_AGENT patch paths are hard-limited to:
+    - `/current_gate/*`
+    - `/action_rationale`
+    - `/action_plan`
+    - optional `/risk_scores/readiness_*`
+  - No writes to `target_fields` or other evidence payload sections.
+- Gate machine implemented:
+  - `blocked_input_missing | needs_manual | ready_for_reasoning | ready_conservative`
+  - checks include emission availability/provenance, anti-leakage for aggregate field, identity metadata/confidence, and aTB downgrade behavior.
+- Action plan semantics implemented:
+  - add/reorder blocking actions for missing inputs/manual extraction/identity verification,
+  - force master reasoning action to priority 1 in ready states,
+  - queue `retry_target_atb` when aTB failed but evidence is otherwise usable.
+- CLI hook added:
+  - `python -m src.cli ready-agent --case <path> [--dry-run]`
+- Pipeline integration:
+  - `case`, `case-update`, `case-e0`, and `case-e2e` now run READY_AGENT after upstream case writes so gate/rationale/plan are finalized by READY_AGENT.
+- Schema allowlist update:
+  - `src/cases/case_schema.py` action allowlist extended for READY_AGENT actions (`run_master_reasoner_stub`, `retry_target_atb`, `rerun_offline_pdf_extractor`, `manual_extract`, `manual_identity_verify_from_pdf`, `request_manual_pdf`).
+- Tests added:
+  - `tests/test_ready_agent.py`
+  - `tests/test_cli_ready_agent.py`
+  - Covers contradiction repair, anti-leakage rejection, identity downgrade, and forbidden-path guarantees.
+- Validation run:
+  - `pytest -q tests/test_ready_agent.py tests/test_cli_ready_agent.py tests/test_example_a_first_runner.py tests/test_mineru_llm_extractor.py tests/test_cli_case_e2e.py`
+  - result: `29 passed`.
+
+## 2026-02-19 — MinerU emission prompt template alignment
+
+- Updated `src/cases/mineru_llm_extractor.py` prompt assembly to use the template file:
+  - `third_party/MinerU/aie_data/prompts/emission_prompt_template.txt`
+- Runtime substitution now injects target identity into template fields:
+  - `TARGET_CODE`
+  - `TARGET_ALIASES`
+  - `TARGET_SMILES`
+  - `TARGET_INCHIKEY`
+- Kept existing strict JSON schema output path for E0 compatibility; template text is now the primary extraction instruction body.
+- Added test:
+  - `tests/test_mineru_llm_extractor.py::test_build_mineru_prompt_payload_uses_template_runtime_target`
+
+## 2026-02-19 — LLM extractor default model switch
+
+- Changed default E0 LLM model to `deepseek-v3.2` for both direct runner and CLI wrappers:
+  - `src/cases/example_a_first_runner.py` (`run_case_example_a_e0` default + parser `--llm-model`)
+  - `src/cli.py` (`case-e0` and `case-e2e` default `--llm-model`)
+- No behavior change beyond default model selection; explicit `--llm-model` still overrides.
 
 ## 2026-02-10 — Train-only facts migration completed (code + rebuild)
 
@@ -55,6 +336,45 @@ Rebuild + validation snapshot:
 - UQ: `uq_scores_pre_atb_p5b=500` rows; router counts = Known/Stable 283, Evidence-insufficient 132, In-domain ambiguous 48, Novelty-candidate 37.
 - P6 reports regenerated to `reports_train_only/` with `500` JSON files; validator passed (`7/7` checks).
 - V1: `evidence_table=4778` rows (`private_observation` fields = emission_solid/emission_aggr only), `graph_nodes=5384`, `graph_edges=12062`; evidence/graph/retrieval validators passed.
+
+## 2026-02-10 — Cleanup: empty-inchikey + deprecated merge_pre_atb
+
+- Fixed InChIKey normalization in ingestion: empty/whitespace `inchikey` is normalized to null before molecule-table filtering (`src/data/canonicalizer.py`, `src/data/pipeline.py`).
+- Post-fix rebuild snapshot: `molecule_table`/`rdkit_features` no longer contain `inchikey=""` and anchor query set aligns to valid keys only.
+- Added anchor smoke manifest metric: `skipped_invalid_inchikey_count` in `data/anchor_neighbors_ecfp_manifest.json` (`src/features/anchor_ecfp.py`).
+- Marked `src/features/merge_pre_atb.py` as DEPRECATED (historical V0 path), and made runtime fail-fast with migration guidance to train-only main chain.
+- Added static guard script `python -m src.utils.static_check_main_chain_train_only` to ensure mainline modules do not hardcode legacy private fields.
+
+## 2026-02-10 — P4-pre two-stage literature candidate retrieval (sources-bounded)
+
+- Refactored `src/agents/web_search_candidate_papers.py` into two-stage orchestration:
+  - Stage A: Gemini native `generateContent + google_search` collects grounding sources and supports `--dump_raw` (raw response).
+    - Redirect URLs are resolved to final landing URLs before allowlist filtering and Stage B structuring.
+  - Stage B: Responses without tools structures candidates only from Stage A `sources`.
+- Added `src/agents/literature_structurer.py` to enforce trust boundary and post-processing rules:
+  - `source_url` must map to Stage A sources (exact/normalized same-origin).
+  - DOI kept only when visible in matched source title/snippet/url; otherwise forced to `null`.
+  - Dedupe priority: DOI first, then normalized title.
+- Final CLI output is strict JSON with `papers` + `stats` (`sources_in`, `papers_out`, `deduped`).
+- Added fixture-based tests: `tests/test_literature_structurer.py` (+ `tests/fixtures/literature_sources_fixture.json`), including DOI visibility, source_url trust boundary, and dedupe checks.
+- Validation: `py_compile` + `pytest tests/test_literature_structurer.py tests/test_data_agent.py` passed (11/11).
+
+## 2026-02-10 — P4-pre source allowlist hardening (drift reduction)
+
+- Updated Stage A (`src/agents/web_search_candidate_papers.py`) to use a fixed query plan constrained to curated journals only:
+  - Advanced Functional Materials / Advanced Materials (Wiley),
+  - Materials Future (IOP),
+  - ACS Nano (ACS),
+  - Nature Materials (Nature).
+- Added post-search source allowlist filtering before Stage B; only allowlisted journal sources are forwarded to structuring.
+- Added source-policy logging: `raw_count`, `allowed_count`, `dropped`, and dropped reason buckets in `--debug` mode.
+- This is still P4-pre (candidate mode): strict write-back remains blocked unless verified provenance rules are satisfied.
+
+## 2026-02-11 — P4-pre: disable allowlist by default (reduce false negatives)
+
+- Stage A source policy default switched to `allow_all` (no allowlist filtering). Curated filtering remains optional via `--source_policy journal_allowlist_v1` (`src/agents/web_search_candidate_papers.py`).
+- Stage A query plan was simplified (removed long `OR site:...` chains) to reduce Gemini query rewriting drift.
+- Trust boundary unchanged: Stage B still can only emit candidates whose `source_url` maps to Stage A sources.
 
 ## 2026-02-09 — Docs: Post-UQ agent slot (stub)
 
@@ -2867,3 +3187,105 @@ python -m unittest -v tests.test_graph_retrieval_v1_p3
 - Validator: ALL CASES PASS (no dangling edges, no budget violations, provenance_refs consistent)
 
 ---
+## 2026-02 Addendum: blocker correction and execution lane
+
+### Current blockers (corrected)
+
+- `aTB`: DONE (full run complete; not the blocker)
+- `literature web_search`: PARTIAL
+  - call chain works
+  - citations/sources passthrough remains unstable for strict writeback
+
+### Current unblock path
+
+- Use `offline_pdf` emission lane for single-sample end-to-end execution on `test.csv`.
+- This lane is sufficient to continue orchestrator/case-file integration and master reasoning validation.
+
+### Policy snapshot
+
+- `offline_pdf`:
+  - strict case writeback allowed when locator/provenance is explicit
+  - EvidenceClaim-only writeback is allowed under V1 guardrail
+- `web_search`:
+  - relaxed candidate-only when traceability is incomplete
+  - no strict `evidence_table` writeback until citations/sources are reliable
+
+### Next step (explicit)
+
+- Run one `test.csv` sample through:
+  - case creation -> offline PDF extraction -> emission field patch -> reasoning handoff
+  - persist agent-run traceability in case file
+
+---
+
+## 2026-02-19 — E0 mineru_llm compatibility fix (DeepSeek relay path)
+
+### Problem observed
+
+- `case-e2e` with `extractor_mode=mineru_llm` reached MinerU preflight but failed at LLM stage with:
+  - `llm_schema_invalid:empty_output`
+- Root cause: `src/cases/mineru_llm_extractor.py` only used `Responses API + strict json_schema` and only parsed `output_text`-style fields, which is brittle on some OpenAI-compatible relays/models.
+
+### Implemented
+
+- Updated `src/cases/mineru_llm_extractor.py`:
+  - LLM call strategy changed to **chat.completions first**, then fallback to `responses.create`.
+  - Added broader response-text extraction compatibility:
+    - `output[*].content[*].type in {output_text,text}`
+    - chat-style `choices[*].message.content`
+    - tool/function call argument payload fallback
+  - Added parsing compatibility for MinerU template output:
+    - accepts legacy payload with `emission_aggr_nm` / `emission_solid_or_film_nm` + `evidence{...}`
+    - maps it into staged candidate format
+  - Kept existing candidate schema path fully supported.
+
+- Added test:
+  - `tests/test_mineru_llm_extractor.py::test_parse_llm_candidates_accepts_legacy_emission_payload`
+
+### Validation
+
+- Focused tests all pass:
+  - `tests/test_mineru_llm_extractor.py`
+  - `tests/test_example_a_first_runner.py`
+  - `tests/test_cli_case_e2e.py`
+  - total: `16 passed`
+
+### Follow-up (page enforcement + locator fallback)
+
+- Strengthened prompt/runtime contract to prioritize explicit page numbers in each candidate.
+- Added post-processing fallback:
+  - infer `page` from `source_locator`/`condition` when model omits it (patterns: `page N`, `p. N`, `(p.N)`).
+  - infer `page` from `content_list_v2` using locator hints (`Fig. N` / `Table N`) when explicit page text is missing.
+- Added tests:
+  - `test_parse_llm_candidates_infers_page_from_locator_when_missing`
+  - `test_infer_page_from_content_list_with_figure_locator`
+  - prompt contains page requirement line
+- Focused test suites re-run: `18 passed`.
+
+---
+
+## 2026-02-19 — Case file readability split: master view + update history
+
+### Goal
+
+- Keep one case file per sample, but present it as two explicit sections:
+  - `case_sections.for_master_reasoning`
+  - `case_sections.update_history`
+
+### Implemented
+
+- Added helper: `src/cases/case_sections.py`
+  - `sync_case_sections(case)` builds both views from canonical fields.
+- Wired into case lifecycle:
+  - `src/cases/create_case_from_smiles.py` now writes `case_sections` at creation.
+  - `src/cases/example_a_first_runner.py` refreshes `case_sections` before/after E0 patch apply.
+  - `src/cli.py` (`case-e2e`) refreshes `case_sections` after pre-E0 history append.
+
+### Validation
+
+- Updated tests to assert `case_sections` consistency with canonical fields.
+- Focused suites re-run:
+  - `tests/test_example_a_first_runner.py`
+  - `tests/test_cli_case_e2e.py`
+  - `tests/test_mineru_llm_extractor.py`
+  - total: `18 passed`
