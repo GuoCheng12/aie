@@ -13,6 +13,7 @@ from src.cases.mineru_llm_extractor import (
     build_mineru_prompt_payload,
     parse_llm_candidates,
 )
+from src.chem.atb_neighbor_consistency import compute_atb_neighbor_consistency
 from src.chem.atb_cache import get_atb_cache_record
 from src.core.types import AgentContext, AgentResult
 from src.tools.llm_client import LLMClientError, ResponsesLLMClient
@@ -23,6 +24,7 @@ AGGR_KEYWORDS = ("aggregate", "aggregation", "aggr", "aie", "water fraction", "p
 FILM_KEYWORDS = ("film", "solid", "powder", "crystal")
 SOURCE_KIND_RANK = {"table": 0, "figure": 1, "text": 2}
 FILM_PRIORITY_RANK = {"film": 0, "solid": 1, "powder": 1, "crystal": 2}
+ATB_CONSISTENCY_FIELDS = ("delta_gap", "delta_dihedral", "delta_volume")
 
 
 def _to_float(x: Any) -> Optional[float]:
@@ -201,6 +203,45 @@ def _select_best(candidates: Sequence[Dict[str, Any]], field: str) -> Optional[D
     return pool[0]
 
 
+def _neighbor_feature_row_from_pack(pack: Dict[str, Any], fields: Sequence[str]) -> Dict[str, Any]:
+    features_summary = pack.get("features_summary")
+    if not isinstance(features_summary, dict):
+        features_summary = {}
+    row: Dict[str, Any] = {"cache_status": str(pack.get("cache_status") or "").lower()}
+    for field in fields:
+        row[field] = features_summary.get(field)
+    return row
+
+
+def _collect_neighbor_feature_rows(
+    neighbors: Sequence[Dict[str, Any]],
+    *,
+    fields: Sequence[str],
+) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
+    rows: List[Dict[str, Any]] = []
+    stats: Dict[str, Any] = {"total_neighbors": 0, "used_neighbor_pack": 0, "used_cache_lookup": 0}
+    for neighbor in neighbors:
+        if not isinstance(neighbor, dict):
+            continue
+        stats["total_neighbors"] += 1
+        pack = neighbor.get("neighbor_atb")
+        if isinstance(pack, dict):
+            rows.append(_neighbor_feature_row_from_pack(pack, fields))
+            stats["used_neighbor_pack"] += 1
+            continue
+        neighbor_inchikey = str(neighbor.get("neighbor_inchikey") or neighbor.get("inchikey") or "").strip()
+        if neighbor_inchikey == "":
+            continue
+        rec = get_atb_cache_record(neighbor_inchikey)
+        rec_pack = {
+            "cache_status": rec.get("cache_status"),
+            "features_summary": rec.get("features_summary"),
+        }
+        rows.append(_neighbor_feature_row_from_pack(rec_pack, fields))
+        stats["used_cache_lookup"] += 1
+    return rows, stats
+
+
 class ChemAgent(CaseAgent):
     name = "chem_agent"
     version = "1.0.0"
@@ -211,6 +252,7 @@ class ChemAgent(CaseAgent):
         "/target_fields/",
         "/target_fields_provenance/",
         "/evidence_candidates_staging/-",
+        "/risk_scores/atb_neighbor_consistency",
         "/agent_runs/-",
     )
     append_only_prefixes = ("/evidence_candidates_staging", "/agent_runs")
@@ -231,6 +273,7 @@ class ChemAgent(CaseAgent):
             "smiles": query.get("canonical_smiles") or query.get("input_smiles"),
             "code": query.get("code"),
             "aliases": query.get("aliases") or [],
+            "run_lane": ctx.run_lane,
             "mode": emission_cfg.get("mode") or "offline_pdf",
             "strictness": emission_cfg.get("strictness") or "relaxed",
             "extractor_mode": emission_cfg.get("extractor_mode") or "mineru_llm",
@@ -256,6 +299,50 @@ class ChemAgent(CaseAgent):
             ]
         )
         raw_outputs["atb_cache_record"] = atb_rec
+
+        target_features = atb_rec.get("features_summary") if cache_status == "success" else None
+        neighbor_rows, neighbor_row_stats = _collect_neighbor_feature_rows(
+            case.get("neighbors") or [],
+            fields=ATB_CONSISTENCY_FIELDS,
+        )
+        atb_neighbor_consistency = compute_atb_neighbor_consistency(
+            target_features=target_features,
+            neighbor_features=neighbor_rows,
+            fields=ATB_CONSISTENCY_FIELDS,
+            min_sample_size=5,
+            z_max_threshold=3.5,
+        )
+        patch.append(
+            {
+                "op": "add",
+                "path": "/risk_scores/atb_neighbor_consistency",
+                "value": atb_neighbor_consistency,
+            }
+        )
+        raw_outputs["atb_neighbor_consistency"] = {
+            "result": atb_neighbor_consistency,
+            "neighbor_rows_stats": neighbor_row_stats,
+        }
+
+        run_lane = str(inputs.get("run_lane") or "atb_cache_only")
+        if run_lane == "atb_cache_only":
+            patch.extend(
+                [
+                    {"op": "add", "path": "/evidence_readiness/literature/status", "value": "not_started"},
+                    {"op": "add", "path": "/evidence_readiness/literature/sources", "value": []},
+                    {"op": "add", "path": "/evidence_readiness/literature/notes", "value": "lane_disabled"},
+                    {"op": "add", "path": "/evidence_readiness/experiment/status", "value": "not_requested"},
+                    {"op": "add", "path": "/evidence_readiness/experiment/notes", "value": "lane_disabled"},
+                ]
+            )
+            raw_outputs["lane"] = {"run_lane": run_lane, "literature": "disabled", "experiment": "disabled"}
+            return AgentResult(
+                patch=patch,
+                status="success",
+                warnings=["lane_disabled:literature", "lane_disabled:experiment"],
+                raw_outputs=raw_outputs,
+                metrics={"run_lane": run_lane},
+            )
 
         mode = str(inputs.get("mode") or "offline_pdf")
         offline_pdfs = list(inputs.get("offline_pdfs") or [])
@@ -418,4 +505,3 @@ class ChemAgent(CaseAgent):
                 "writeback_fields": [k for k, v in [("emission_aggr_nm", selected_aggr), ("emission_solid_or_film_nm", selected_solid)] if v is not None],
             },
         )
-

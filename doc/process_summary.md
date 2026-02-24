@@ -47,6 +47,37 @@ Orchestrator refactor: IN PROGRESS (moving from CLI-centered flows to patch-scop
 
 ---
 
+## 2026-02-24 — Implemented: aTB neighbor consistency in release runtime
+
+- Added runtime compute module:
+  - `src/chem/atb_neighbor_consistency.py`
+  - robust z-score with median/MAD per field (`delta_gap`, `delta_dihedral`, `delta_volume`)
+  - flags: `target_missing | insufficient_neighbors | inlier | outlier`
+  - reliability: `low | medium | high`
+  - MAD-zero handling (`z=0` when equal to median; else `z=null` + `mad_zero:<field>` warning)
+- ChemAgent integration (`src/agents/chem_agent.py`):
+  - computes `risk_scores.atb_neighbor_consistency` every run from target+neighbor aTB data
+  - filters neighbors to successful/completely-typed rows only
+  - keeps retrieval unchanged (ECFP-only) and writes no evidence_table paths
+  - update includes whitelist allowance for `/risk_scores/atb_neighbor_consistency`
+- ReadyAgent integration (`src/agents/ready_agent.py`):
+  - reads neighbor consistency flag/reliability
+  - if `outlier` with reliability `medium|high`, forces/keeps `ready_conservative`
+  - appends non-blocking follow-ups (`literature_search_web`, `request_min_experiment_emission`)
+  - mirrors shortcut `risk_scores.readiness_atb_neighbor_flag`
+  - gate ownership rules remain unchanged (ReadyAgent only)
+- Tests added/updated:
+  - `tests/test_atb_neighbor_consistency.py` (new math/flag semantics)
+  - `tests/test_chem_agent_neighbor_consistency.py` (ChemAgent write path)
+  - `tests/test_ready_agent.py` (outlier -> conservative behavior)
+  - `tests/test_orchestration_run_one.py` (ReadyAgent consumes Chem risk score)
+  - no-touch regressions re-run (`tests/test_evidence_table_no_touch_behavior.py`, `tests/test_evidence_table_no_touch_content_hash.py`)
+- Validation:
+  - targeted suite: `15 passed`
+  - full suite: `251 passed, 5 skipped` (`pytest -q`)
+
+---
+
 ## 2026-02-24 — Multi-agent framework refactor kickoff (NOW path)
 
 - Repo audit conclusions (current code reality):

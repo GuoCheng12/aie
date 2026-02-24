@@ -45,6 +45,7 @@ class _FakeChemAgent(CaseAgent):
         "/target_fields/",
         "/target_fields_provenance/",
         "/evidence_candidates_staging/-",
+        "/risk_scores/atb_neighbor_consistency",
         "/agent_runs/-",
     )
     append_only_prefixes = ("/evidence_candidates_staging", "/agent_runs")
@@ -98,6 +99,34 @@ class _FakeChemAgent(CaseAgent):
             ],
             status="success",
         )
+
+
+class _FakeChemAgentOutlier(_FakeChemAgent):
+    def run(self, case, ctx, inputs):
+        result = super().run(case, ctx, inputs)
+        result.patch.append(
+            {
+                "op": "add",
+                "path": "/risk_scores/atb_neighbor_consistency",
+                "value": {
+                    "enabled": True,
+                    "sample_size": 10,
+                    "fields_used": ["delta_gap", "delta_dihedral", "delta_volume"],
+                    "median": {"delta_gap": 0.1, "delta_dihedral": -1.0, "delta_volume": 0.5},
+                    "mad": {"delta_gap": 0.05, "delta_dihedral": 0.4, "delta_volume": 0.2},
+                    "z_scores": {"delta_gap": 4.2, "delta_dihedral": 0.3, "delta_volume": 0.2},
+                    "outlier_score_max": 4.2,
+                    "outlier_score_rss": 2.44,
+                    "outlier_dims": ["delta_gap"],
+                    "flag": "outlier",
+                    "reliability": "high",
+                    "thresholds": {"z_max": 3.5, "min_sample_size": 5},
+                    "warnings": [],
+                    "updated_at": "2026-02-24T00:00:00Z",
+                },
+            }
+        )
+        return result
 
 
 class _FakeReasoningAgent(CaseAgent):
@@ -208,3 +237,63 @@ def test_run_one_integration_with_sample(monkeypatch, tmp_path):
     assert case.get("current_gate", {}).get("state") in {"ready_for_reasoning", "ready_conservative"}
     assert case.get("target_fields", {}).get("emission_aggr_nm") == 530.0
     assert (Path(out["artifacts_dir"]) / "run_summary.json").exists()
+
+
+def test_run_one_ready_agent_uses_outlier_signal(monkeypatch, tmp_path):
+    test_csv = tmp_path / "test.csv"
+    with test_csv.open("w", newline="", encoding="utf-8") as f:
+        w = csv.DictWriter(f, fieldnames=["id", "code", "SMILES", "reference", "inchikey"])
+        w.writeheader()
+        w.writerow(
+            {
+                "id": "1",
+                "code": "OUTLIER-CASE",
+                "SMILES": "C",
+                "reference": "J. Mater. Chem. C",
+                "inchikey": "OUTLIER-IK",
+            }
+        )
+    pdf = tmp_path / "paper.pdf"
+    pdf.write_text("pdf", encoding="utf-8")
+
+    monkeypatch.setattr(
+        run_one_mod,
+        "build_default_agents",
+        lambda: [
+            _FakeDataAgent(),
+            _FakeChemAgentOutlier(),
+            ReadyAgent(),
+            _FakeReasoningAgent(),
+            _FakeJudgeAgent(),
+            ReadyAgent(),
+        ],
+    )
+
+    args = argparse.Namespace(
+        test_csv=str(test_csv),
+        row_index=0,
+        offline_pdf=str(pdf),
+        artifacts_dir=str(tmp_path / "artifacts"),
+        outdir=str(tmp_path / "cases"),
+        base_url="http://example/v1",
+        model="gpt-test",
+        llm_api_key_env="OPENAI_API_KEY",
+        llm_max_output_tokens=512,
+        llm_reasoning_effort=None,
+        mineru_bin="mineru",
+        mineru_output_root=str(tmp_path / "mineru_out"),
+        mineru_backend="hybrid-auto-engine",
+        mineru_method=None,
+        mineru_lang=None,
+        mineru_start_page=None,
+        mineru_end_page=None,
+        mineru_timeout_sec=120,
+        force=False,
+    )
+
+    out = run_one_mod.run_one(args)
+    case = json.loads(Path(out["case_path"]).read_text(encoding="utf-8"))
+
+    assert case["risk_scores"]["atb_neighbor_consistency"]["flag"] == "outlier"
+    assert case["current_gate"]["reasoning_mode"] == "conservative"
+    assert "atb_neighbor_outlier" in case["current_gate"]["reason"]

@@ -204,9 +204,12 @@ def _rebuild_action_plan(
     gate_state: str,
     *,
     add_extraction_manual: bool,
+    add_extraction_manual_non_blocking: bool,
+    add_request_manual_pdf_non_blocking: bool,
     add_identity_manual_blocking: bool,
     add_identity_manual_non_blocking: bool,
     add_retry_atb: bool,
+    add_outlier_followup: bool,
 ) -> List[Dict[str, Any]]:
     existing = case_json.get("action_plan")
     existing_list = existing if isinstance(existing, list) else []
@@ -226,8 +229,13 @@ def _rebuild_action_plan(
     existing_actions = list(by_action.keys())
     required: List[Dict[str, Any]] = []
 
+    def _add_required_once(item: Dict[str, Any]) -> None:
+        if any(x.get("action") == item.get("action") for x in required):
+            return
+        required.append(item)
+
     if gate_state in {GATE_READY, GATE_READY_CONSERVATIVE}:
-        required.append(
+        _add_required_once(
             _action_obj(
                 action=_choose_master_action(existing_actions),
                 priority=1,
@@ -237,7 +245,7 @@ def _rebuild_action_plan(
         )
 
     if gate_state == GATE_BLOCKED:
-        required.append(
+        _add_required_once(
             _action_obj(
                 action="request_manual_pdf",
                 priority=1,
@@ -247,7 +255,7 @@ def _rebuild_action_plan(
         )
 
     if add_extraction_manual or gate_state == GATE_NEEDS_MANUAL:
-        required.append(
+        _add_required_once(
             _action_obj(
                 action="rerun_offline_pdf_extractor",
                 priority=2,
@@ -256,8 +264,28 @@ def _rebuild_action_plan(
             )
         )
 
+    if add_request_manual_pdf_non_blocking:
+        _add_required_once(
+            _action_obj(
+                action="request_manual_pdf",
+                priority=2,
+                blocking=False,
+                notes="Emission follow-up is missing PDF inputs; request PDF without blocking current reasoning lane.",
+            )
+        )
+
+    if add_extraction_manual_non_blocking:
+        _add_required_once(
+            _action_obj(
+                action="rerun_offline_pdf_extractor",
+                priority=2,
+                blocking=False,
+                notes="Run extraction follow-up without blocking current reasoning lane.",
+            )
+        )
+
     if add_identity_manual_blocking:
-        required.append(
+        _add_required_once(
             _action_obj(
                 action="manual_identity_verify_from_pdf",
                 priority=2,
@@ -266,7 +294,7 @@ def _rebuild_action_plan(
             )
         )
     elif add_identity_manual_non_blocking:
-        required.append(
+        _add_required_once(
             _action_obj(
                 action="manual_identity_verify_from_pdf",
                 priority=3,
@@ -276,12 +304,30 @@ def _rebuild_action_plan(
         )
 
     if add_retry_atb:
-        required.append(
+        _add_required_once(
             _action_obj(
                 action="retry_target_atb",
                 priority=3,
                 blocking=False,
                 notes="aTB failed/partial; retry queued while preserving reasoning flow.",
+            )
+        )
+
+    if add_outlier_followup:
+        _add_required_once(
+            _action_obj(
+                action="literature_search_web",
+                priority=3,
+                blocking=False,
+                notes="aTB neighborhood signal is outlier; collect corroborating literature evidence.",
+            )
+        )
+        _add_required_once(
+            _action_obj(
+                action="request_min_experiment_emission",
+                priority=4,
+                blocking=False,
+                notes="aTB neighborhood signal is outlier; request minimal emission verification.",
             )
         )
 
@@ -317,19 +363,38 @@ def review_case_and_patch(case_json: Dict[str, Any]) -> List[Dict[str, Any]]:
 
     reasons: List[str] = []
     add_extraction_manual = False
+    add_extraction_manual_non_blocking = False
+    add_request_manual_pdf_non_blocking = False
     add_identity_manual_blocking = False
     add_identity_manual_non_blocking = False
     add_retry_atb = False
+    add_outlier_followup = False
     low_identity_conf = False
+
+    atb_status = str(((case_json.get("evidence_readiness") or {}).get("atb") or {}).get("cache_status") or "").lower()
+    atb_neighbor = ((case_json.get("risk_scores") or {}).get("atb_neighbor_consistency") or {})
+    atb_neighbor_flag = str(atb_neighbor.get("flag") or "").strip().lower()
+    atb_neighbor_reliability = str(atb_neighbor.get("reliability") or "").strip().lower()
 
     if not has_aggr and not has_solid:
         has_pdf = bool((case_json.get("inputs") or {}).get("offline_pdfs"))
-        gate_state = GATE_BLOCKED if not has_pdf else GATE_NEEDS_MANUAL
-        if gate_state == GATE_BLOCKED:
-            reasons.append("missing_emission_and_missing_pdf_input")
+        if atb_status == "success":
+            gate_state = GATE_READY_CONSERVATIVE
+            reasons.append("atb_success_without_emission")
+            add_retry_atb = False
+            if not has_pdf:
+                add_request_manual_pdf_non_blocking = True
+                reasons.append("missing_pdf_for_emission_followup")
+            else:
+                add_extraction_manual_non_blocking = True
+                reasons.append("emission_followup_required")
         else:
-            reasons.append("missing_emission_after_extraction")
-            add_extraction_manual = True
+            gate_state = GATE_BLOCKED if not has_pdf else GATE_NEEDS_MANUAL
+            if gate_state == GATE_BLOCKED:
+                reasons.append("missing_emission_and_missing_pdf_input")
+            else:
+                reasons.append("missing_emission_after_extraction")
+                add_extraction_manual = True
     else:
         gate_state = GATE_READY
         for field in ("emission_aggr_nm", "emission_solid_or_film_nm"):
@@ -369,11 +434,18 @@ def review_case_and_patch(case_json: Dict[str, Any]) -> List[Dict[str, Any]]:
         if gate_state == GATE_READY and low_identity_conf:
             gate_state = GATE_READY_CONSERVATIVE
 
-    atb_status = str(((case_json.get("evidence_readiness") or {}).get("atb") or {}).get("cache_status") or "").lower()
     if gate_state in {GATE_READY, GATE_READY_CONSERVATIVE} and atb_status in {"failed", "absent", "partial", "pending"}:
         gate_state = GATE_READY_CONSERVATIVE
         add_retry_atb = True
         reasons.append(f"atb_status:{atb_status}")
+
+    if atb_neighbor_flag == "outlier":
+        reasons.append(f"atb_neighbor_outlier:{atb_neighbor_reliability or 'unknown'}")
+        if atb_neighbor_reliability in {"medium", "high"} and gate_state in {GATE_READY, GATE_READY_CONSERVATIVE}:
+            gate_state = GATE_READY_CONSERVATIVE
+            add_outlier_followup = True
+    elif atb_neighbor_flag in {"target_missing", "insufficient_neighbors", "inlier"}:
+        reasons.append(f"atb_neighbor_flag:{atb_neighbor_flag}")
 
     ready_for_reasoning = gate_state in {GATE_READY, GATE_READY_CONSERVATIVE}
     reasoning_mode = "normal" if gate_state == GATE_READY else ("conservative" if gate_state == GATE_READY_CONSERVATIVE else "blocked")
@@ -388,9 +460,12 @@ def review_case_and_patch(case_json: Dict[str, Any]) -> List[Dict[str, Any]]:
         case_json,
         gate_state,
         add_extraction_manual=add_extraction_manual,
+        add_extraction_manual_non_blocking=add_extraction_manual_non_blocking,
+        add_request_manual_pdf_non_blocking=add_request_manual_pdf_non_blocking,
         add_identity_manual_blocking=add_identity_manual_blocking,
         add_identity_manual_non_blocking=add_identity_manual_non_blocking,
         add_retry_atb=add_retry_atb,
+        add_outlier_followup=add_outlier_followup,
     )
 
     patch_ops: List[Dict[str, Any]] = []
@@ -402,6 +477,8 @@ def review_case_and_patch(case_json: Dict[str, Any]) -> List[Dict[str, Any]]:
     patch_ops.append(_set_or_replace_op(case_json, "/action_plan", action_plan))
     patch_ops.append(_set_or_replace_op(case_json, "/risk_scores/readiness_identity_low_confidence", bool(low_identity_conf)))
     patch_ops.append(_set_or_replace_op(case_json, "/risk_scores/readiness_gate_state", gate_state))
+    if atb_neighbor_flag:
+        patch_ops.append(_set_or_replace_op(case_json, "/risk_scores/readiness_atb_neighbor_flag", atb_neighbor_flag))
 
     _validate_patch_paths(patch_ops)
     return patch_ops
