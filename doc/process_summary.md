@@ -27,6 +27,764 @@ Orchestrator refactor: IN PROGRESS (moving from CLI-centered flows to patch-scop
 
 ---
 
+## 2026-03-03 — Self-trend aTB evidence plan lock (R1 discriminative increment)
+
+- Problem statement locked:
+  - aTB-only iterative runs can stall because R1 lacks strong incremental evidence and R2 may add low-reliability neighbor evidence.
+  - master still overuses raw absolute-value narration instead of stable trend semantics.
+- Planned fix (this cycle):
+  1) add `atb_trends_self` (target-only trend buckets/directions) and inject it in `R1+` reasoning pack.
+  2) add dedicated trend evidence IDs (`E_ATB_TREND_1..4`) with compact `value_preview` for prompt citations.
+  3) update master instructions to prioritize self-trend evidence and avoid raw absolute-value threshold claims unless tied to configured threshold keys.
+  4) tighten `atb_cache_only` stagnation handling so `R1 -> R2` with zero new evidence IDs stops quickly (`next_round_profile=NONE`) and surfaces lane-switch actions.
+- Constraints kept unchanged:
+  - no orchestrator contract changes (patch/whitelist/idempotency/replay),
+  - no evidence_table writeback,
+  - no master output schema field additions (pack-only extension).
+
+---
+
+## 2026-03-03 — Self-trend aTB implementation (R1/R2 anti-stall)
+
+- Implemented target-only self-trend module:
+  - new `src/reasoning/atb_trends_self.py` with compact trend projection:
+    - `delta_dihedral_bucket/direction`,
+    - `delta_gap_bucket/direction`,
+    - `delta_volume_bucket/direction`,
+    - `overall_motion_proxy`,
+    - reliability and short notes.
+  - output is deterministic and size-bounded (`<1KB` target).
+- Integrated into reasoning pack and evidence registry:
+  - `src/reasoning/master_reasoner.py` now injects `risk_scores.atb_trends_self` for `R1+`.
+  - added trend evidence IDs:
+    - `E_ATB_TREND_1..4` (derived-pack evidence entries with compact previews).
+  - prompt policy updated to prioritize self-trend evidence for aTB argumentation and discourage raw absolute-value verdicting.
+- Profile/lane behavior updates:
+  - `src/reasoning/evidence_profiles.py`: `R1/R2/R3` set `include_atb_trends_self=true`.
+  - `src/agents/judge_agent.py`: in `atb_cache_only`, if active profile is `R1` and `count_added==0`, evaluator stops early with
+    `next_round_profile=NONE` and `reason_code=no_new_evidence_available_in_lane`.
+  - `src/orchestration/round_runner.py`: reasoning thresholds payload now includes gap/volume flat and bucket thresholds for trend computation.
+- Policy/default updates:
+  - `src/reasoning/reasoning_config.py` adds self-trend threshold defaults:
+    `atb_gap_flat_eps`, `atb_gap_weak/strong`, `atb_vol_flat_eps`, `atb_vol_weak/strong`, and `atb_dihedral_flat_eps`.
+- Test coverage added/updated:
+  - new: `tests/test_atb_trends_self_bucketing.py`
+  - new: `tests/test_reasoning_pack_r1_includes_atb_trends_self.py`
+  - new: `tests/test_round_runner_stop_when_no_new_evidence_atb_only.py`
+  - updated: `tests/test_round_runner_stagnation_stop.py` (R1->R2 no-new-evidence stop expectation).
+- Validation:
+  - full suite passed in `aie` env:
+    - `pytest -q` -> `330 passed, 5 skipped`.
+
+---
+
+## 2026-03-02 — Final v3 refactor lock (implementation batch)
+
+- Locked six implementation constraints before coding:
+  1) `mechanism_label` is controlled by `reasoning_config.allowed_mechanism_labels` (not free-form), with candidate-set union and `unknown` fallback.
+  2) `PRIMARY_CONFIDENCE` is stored as raw model confidence; final confidence is soft-penalty output with full audit meta.
+  3) R2 confidence model includes `neighbor_atb_stats_by_label.separation_score` when reliability is `medium/high`.
+  4) `neighbor_atb_stats_by_label` must pass deterministic trim and serialized size `<3KB`.
+  5) Pre-R2 stop guard added: repeated master failures cannot terminate immediately; one recovery path must be attempted.
+  6) evidence-table no-touch behavior guard is moved to core write entrypoints, while orchestrator content-hash guard remains enabled.
+- This entry records the implementation lock and commit sequencing:
+  - commit 1: docs
+  - commit 2: core code changes
+  - commit 3: tests + demo + changelog
+
+---
+
+## 2026-03-02 — JSON-only no-schema runtime hardening (master + evaluator)
+
+- Switched current runtime default to JSON-only contract mode (no provider json_schema by default):
+  - `llm_reasoning_effort` default -> `medium`
+  - `llm_temperature` default -> `0.2`
+  - `llm_use_json_schema` default -> `false`
+  - updated in `src/core/types.py`, `src/orchestration/run_one.py`, `src/cli.py`.
+- Master prompt hard contract strengthened in `src/reasoning/master_reasoner.py`:
+  - explicit JSON-only output contract appended to instructions,
+  - required top-level keys listed,
+  - bounded arrays (`supporting_chain<=4`, `predictions<=3`, `competing_hypotheses<=3`, `evidence_used<=10`),
+  - evidence note length budget (`<=180` chars).
+- Master validator adjusted to be less brittle while still constrained:
+  - keeps required/type/enum checks,
+  - allows unknown extra keys (local validator no longer hard-fails on additional properties),
+  - overlong evidence notes are auto-truncated (instead of immediate failure),
+  - evidence-id resolution/semantic policy checks unchanged.
+- Master recovery loop improved:
+  1) primary call,
+  2) retry once with larger token budget + stronger JSON-only reminder,
+  3) optional JSON-repair pass (no new facts) before final validation.
+  - `llm_failure_reason` persisted (`no_message_output | json_parse_error | json_repair_used`).
+- Evaluator (`LLMEvaluator`) now follows same JSON-only approach:
+  - JSON-only contract in prompt,
+  - no json_schema by default,
+  - retry + JSON-repair fallback on parse/empty-output failures,
+  - `llm_failure_reason` propagated into `eval_report.llm_layer`.
+- Tests:
+  - added `tests/test_master_reasoner_llm_stability.py` (empty output retry, truncated JSON repair, success path),
+  - updated mocks/call signatures in evaluator/master integration tests,
+  - updated validation expectation for lightweight mode (`five_signals` extra field no longer fails local shape check).
+- Validation:
+  - full suite: `313 passed, 5 skipped` (`pytest -q` in `aie` env).
+
+## 2026-03-02 — R2 discriminative increment v2.4 (neighbor aTB stats + stagnation stop hardening)
+
+- Implemented compact neighbor comparative stats module:
+  - new file `src/reasoning/neighbor_atb_stats.py`.
+  - locked directional semantics:
+    - `target_percentile` uses mid-rank in `[0,1]`,
+    - `z_robust = (target - median) / (1.4826 * MAD)` sign is stable/interpretable.
+  - added raw + absolute torsion views:
+    - `delta_dihedral` (signed audit),
+    - `abs_delta_dihedral` (primary discriminative axis).
+  - low-sample rule: `sample_size<5 => reliability=low`, `z_robust=null` (percentile kept when computable).
+- Integrated R2 comparative evidence into master pack/registry in `src/reasoning/master_reasoner.py`:
+  - R2+ injects `risk_scores.neighbor_atb_stats`,
+  - registry adds compact derived evidence IDs:
+    - `E21` abs-delta-dihedral distribution summary,
+    - `E22` delta-gap distribution summary,
+    - `E23` by-label comparison (only when >=2 labels and each label `n>=2`),
+    - `E24` reliability note.
+  - `E21/E22` `value_preview` kept minimal (`target`, `neighbors_median`, `neighbors_iqr`, `target_percentile`, `z_robust`).
+  - summary text remains in `risk_scores.neighbor_atb_stats.summary` only (not duplicated in registry).
+- Evidence validation strategy updated to support derived pack evidence:
+  - registry rows now carry `source_type` (`case|derived_pack`),
+  - `source_type=case`: resolve `case_path` in case JSON (non-empty required),
+  - `source_type=derived_pack`: resolve `pack_path` in reasoning pack (non-empty required),
+  - no forced case-path resolution for derived evidence.
+- Evidence profile and token control updates:
+  - `src/reasoning/evidence_profiles.py` now explicitly sets `include_neighbor_feature_rows=False` for R0–R3.
+  - `master` prompt payload removes `risk_scores.atb_neighbor_features_all` rows (stats-only model context).
+- Evaluator/round-runner stagnation behavior hardened:
+  - `src/agents/judge_agent.py` adds `info_gain` handling (`count_added`, `hypothesis_changed`, `profile_repeated`) and stop reasons:
+    - `stagnation_no_new_evidence`,
+    - `no_new_evidence_available_in_lane`.
+  - `atb_cache_only` top actions are lane-unblock actions (`switch_run_lane_offline_pdf` / `provide_offline_pdf`) instead of repeating manual placeholders.
+  - `src/orchestration/round_runner.py` now passes information-gain signals into evaluator and respects evaluator stop reason codes as primary stop source.
+- Tests added:
+  - `tests/test_neighbor_atb_stats_small_output.py`
+  - `tests/test_round_runner_stagnation_stop.py`
+  - `tests/test_master_pack_profile_r2_includes_neighbor_stats.py`
+  - `tests/test_master_validation_derived_pack_evidence.py`
+- Tests updated:
+  - `tests/test_reasoning_pack_builder.py`
+  - `tests/test_eval_report_feasibility_contract.py`
+  - round-runner callback signature fixtures in:
+    - `tests/test_round_runner_llm_layer.py`
+    - `tests/test_round_runner_r0_minimal_writeback.py`
+    - `tests/test_round_runner_status_feedback.py`
+    - `tests/test_round_state_delta_fields.py`
+- Validation:
+  - targeted suite for changed modules: `40 passed`
+  - full regression: `310 passed, 5 skipped` (`pytest -q`)
+
+## 2026-03-01 — Fixed LLM failure diagnostics/stability (P1+P2+P3)
+
+- Implemented P1 in `src/tools/llm_client.py`:
+  - when `output_text` exists but JSON parse fails, client now attempts structured fallback (`output_parsed` / message `parsed|json|object`) on the same response before failing.
+  - this removes a false-negative path where valid structured payload was previously skipped after `json.loads` failure.
+- Implemented P2 in `src/tools/llm_client.py`:
+  - aggregated attempt-chain errors are now preserved in raised `LLMClientError` for both JSON/text paths:
+    - `responses_json_failed:<attempt1> || <attempt2> ...`
+    - `responses_text_failed:<attempt1> || <attempt2> ...`
+  - this keeps full effort retry diagnostics instead of only the final `errors[-1]`.
+- Implemented P3 in `src/orchestration/run_one.py`:
+  - `run_status.json` final `run_end` write no longer wipes previous error summaries.
+  - status writer now preserves prior `errors` and `latest_eval_report` when current update does not explicitly override them.
+- Tests added/updated:
+  - `tests/test_llm_client.py`
+    - verifies structured fallback still works when `output_text` is invalid JSON,
+    - verifies multi-attempt error chain is retained in exception message.
+  - `tests/test_orchestration_run_one_status.py`
+    - verifies `run_status.json.errors` remains non-empty after `run_end` in iterative failure flow.
+- Validation:
+  - full suite: `conda run -n aie pytest -q`
+  - result: `301 passed, 5 skipped`.
+
+## 2026-02-28 — Split LLM config for master vs evaluator (with inheritance)
+
+- Implemented explicit reasoning config split for iterative runtime:
+  - `reasoning_config.master.{model,reasoning_effort}`
+  - `reasoning_config.evaluator.{use_llm,model,reasoning_effort}`
+- Default behavior:
+  - evaluator model/effort inherit master config when evaluator values are not explicitly set.
+  - backward compatibility retained via top-level `model` / `reasoning_effort` fallback.
+- Runtime call-site updates:
+  - `src/orchestration/round_runner.py`
+    - master LLM resolves from `reasoning_config.master.*`,
+    - evaluator LLM resolves from `reasoning_config.evaluator.*` with inheritance.
+  - `src/agents/llm_evaluator.py`
+    - now supports runtime model/effort overrides per call,
+    - still supports injected mock client for unit tests.
+- CLI/entrypoint updates:
+  - `src/orchestration/run_one.py` and `src/cli.py` now support evaluator overrides:
+    - `--evaluator-model`
+    - `--evaluator-reasoning-effort`
+  - existing `--model` / `--llm-reasoning-effort` remain master defaults.
+- Tests added/updated:
+  - `tests/test_llm_evaluator.py`
+    - verifies evaluator can run with different model/effort than master defaults.
+  - `tests/test_round_runner_llm_layer.py`
+    - verifies inheritance path (evaluator uses master defaults),
+    - verifies explicit evaluator override path.
+- Validation:
+  - full suite: `conda run -n aie pytest -q`
+  - result: `298 passed, 5 skipped`.
+
+## 2026-02-28 — Optional evaluator LLM critique layer added (rule evaluator remains owner)
+
+- Added optional `LLMEvaluator` module:
+  - `src/agents/llm_evaluator.py`
+  - strict schema: `eval_llm_output_schema_v1`
+  - output fields: `critique_points`, `conflicts`, `voi_ranked_actions`, `confidence_delta_suggestion`, `next_round_profile_suggestion`.
+- Runtime behavior:
+  - deterministic rule evaluator (`build_eval_report`) remains source of truth for stop/feasibility baseline.
+  - LLM layer is enabled only when `reasoning_config.evaluator.use_llm=true`.
+  - LLM input kept compact:
+    - `reasoning_pack`, `master_output_parsed`, `policy`, `thresholds`, `run_lane_capabilities`.
+- Merge logic implemented:
+  - final `eval_report` still deterministic-first,
+  - `eval_report.llm_layer` stores LLM output/request/response,
+  - `voi_ranked_actions` ranking updated with:
+    - `expected_information_gain * feasibility_score * llm_priority_weight`.
+- Safety:
+  - evaluator LLM does not write case directly; only merged sidecar/report data used by round runner.
+  - deterministic stop policy remains unchanged and dominant.
+- Integration changes:
+  - `src/orchestration/round_runner.py`:
+    - supports `evaluator_use_llm`,
+    - injects `reasoning_config["evaluator"]["use_llm"]`,
+    - calls LLMEvaluator conditionally and merges result.
+  - `src/orchestration/run_one.py` + `src/cli.py`:
+    - new flag `--evaluator-use-llm` (iterative mode path).
+- Tests added:
+  - `tests/test_llm_evaluator.py`
+  - `tests/test_round_runner_llm_layer.py`
+- Validation:
+  - full suite: `conda run -n aie pytest -q`
+  - result: `296 passed, 5 skipped`.
+
+## 2026-02-28 — Runtime progress feedback added (stdout + run_status.json + tail tool)
+
+- Implemented non-business telemetry in iterative runtime:
+  - `src/orchestration/round_runner.py` now emits structured stdout events for:
+    - `round_start`, `master_call`, `validate`, `judge`, `apply_patch`, `stop`, `round_end`
+  - each event includes:
+    - `round_index`, `max_rounds`, `active_profile`, `stage`, `status`, `elapsed_ms`.
+- Added atomic status snapshot file:
+  - `run_status.json` at artifacts root (`<artifacts_dir>/run_status.json`),
+  - fields include:
+    - `run_id`, `case_id`, `round_index`, `max_rounds`, `active_profile`,
+      `round_runner_mode`, `stage`, `last_event`, `last_updated_at`,
+      `errors`, `round_dir`, `latest_eval_report`.
+  - atomic write implemented via new helper module:
+    - `src/orchestration/run_status.py`.
+- Error-summary propagation added:
+  - for `failed_llm` / `failed_schema_validation`, stdout now prints concise summary
+    (`error_codes`, `error_paths`),
+  - same summary written to `run_status.json.errors`.
+- `run_one` integration:
+  - `src/orchestration/run_one.py` now writes status snapshots for run-level stages
+    (`run_start`, setup/orchestrator completion, `run_end`) and passes status path into round runner.
+- Added status tail utility:
+  - `python -m src.orchestration.tail_status --artifacts-dir <...>`
+  - polls every 0.5s and prints updated `run_status.json` until Ctrl+C.
+- Added tests:
+  - `tests/test_round_runner_status_feedback.py`
+    - verifies round0 status write,
+    - verifies round1 index update,
+    - verifies non-empty errors on failed schema.
+- Validation:
+  - full suite: `conda run -n aie pytest -q`
+  - result: `292 passed, 5 skipped`.
+
+## 2026-02-28 — Iterative closure v2.3 implemented (R0 minimal writeback + target aTB baseline + feasibility)
+
+- Implemented iterative round runtime in release path:
+  - added `src/orchestration/round_runner.py` with `dryrun_then_commit|commit_all_rounds`,
+  - R0 in `dryrun_then_commit` now writes only minimal `/iterative/*` state via RFC6902 whitelist,
+  - R1+ commits master/post_uq outputs, while replay traces are produced for every round.
+- Added evidence profile config for rounds:
+  - new `src/reasoning/evidence_profiles.py`,
+  - default `R0/R1` both include target aTB summary baseline (`include_target_atb_summary=true`).
+- Integrated profile-aware pack shaping in `src/reasoning/master_reasoner.py`:
+  - reasoning pack now follows active profile toggles (target atb summary/full, neighbor summary/stats, literature/experiment status, neighbor_topk, registry cap).
+- Extended evaluator output with feasibility in `src/agents/judge_agent.py`:
+  - `eval_report.feasibility` (`lane_capabilities`, `constraints`, `overall_score`),
+  - `voi_ranked_actions[]` now includes `feasible`, `feasibility_score`, `blocked_by`, `unblock_actions`, `priority_score`.
+- Added round sidecar/report writers in `src/tools/llm_trace_store.py`:
+  - `write_master_round_report`, `write_eval_report`, `write_round_state`.
+- Integrated iterative mode in `src/orchestration/run_one.py`:
+  - new flags: `--iterative`, `--round-runner-mode`, `--max-rounds`, `--round-start-profile`,
+  - setup stage uses `build_setup_agents()` then rounds runner.
+- Added tests:
+  - `tests/test_round_runner_r0_minimal_writeback.py`
+  - `tests/test_evidence_profiles_r0_r1_target_atb_baseline.py`
+  - `tests/test_eval_report_feasibility_contract.py`
+  - `tests/test_round_state_delta_fields.py`
+  - adjusted `tests/test_reasoning_pack_builder.py` for profile default (target atb full features not in baseline pack).
+- Validation:
+  - full suite passed: `conda run -n aie pytest -q`
+  - result: `289 passed, 5 skipped`.
+
+## 2026-02-27 — Plan B applied: keep mechanism_hint in case, exclude from master input
+
+- Implemented in `src/reasoning/master_reasoner.py`:
+  - removed `risk_scores.mechanism_hint` and `risk_scores.hint_confidence` from `reasoning_pack.risk_scores`,
+  - removed hint/hint_confidence paths from `evidence_registry` generation,
+  - validator now hard-rejects any evidence reference that resolves to:
+    - `/risk_scores/mechanism_hint`
+    - `/risk_scores/hint_confidence`
+    with error code `forbidden_hint_reference`.
+- Also removed direct hint projection in `mechanism_context` so master prompt no longer consumes hint values.
+- Tests added/updated:
+  - `tests/test_reasoning_pack_builder.py`
+    - verifies hint fields absent from reasoning pack and absent from evidence registry paths.
+  - `tests/test_master_output_validation.py`
+    - new negative test ensures hint-path citation is rejected (`forbidden_hint_reference`).
+- Doc note added:
+  - `doc/schemas.md` now states hint fields are debug/routing-only and excluded from master input/citation.
+- Validation run:
+  - `conda run -n aie pytest -q tests/test_reasoning_pack_builder.py tests/test_master_output_validation.py tests/test_master_prompt_agnostic.py tests/test_orchestration_run_one_master_reasoning.py tests/test_reasoning_agent_idempotency.py tests/test_llm_trace_store.py`
+  - result: `28 passed`.
+
+## 2026-02-27 — Master prompt made mechanism-agnostic (dynamic candidate-set injection)
+
+- Refactored master prompt wording to remove hard-coded mechanism names from prompt/rubric text:
+  - in `src/reasoning/master_reasoner.py`, replaced fixed mechanism wording with dynamic candidate-set injection from:
+    - `reasoning_pack.mechanism_context.candidate_mechanisms_top3`
+  - injected text behavior:
+    - candidates present: `Top competing mechanisms (from retrieval priors): ...`
+    - candidates missing: generic fallback `Top competing mechanisms are uncertain; propose plausible hypotheses from evidence.`
+- Updated discriminator and narrative instructions to be mechanism-agnostic:
+  - “separate the top competing mechanisms listed above (or top hypotheses you propose if none are provided).”
+  - no fixed “ICT/TICT/ESIPT” language in prompt instruction templates.
+- Updated trace narrative templates in `src/tools/llm_trace_store.py`:
+  - removed hard-coded “ICT vs TICT boundary” style text,
+  - replaced with generic unresolved-boundary language among top competing mechanisms.
+- Added tests:
+  - `tests/test_master_prompt_agnostic.py`
+    - generic fallback when no candidates,
+    - dynamic label injection when candidates are provided.
+- Validation run:
+  - `conda run -n aie pytest -q tests/test_master_prompt_agnostic.py tests/test_llm_trace_store.py tests/test_master_output_validation.py tests/test_orchestration_run_one_master_reasoning.py tests/test_reasoning_agent_idempotency.py`
+  - result: `24 passed`.
+
+## 2026-02-26 — Quality upgrade: richer five_signals evidence chain + 3-paragraph conclusion narrative
+
+- Updated `src/tools/llm_trace_store.py` to improve summary quality while keeping schema unchanged:
+  - `five_signals.evidence_chain` now expands to 8-12 compact evidence-id items,
+  - chain is ordered by three blocks:
+    1) uncertainty bounds (`E2`, `E4`, `E6`),
+    2) aTB cues (`E11`, `E12`, optional `E14`),
+    3) missing discriminators (`E19`, `E20`, optional `E10`),
+  - each item remains `{evidence_id, role, note}` and note text explicitly states inference impact.
+- Added fallback fill logic (from model-cited IDs) to guarantee minimum chain coverage without adding case_path payloads.
+- `five_signals.conclusion.natural_language_mechanism` now emits a 3-paragraph narrative string:
+  - paragraph 1: best current hypothesis under available evidence,
+  - paragraph 2: why ICT-vs-TICT mixture boundary remains,
+  - paragraph 3: falsifiable next tests tied to hypotheses.
+- Prompt guidance aligned in `src/reasoning/master_reasoner.py`:
+  - asks for 8-12 top-level evidence items using evidence IDs,
+  - asks for 3-paragraph mechanism narrative,
+  - keeps threshold policy constraint (`reasoning_config.thresholds` key/value when threshold text is used).
+- Regression tests:
+  - `conda run -n aie pytest -q tests/test_llm_trace_store.py tests/test_master_output_validation.py tests/test_orchestration_run_one_master_reasoning.py tests/test_reasoning_agent_idempotency.py`
+  - result: `22 passed`.
+
+## 2026-02-26 — Fix: reduce threshold false positives for spectral “band/range” text
+
+- Updated threshold-trigger logic in `src/reasoning/master_reasoner.py`:
+  - split triggers into:
+    - strong: `threshold`, `cutoff` (always threshold-like),
+    - weak: `range`, `band` (threshold-like only in numeric/comparator context).
+  - added helper `_weak_trigger_in_numeric_context(text)` with local-window context scan (`+/- 40 chars`), checking:
+    - numeric values,
+    - comparison operators (`<`, `>`, `<=`, `>=`),
+    - interval form (`8-15`, `8–15`),
+    - contextual tokens (`between`, `from`, `to`, `~`, `±`, `approx`).
+- Kept hard guard behavior unchanged:
+  - threshold-like text still requires configured threshold key + allowed threshold value, else `invented_threshold_not_allowed`.
+- Prompt guidance already aligned:
+  - threshold mention must cite `reasoning_config.thresholds` key/value,
+  - otherwise use relative language (e.g., modest/large).
+- Added tests in `tests/test_master_output_validation.py`:
+  - PASS: spectral phrases with non-numeric “band” wording,
+  - FAIL: weak trigger + numeric context (`band in 8–15°`, `range 0.5–0.7`, `band > 500 nm`).
+- Validation:
+  - `conda run -n aie pytest -q tests/test_master_output_validation.py`
+  - `conda run -n aie pytest -q tests/test_orchestration_run_one_master_reasoning.py tests/test_reasoning_agent_idempotency.py tests/test_llm_trace_store.py`
+  - result: all passed.
+
+## 2026-02-26 — Fix: enforce evidence_id-only citations (forbid case_path in model output)
+
+- Implemented consistent evidence citation rule in master validation:
+  - model output evidence items must use `evidence_id` only,
+  - any `case_path` key in output now fails fast with `code=evidence_case_path_forbidden`.
+- Prompt strengthened in `src/reasoning/master_reasoner.py`:
+  - explicit instruction: never output `case_path` anywhere; cite with `evidence_id` only.
+- Summary trace normalization in `src/tools/llm_trace_store.py`:
+  - `summary5.evidence_chain[]` no longer mirrors `case_path`; keeps compact `{evidence_id, role, note}`.
+- Tests added/updated:
+  - `test_evidence_id_only_without_case_path_passes`
+  - `test_case_path_null_rejected_with_clear_code`
+  - `tests/test_llm_trace_store.py` now asserts no `case_path` in summary evidence chain.
+- Validation run:
+  - `conda run -n aie pytest -q tests/test_master_output_validation.py tests/test_llm_trace_store.py tests/test_orchestration_run_one_master_reasoning.py tests/test_reasoning_agent_idempotency.py`
+  - result: `20 passed`.
+
+## 2026-02-26 — Prompt hardening: remove band/range inducing wording + explicit threshold citation rule
+
+- Updated master template in `src/reasoning/master_reasoner.py`:
+  - removed band/range-style wording from rubric text,
+  - added hard rule: if threshold logic is mentioned in output text, model must cite exact `reasoning_config.thresholds` key/value,
+  - otherwise model must use relative descriptors (e.g., `modest`, `large`) and avoid threshold/range/band/cutoff language.
+- Updated validator threshold-text gate:
+  - threshold-like text is detected via threshold/cutoff/range/band terms, comparison operators, or numeric intervals,
+  - such text now passes only when both conditions hold:
+    1) it references at least one configured threshold key,
+    2) it includes at least one configured threshold value.
+- Goal: prevent free-form invented numeric bands while keeping deterministic policy-based threshold mentions auditable.
+
+## 2026-02-26 — Prompt payload trim: remove neighbor full features + add neighbor_atb_stats
+
+- Updated `build_reasoning_pack` in `src/reasoning/master_reasoner.py`:
+  - `risk_scores.atb_neighbor_features_all[*].features` is now removed from model-facing pack payload.
+  - `features_summary` is retained (or derived from full features when only `features` existed).
+  - new `neighbor_atb_stats` block added to pack:
+    - computed from neighbor `features_summary`,
+    - includes per-field `median`, `mad`, `z_scores`, `valid_counts`, `warnings`,
+    - fields: `delta_gap`, `delta_dihedral`, `delta_volume`, `excitation_energy`.
+- Purpose:
+  - reduce token footprint,
+  - keep discriminative neighbor-vs-target aTB signal explicit for master reasoning,
+  - preserve replay/audit determinism.
+- Tests updated and green:
+  - `tests/test_reasoning_pack_builder.py` now asserts no neighbor full `features` payload and verifies `neighbor_atb_stats`.
+  - Regression suite run:
+    - `conda run -n aie pytest -q tests/test_reasoning_pack_builder.py tests/test_master_output_validation.py tests/test_reasoning_agent_idempotency.py tests/test_orchestration_run_one_master_reasoning.py`
+    - result: `20 passed`.
+
+## 2026-02-26 — Implemented: master reasoning audit-safety + token trim (schema v3)
+
+- Implemented in release runtime (`src/reasoning/master_reasoner.py`, `src/agents/reasoning_agent.py`):
+  - promoted default schema to `master_output_schema_v3`,
+  - `reasoning_pack.evidence_registry` switched to compact list rows (`evidence_id, case_path, label, value_preview, role_hint, note_hint`),
+  - removed prompt dependency on `path_map`/`allowed_evidence_paths` (registry is now the sole citation namespace),
+  - conservative mode now caps `neighbors_topk` to 5 in reasoning pack.
+- Prompt hardening:
+  - explicit instruction: no invented numeric thresholds/bands,
+  - thresholds are injected from `reasoning_config.thresholds` into payload and prompt.
+- Validator hardening:
+  - evidence references remain `evidence_id`-only; each citation resolves to real non-null case value,
+  - regex guard rejects invented threshold/range text unless numbers are from configured thresholds,
+  - conservative limits now auto-append lane-disabled warning when literature/experiment are disabled.
+- Post-processing/writeback:
+  - keeps compact evidence_id citations in `master_reasoning`,
+  - writes expanded resolved evidence to `reasoning.used_evidence`,
+  - continues writing `reasoning.used_evidence_ids` and `reasoning.used_evidence_paths`.
+- Tests updated and passing:
+  - `tests/test_reasoning_pack_builder.py`
+  - `tests/test_master_output_validation.py`
+  - `tests/test_reasoning_agent_idempotency.py`
+  - `tests/test_orchestration_run_one_master_reasoning.py`
+  - `tests/test_reasoning_agent_patch_scope.py`
+  - command: `conda run -n aie pytest -q tests/test_reasoning_pack_builder.py tests/test_master_output_validation.py tests/test_reasoning_agent_idempotency.py tests/test_orchestration_run_one_master_reasoning.py tests/test_reasoning_agent_patch_scope.py`
+  - result: `21 passed`
+
+## 2026-02-26 — Plan locked: master evidence-weighting hardening (neighbors as prior, aTB as evidence)
+
+- Scope locked for minimal-risk refactor in `src/reasoning/master_reasoner.py`:
+  - add explicit Evidence Weighting Policy (`neighbors=context by default`, support only if `top1_sim>=0.55`),
+  - enforce 4-step supporting chain (`A->B->C->D`) with mandatory aTB citations,
+  - add schema v2 fields (`atb_support_level`, `step_id`, `step_name`),
+  - add confidence caps based on similarity + mechanism entropy,
+  - keep runtime/orchestrator entrypoints unchanged and keep evidence_table no-touch.
+- Implementation strategy:
+  - keep ReasoningAgent wrapper thin,
+  - inject thresholds into `reasoning_config` so they are replay-auditable.
+
+---
+
+## 2026-02-26 — Implemented: master evidence-weighting hardening + schema v2
+
+- Implemented localized refactor in release runtime path (no orchestrator entrypoint changes):
+  - new reasoning policy defaults in `src/reasoning/reasoning_config.py`
+  - ReasoningAgent now injects policy + `master_output_schema_version=v2` into `reasoning_config`
+  - master prompt now includes:
+    - Evidence Weighting Policy (neighbors are prior/context unless sim threshold met),
+    - aTB dihedral rubric for support levels,
+    - required A->D supporting chain contract,
+    - confidence-cap thresholds.
+- Schema/validator upgrades in `src/reasoning/master_reasoner.py`:
+  - added schema v2 fields:
+    - `mechanism_claim.primary_hypothesis.atb_support_level`
+    - `competing_hypotheses[*].atb_support_level`
+    - `supporting_chain[*].step_id` + `step_name`
+  - kept schema v1 selectable for compatibility (`master_output_schema_version=v1`)
+  - validator now enforces:
+    - path allowlist + existence + non-null values,
+    - neighbor-as-support blocked when `top1_sim < 0.55`,
+    - supporting_chain exactly 4 ordered steps A/B/C/D,
+    - minimum aTB citation counts in chain,
+    - confidence caps from similarity/entropy + conservative gate,
+    - primary `atb_support_level` consistency with `delta_dihedral` rubric.
+- Reasoning pack path policy tightened to reduce noise:
+  - allowlist now focused on selected risk-score fields, aTB readiness fields, gate fields, and selected neighbor fields.
+- Validation/tests:
+  - `conda run -n aie pytest -q tests/test_master_output_validation.py tests/test_reasoning_agent_idempotency.py tests/test_orchestration_run_one_master_reasoning.py tests/test_reasoning_pack_builder.py`
+  - `conda run -n aie pytest -q tests/test_cli_case_run.py tests/test_case_run_atb_success_lane.py`
+  - Result: `14 passed`.
+
+---
+
+## 2026-02-26 — Fix: failed_schema_validation by switching to evidence_id citations + canonical resolution
+
+- Addressed validation instability where model outputs looked reasonable but failed on non-canonical evidence paths.
+- Changes in master reasoning:
+  - citation format now uses `evidence_id` only (no model-facing `case_path` citations),
+  - removed `allowed_evidence_paths` and `path_map` from `reasoning_pack`,
+  - added compact `evidence_registry` (`E1..En`) with canonical real `case_path` mappings.
+- Validator now uses strict two phases:
+  1) local schema validation on raw `master_output` only,
+  2) evidence resolution (`evidence_id -> case_path`) and non-null/non-empty value enforcement.
+- Developer ergonomics:
+  - `validation_errors` are now structured objects (`type/code/path/detail`) and truncated to first 5.
+  - run artifacts expose `master_output_raw`, `master_output_parsed`, `validation_errors`.
+- Writeback consistency:
+  - keeps existing `master_reasoning*` fields,
+  - mirrors into `/reasoning/master_reasoning`, `/reasoning/used_evidence_ids`, `/reasoning/used_evidence_paths`, `/reasoning/meta`.
+- Tests added/updated:
+  - reject unknown evidence_id,
+  - reject pack-only/non-canonical path via registry,
+  - reject null/empty resolved values,
+  - accept valid E-id citations,
+  - confirm five-signals generation is post-validation and not part of master schema validation.
+
+---
+
+## 2026-02-26 — Refactor: evidence_id citations (remove case_path allowlist/path_map from prompt pack)
+
+- Implemented reasoning citation compression to reduce tokens:
+  - removed `allowed_evidence_paths` and `path_map` from `reasoning_pack`,
+  - added compact `evidence_registry` (`E1..En -> {case_path,label}`) as the only citation namespace for master LLM.
+- Master schema and validation updated:
+  - `evidence_used` now uses `{evidence_id, note, role}`,
+  - validator resolves every evidence_id to canonical case_path and enforces non-null/non-empty value,
+  - unknown/missing/empty evidence resolution now fails schema validation.
+- Writeback compatibility:
+  - existing `master_reasoning*` fields preserved,
+  - mirrored `reasoning.*` writeback added (`reasoning.master_reasoning`, `reasoning.used_evidence_paths`, `reasoning.used_evidence_ids`).
+- Tests added/updated:
+  - valid E-id citation pass,
+  - unknown E-id fail,
+  - null-resolving E-id fail,
+  - pack builder now asserts `evidence_registry` (no allowlist/path_map dependency).
+
+---
+
+## 2026-02-26 — Hotfix: strict json_schema required coverage (`supporting_chain.step_name`)
+
+- Runtime error addressed:
+  - provider strict schema check rejected `master_output_schema_v2` because `supporting_chain.items.properties` contained `step_name` but `required` omitted it.
+- Fix:
+  - updated `src/reasoning/master_reasoner.py` so v2 `supporting_chain.items.required` includes `step_name`.
+  - added strict-schema coverage test in `tests/test_master_output_validation.py`:
+    - recursively asserts every object schema with `additionalProperties=false` has `required` covering all property keys.
+- Validation:
+  - `conda run -n aie pytest -q tests/test_master_output_validation.py tests/test_orchestration_run_one_master_reasoning.py`
+  - Result: `11 passed`.
+
+---
+
+## 2026-02-25 — aTB full features payload for target + neighbors in master pack
+
+- Implemented requested expansion of aTB payload for reasoning:
+  - target full cache payload now written at `evidence_readiness.atb.features` (full `features.json`).
+  - neighbor rows now enrich from cache when `neighbors[].neighbor_atb` lacks full payload.
+  - `risk_scores.atb_neighbor_features_all` now keeps success-neighbor rows with full `features.json` + `features_summary` (not just compact deltas).
+- Reasoning pack contract stays:
+  - `risk_scores.atb_neighbor_features_all` is included for model-facing master context.
+  - `evidence_readiness.atb.features` is included for target full payload.
+- Validation:
+  - `conda run -n aie pytest -q tests/test_chem_agent_neighbor_consistency.py tests/test_reasoning_pack_builder.py`
+  - `conda run -n aie pytest -q tests/test_orchestration_run_one_master_reasoning.py tests/test_master_output_validation.py tests/test_reasoning_agent_idempotency.py`
+  - Result: `9 passed`.
+
+---
+
+## 2026-02-25 — Prompt token budget rebalance: reduce traceability payload, increase aTB neighbor detail
+
+- User feedback addressed: traceability payload was dominating tokens while aTB details were more useful.
+- Changes:
+  - `Reasoning` prompt payload now compacted:
+    - removes heavy `path_map` and full `allowed_evidence_paths` from model-facing payload
+    - adds compact `allowed_evidence_path_prefixes` + first 40 path examples
+    - full allowlist/path-map still kept server-side for validation.
+  - `ChemAgent` now writes richer neighbor aTB payloads:
+    - `risk_scores.atb_neighbor_features_all` uses success-only neighbor rows with full `features.json` attached.
+- Effect (measured):
+  - full internal pack size remained ~16 KB,
+  - model-facing user payload dropped to ~4.6 KB on sampled case.
+- Validation:
+  - `conda run -n aie pytest -q tests/test_chem_agent_neighbor_consistency.py tests/test_reasoning_pack_builder.py tests/test_orchestration_run_one_master_reasoning.py tests/test_master_output_validation.py tests/test_reasoning_agent_idempotency.py`
+  - Result: `9 passed`
+
+---
+
+## 2026-02-25 — Added neighbor aTB rows to master prompt pack
+
+- User request addressed: master prompt now includes concrete neighbor aTB result rows (not only aggregate consistency stats).
+- Runtime changes:
+  - `ChemAgent` writes `risk_scores.atb_neighbor_features_all` (success-only neighbors, rank-sorted) with full `features.json`.
+  - `ReasoningPack` includes this field (`atb_neighbor_features_all`) so full neighbor aTB payload is visible to master LLM.
+- Data shape in each row:
+  - `neighbor_inchikey`, `rank`, `sim`, `delta_gap`, `delta_dihedral`, `delta_volume`, `features_summary`, `features`.
+- Guardrails unchanged:
+  - retrieval remains ECFP-only,
+  - no evidence_table writeback,
+  - gate ownership remains ReadyAgent-only.
+- Tests:
+  - updated `tests/test_chem_agent_neighbor_consistency.py` (new patch field assertions)
+  - updated `tests/test_reasoning_pack_builder.py` (pack includes new field)
+  - regression checks:
+    - `tests/test_orchestration_run_one_master_reasoning.py`
+    - `tests/test_master_output_validation.py`
+  - Result: `8 passed`
+
+---
+
+## 2026-02-24 — LLM trace layout update: run_id folders + reasoning five-signal JSON
+
+- Updated LLM trace persistence to run-scoped layout:
+  - all LLM traces now write under `artifacts/llm_responses/<run_id>/`
+  - file naming: `<run_id>.<agent_name>.response.json`
+- Reasoning-specific extraction added:
+  - `artifacts/llm_responses/<run_id>/<run_id>.reasoning_agent.summary5.json`
+  - includes five sections:
+    1) conclusion
+    2) confidence
+    3) competing_hypotheses
+    4) evidence_chain
+    5) limits_and_next_actions
+- Code changes:
+  - new utility: `src/tools/llm_trace_store.py`
+  - ReasoningAgent writes both raw response trace + summary5 JSON
+  - JudgeAgent writes response trace in same run folder
+  - ChemAgent writes aggregated literature LLM trace in same run folder (when LLM used)
+- Tests:
+  - new `tests/test_llm_trace_store.py`
+  - updated `tests/test_orchestration_run_one_master_reasoning.py` (assert run-scoped trace files)
+- Validation:
+  - `conda run -n aie pytest -q tests/test_orchestration_run_one_master_reasoning.py tests/test_llm_trace_store.py tests/test_master_output_validation.py tests/test_reasoning_agent_idempotency.py tests/test_llm_client.py`
+  - `conda run -n aie pytest -q tests/test_case_run_atb_success_lane.py tests/test_cli_case_run.py`
+  - Result: `12 passed`
+
+---
+
+## 2026-02-24 — Hotfix: conservative/no-emission validation relaxed with semantic matching + auto limits
+
+- Change request implemented:
+  - replaced hard-string checks for conservative/no-emission limits in master validation.
+  - validator now uses semantic keyword matching.
+  - if missing, validator auto-appends standard limits instead of failing writeback.
+- Code changes:
+  - `src/reasoning/master_reasoner.py`
+    - added semantic helpers (`_has_any_token`, `_normalize_limits`)
+    - added standard auto-limit constants
+    - conservative mode now:
+      - still enforces confidence cap,
+      - no longer emits `missing_conservative_limit_statement` / `missing_no_emission_evidence_limit`,
+      - auto-injects `Conservative mode...` and `No emission evidence...` limits when absent.
+- Tests updated:
+  - `tests/test_master_output_validation.py`
+    - existing conservative test updated for auto-append behavior
+    - new semantic-phrase acceptance test added
+- Validation:
+  - `conda run -n aie pytest -q tests/test_master_output_validation.py tests/test_orchestration_run_one_master_reasoning.py tests/test_reasoning_agent_idempotency.py`
+  - Result: `6 passed`
+
+---
+
+## 2026-02-24 — Hotfix: reasoning effort downgrade retry (`xhigh` fallback chain)
+
+- Issue:
+  - run `a10f99ff81db4bea99ec450db22b5bc3` still failed at reasoning with
+    `responses_empty_output_text:output_types=['reasoning']`.
+  - this indicates gateway returned reasoning-only items without usable text/parsed payload.
+- Fix in `src/tools/llm_client.py`:
+  - added deterministic effort retry chain:
+    - `xhigh -> high -> medium -> low -> none -> (no reasoning field)`
+  - applies to `responses_json` and `responses_text`.
+  - retries also cover invalid JSON decode on textual output.
+  - last failure message now carries effort/output-type context.
+- Added test:
+  - `tests/test_llm_client.py::test_responses_json_retries_lower_effort_when_empty`
+  - validates first call uses `xhigh` and retry uses `high`.
+- Validation:
+  - `conda run -n aie pytest -q tests/test_llm_client.py tests/test_orchestration_run_one_master_reasoning.py tests/test_master_output_validation.py tests/test_reasoning_agent_idempotency.py`
+  - Result: `8 passed`
+
+---
+
+## 2026-02-24 — Hotfix: Responses strict JSON fallback for empty `output_text`
+
+- Bug reproduced on run `289bb3a62ed34c95a2adc319adeff1f8`:
+  - reasoning step returned `responses_empty_output_text` while request succeeded.
+  - LLM trace file: `artifacts/llm_responses/<case_id>/<run_id>.reasoning_agent.json`.
+- Root cause:
+  - gateway/model can return strict JSON payload in structured fields (`parsed/json/object`) without populating `output_text`.
+  - wrapper previously treated this as hard failure.
+- Fix:
+  - `src/tools/llm_client.py` now falls back to parse structured JSON from response content when `output_text` is empty.
+  - keeps strict JSON parsing behavior and returns canonical `text` from parsed JSON.
+  - improved error detail for true empty responses (`output_types=[...]`).
+- Added tests:
+  - `tests/test_llm_client.py`:
+    - parses normal `output_text` JSON path
+    - parses structured payload fallback path
+- Validation:
+  - `conda run -n aie pytest -q tests/test_llm_client.py tests/test_orchestration_run_one_master_reasoning.py tests/test_master_output_validation.py`
+  - Result: `6 passed`
+
+---
+
+## 2026-02-24 — Hotfix: master schema `required` mismatch caused `invalid_json_schema`
+
+- Bug observed from runtime LLM trace:
+  - `artifacts/llm_responses/<case_id>/<run_id>.reasoning_agent.json`
+  - provider error: root `required` must include all root `properties`; missing `recommended_next_actions`.
+- Fix:
+  - updated `src/reasoning/master_reasoner.py` root schema `required` to include `recommended_next_actions`.
+  - added explicit note in `doc/process.md` under master reasoner contract.
+- Impact:
+  - unblocks strict Responses JSON schema validation for reasoning step.
+  - no changes to patch scope / gate ownership / evidence_table no-touch policy.
+
+---
+
+## 2026-02-24 — Runtime defaults + LLM trace folder update (case-run)
+
+- Updated release runtime defaults for `case-run`:
+  - default `--model` -> `gpt-5.2`
+  - default `--llm-reasoning-effort` -> `xhigh`
+- Added dedicated LLM trace output root for reasoning runs:
+  - new runtime option `--llm-response-dir` (default `artifacts/llm_responses`)
+  - ReasoningAgent now mirrors request/response payloads to:
+    - `artifacts/llm_responses/<case_id>/<run_id>.reasoning_agent.json`
+  - step-level replay under `artifacts/<run_id>/<step>/` remains unchanged.
+- Wiring updates:
+  - `src/core/types.py` (`AgentContext.llm_response_dir`, default `artifacts/llm_responses`)
+  - `src/orchestration/run_one.py` (new arg propagation + run summary includes `llm_response_dir`)
+  - `src/cli.py` (`case-run` parser/default namespace + forwarding)
+  - `src/agents/reasoning_agent.py` (LLM trace mirror write)
+- Validation:
+  - `conda run -n aie pytest -q tests/test_cli_case_run.py tests/test_reasoning_agent_idempotency.py tests/test_orchestration_run_one_master_reasoning.py tests/test_orchestration_run_one.py tests/test_case_run_atb_success_lane.py`
+  - Result: `6 passed`
+
+---
+
 ## 2026-02-24 — Plan: integrate aTB neighbor consistency into release runtime
 
 - Scope locked for release orchestrator runtime (`case-run` path, not example paths):
@@ -3428,3 +4186,94 @@ python -m unittest -v tests.test_graph_retrieval_v1_p3
   - `tests/test_cli_case_e2e.py`
   - `tests/test_mineru_llm_extractor.py`
   - total: `18 passed`
+
+---
+
+## 2026-03-02 — Final v3 stabilization (tagged repair + R2 discriminative evidence + stop/no-touch hardening)
+
+### What changed
+
+- Master reasoner now defaults to `tagged_repair` output mode (strict provider schema remains optional).
+- Tagged parser now requires explicit:
+  - `PRIMARY_LABEL`
+  - `PRIMARY_CONFIDENCE`
+  - and normalizes label by `allowed_mechanism_labels + candidate set` (`unknown` fallback).
+- Removed keyword-priority mechanism-label inference from parser path.
+- Confidence computation switched to soft-penalty pipeline:
+  - `raw_confidence_from_model` -> `final_confidence`
+  - factors: similarity, entropy, gate mode, and R2 `separation_score` (when reliability is `medium/high`).
+- R2 evidence upgraded to compact `neighbor_atb_stats_by_label` with deterministic `<3KB` trimming and `E21-E24` registry bindings.
+- Iterative stop logic added pre-R2 recovery guard:
+  - one forced recovery (`force_r2` default) before allowing terminal stop on repeated pre-R2 master failures.
+- Added low-level SafeFS deny-write guard for `data/evidence_table.parquet` and wired JSON write paths through guarded I/O.
+
+### Validation
+
+- Full test suite:
+  - `323 passed, 5 skipped`
+- Added/updated focused tests for:
+  - tagged parser required fields + label normalization
+  - confidence non-constant behavior under soft penalty
+  - neighbor stats size/budget and deterministic trimming
+  - pre-R2 recovery guard behavior
+  - behavior-level no-touch guard via guarded writes
+
+---
+
+## 2026-03-02 — Evaluator LLM hotfix: align with master tagged-repair flow
+
+### Problem observed
+
+- Evaluator LLM calls were enabled but frequently downgraded to rule-only due to `invalid_eval_llm_output:*`.
+- Root cause: evaluator prompt asked for natural language while parser expected direct JSON keys.
+
+### Implemented
+
+- Updated `src/agents/llm_evaluator.py` to follow master-style robust path:
+  - tagged natural-language section contract:
+    - `CRITIQUE_POINTS`
+    - `CONFLICTS`
+    - `VOI_RANKED_ACTIONS`
+    - `CONFIDENCE_DELTA_SUGGESTION`
+    - `NEXT_ROUND_PROFILE_SUGGESTION`
+  - local tagged parser -> structured eval object (`eval_llm_output_schema_v1` keys unchanged)
+  - retry still enabled
+  - repair path now first attempts local tagged repair before remote repair call.
+
+### Validation
+
+- Focused tests pass:
+  - `tests/test_llm_evaluator.py`
+  - `tests/test_round_runner_llm_layer.py`
+  - total: `7 passed`
+
+---
+
+## 2026-03-02 — R2 anti-stagnation + PRIMARY_LABEL token normalization hotfix
+
+### Problem observed
+
+- In some atb-only iterative runs, R2 introduced neighbor evidence IDs but master hypothesis/confidence remained unchanged; loop continued with low value.
+- `PRIMARY_LABEL` sometimes included explanatory text and normalized to `unknown` unnecessarily.
+
+### Implemented
+
+- Updated `src/orchestration/round_runner.py`:
+  - add global new-evidence tracking across rounds,
+  - derive `effective_added_ids` and `count_effective_added`,
+  - in `R2/R3`, treat `E21..E24` as effective only when neighbor-stat reliability is `medium/high`,
+  - persist `effective_added_ids/count_effective_added` in round_state.
+- Updated `src/agents/judge_agent.py`:
+  - stop logic now uses `effective_gain` (`count_effective_added` OR hypothesis change OR |confidence_delta|>=0.02),
+  - keep existing reason codes while reducing repeated no-op rounds.
+- Updated `src/reasoning/master_reasoner.py`:
+  - strengthen prompt contract: `PRIMARY_LABEL` must be a single token from allowed labels,
+  - parser now performs lightweight token normalization from annotated `PRIMARY_LABEL` text (without reintroducing free-form keyword-priority scanning).
+
+### Validation
+
+- Focused tests pass:
+  - `tests/test_master_tagged_repair.py`
+  - `tests/test_round_runner_stagnation_stop.py`
+  - `tests/test_round_runner_llm_layer.py`
+  - total: `13 passed`

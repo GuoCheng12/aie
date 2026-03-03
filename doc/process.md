@@ -20,6 +20,79 @@ All writes must be RFC6902 patch writes with:
 - per-step idempotency key
 - replay artifacts (input snapshot, raw outputs, patch, case before/after/diff, manifest)
 
+### Final v3 lock (this cycle)
+
+This cycle hardens master iterative reasoning behavior and removes known convergence artifacts.
+
+1) **Master label parsing is explicit**
+- In `tagged_repair` mode, model output must include explicit `PRIMARY_LABEL` and `PRIMARY_CONFIDENCE`.
+- Master no longer infers mechanism label from natural-language keyword scan order.
+- Label acceptance is controlled by `reasoning_config.allowed_mechanism_labels` plus candidate-set labels from pack; unknown labels are normalized to `unknown` with warning.
+
+2) **Confidence is soft-penalty (not hard 0.42 clipping)**
+- `PRIMARY_CONFIDENCE` is stored as raw model confidence (`raw_confidence_from_model`).
+- Final written confidence is computed by soft penalty factors (similarity, entropy, gate mode, and R2 separation strength when reliable), then capped by conservative cap only.
+- `master_reasoning_meta` must record:
+  - `raw_confidence_from_model`
+  - `final_confidence`
+  - `penalty_components`
+  - `confidence_formula_version`
+
+3) **R2 introduces discriminative neighbor aTB evidence**
+- Add `risk_scores.neighbor_atb_stats_by_label` in profile `R2+`.
+- Source rows: neighbors with `cache_status=="success"` and complete delta fields only.
+- Output is compact and deterministic, including percentile/z and by-label summaries.
+- Evidence registry adds compact derived entries:
+  - `E21`: dihedral distribution summary
+  - `E22`: delta-gap distribution summary
+  - `E23`: by-label comparative summary (conditional)
+  - `E24`: reliability/sample size note
+
+4) **Deterministic size control for neighbor stats**
+- Enforce strict trim order to keep object `<3KB`:
+  1. by-label top-3
+  2. by-label top-2
+  3. summary max 3 lines
+  4. keep only `delta_dihedral` + `delta_gap`
+  5. minimal by-label payload (`n`, `median`) while preserving reliability/sample size/separation score
+
+5) **Iterative stop policy guard**
+- Stagnation stop remains active (`count_added==0` + repeated profile).
+- Additional guard: if profile is pre-R2 and master fails consecutively, do not stop immediately; allow one recovery opportunity (`force_r2` default, optional `degraded_retry`) before terminal stop.
+
+6) **No-touch evidence table, strengthened**
+- Keep existing content-hash no-touch check.
+- Add behavior-level write guard at core write entrypoints so iterative/round runner code cannot bypass and write `data/evidence_table.parquet`.
+
+### Hotfix plan (current task): evaluator aligned to master tagged_repair
+
+Problem observed in recent runs: evaluator LLM was enabled but frequently downgraded to rule-only because output was natural-language text while parser expected JSON keys directly, producing `invalid_eval_llm_output:*`.
+
+Plan for this patch:
+- make evaluator use the same robust flow as master:
+  - tagged natural-language contract first,
+  - local tagged parser to structured eval object,
+  - optional JSON extraction/repair fallback if needed.
+- keep evaluator output schema contract unchanged (`eval_llm_output_schema_v1` keys), but parse from tagged sections:
+  - `CRITIQUE_POINTS`, `CONFLICTS`, `VOI_RANKED_ACTIONS`, `CONFIDENCE_DELTA_SUGGESTION`, `NEXT_ROUND_PROFILE_SUGGESTION`.
+- preserve orchestrator behavior (rule evaluator remains base; LLM layer only augments ranking/notes).
+
+### Hotfix plan (current task): R2 anti-stagnation + label-token robustness
+
+Problem observed from recent iterative runs:
+- R2 introduces new IDs (`E21/E22/E24`) but hypothesis/confidence may remain unchanged.
+- stop policy currently keys on raw `count_added` and can miss “no effective gain” scenarios.
+- `PRIMARY_LABEL` may include explanatory text and normalize to `unknown` too often.
+
+Plan:
+- add `effective_gain` signal in round runner + judge:
+  - derive `count_effective_added` from globally new evidence IDs,
+  - in `R2/R3`, treat `E21..E24` as effective only when neighbor-stat reliability is `medium/high`,
+  - stop when profile repeats with no effective gain.
+- strengthen PRIMARY_LABEL parsing:
+  - require token-style label in prompt,
+  - parser supports lightweight token normalization from annotated label text (without reverting to keyword-priority scanning).
+
 ### Release-hard constraints (promotion from E0 semantics)
 
 The following are platform rules for the release path (not example-only behavior):
@@ -88,6 +161,42 @@ The following are platform rules for the release path (not example-only behavior
 - Output default: final case + run summary; optional `--emit-stage-snapshots`.
 - `case-e0`, `case-e2e`, `case-e2e-atb` remain one-version compatibility aliases and must forward to `case-run`.
 
+### Planned runtime default update (2026-02-24)
+
+- Add a dedicated LLM trace output root for release runtime:
+  - new runtime option `--llm-response-dir` (default `artifacts/llm_responses`)
+  - all LLM agents write run-scoped files under `artifacts/llm_responses/<run_id>/`.
+  - naming convention: `<run_id>.<agent_name>.response.json`.
+  - ReasoningAgent additionally writes `<run_id>.reasoning_agent.summary5.json` (five-signal extract for quick reading).
+- Update release defaults for master reasoning execution:
+  - default model: `gpt-5.2`
+  - default `llm_reasoning_effort`: `medium`
+  - default `llm_temperature`: `0.2`
+  - keep explicit override flags unchanged (`--model`, `--llm-reasoning-effort`, `--llm-temperature`).
+- Add LLM response parser fallback for strict JSON mode:
+  - if gateway returns structured payload without `output_text`, parse JSON from message content (`parsed/json/object`) before failing.
+- Add reasoning effort downgrade retry for runtime stability:
+  - when initial effort is `xhigh`, retry sequence is `xhigh -> high -> medium -> low -> none -> (no reasoning field)` on empty/invalid content.
+  - objective is to preserve default high-quality setting while avoiding hard failure on gateway/model output sparsity.
+
+### Master/Evaluator JSON-only contract mode (current default)
+
+- Runtime default is now **no provider-side json_schema** (`llm_use_json_schema=false`).
+- Both master and evaluator prompts append a JSON-only contract:
+  - output must be a single JSON object (`{...}`),
+  - no markdown/explanation/prefix/suffix,
+  - required top-level keys must be present,
+  - bounded list sizes and bounded note length.
+- Validation stays code-side:
+  - `json.loads` parse,
+  - lightweight required/type/enum checks,
+  - evidence resolution checks (registry membership + value existence),
+  - semantic policy checks (confidence caps, chain ordering, anti-leakage).
+- Failure recovery is three-stage:
+  1) first call,
+  2) retry once with larger token budget and stronger “JSON-only” reminder,
+  3) JSON-repair pass (no new facts/claims), then normal validator.
+
 ### Offline PDF / web_search switch
 
 - `evidence_acquire.emission.mode`:
@@ -104,18 +213,189 @@ The following are platform rules for the release path (not example-only behavior
 - Evidence table is **read-only** in this refactor (no writeback).
 - Every agent step must append an `agent_runs[]` audit row with `inputs_hash` + `idempotency_key`.
 - Replay artifacts are mandatory per run/step for deterministic audit.
-- Master reasoner consumes `reasoning_pack` only (not full case payload in prompt), and all evidence references must resolve to allowed case paths.
+- Master reasoner consumes `reasoning_pack` only (not full case payload in prompt), and all evidence references must resolve via `evidence_registry` to real case paths.
 
 ### Master Reasoner runtime contract (release)
 
 - **Input**: `case.json` + `reasoning_config`
 - **Internal projection**: build `reasoning_pack` (`master_pack_v1`) as the only model-facing context
+  - include target aTB `features_summary` baseline by profile (`R0/R1`) and keep neighbor evidence token-friendly.
+  - `R1` must add `risk_scores.atb_trends_self` (self-relative trend evidence from target aTB only).
+  - for `R2+`, include compact `neighbor_atb_stats` (distribution summaries), not full neighbor feature payloads.
+  - round increment contract (locked):
+    - `R0`: gate + minimal priors only.
+    - `R1`: `R0 + atb_trends_self`.
+    - `R2`: `R1 + neighbor_atb_stats_by_label` (if available in lane).
+    - `R3`: `R2 + external lane statuses`.
+- **Evidence weighting policy** (locked):
+  - neighbors are **prior/context** by default;
+  - aTB features are **support evidence**;
+  - neighbor evidence may use `role="support"` only when `top1_sim >= 0.55` (otherwise neighbors must stay context/counter only).
+- **aTB discriminative rubric** (locked):
+  - `abs(delta_dihedral) < 8.0` -> `atb_support_level="none"`
+  - `8.0 <= abs(delta_dihedral) < 15.0` -> `atb_support_level="weak"`
+  - `abs(delta_dihedral) >= 15.0` -> `atb_support_level="strong"`
+  - `delta_gap` can only provide weak CT-family context (ICT/TICT), never strong evidence.
+  - ESIPT cannot be strongly supported in `atb_cache_only` lane without motif/literature/experiment evidence.
+- **Mechanistic chain shape**:
+  - `supporting_chain` must be exactly four ordered steps `A -> B -> C -> D`
+  - A: excited-state structural access (aTB features)
+  - B: hypothesized nonradiative channel
+  - C: aggregation/rigidification effect (RIM-style suppression)
+  - D: discriminative predictions to separate ICT/TICT/ESIPT
 - **Prompt bundle**: `master_prompt_bundle_v1` with `{system, instructions, user_payload, schema}`
-- **Output**: strict JSON + semantic validation (evidence path allowlist/existence, conservative caps)
+  - model-facing `user_payload` uses compact `evidence_registry` (`E1..En`) for citations.
+  - master must cite `evidence_id` only; validator resolves IDs to canonical case paths server-side.
+  - for aTB argumentation, master must prioritize `atb_trends_self` evidence IDs (`E_ATB_TREND_*`) over raw absolute-value threshold narration.
+- **R2 discriminative increment (locked)**:
+  - `R1` introduces self-trend evidence (`atb_trends_self`) and keeps it independent from neighbor distributions.
+  - `neighbor_atb_stats` is computed from neighbor `features_summary` where `cache_status=="success"` and required deltas are present.
+  - stats include only compact signals (`median`, `IQR`, `percentile`, `robust-z`, reliability), no full distributions.
+  - `delta_dihedral` is emitted as both raw and absolute views:
+    - `delta_dihedral` (signed audit value),
+    - `abs_delta_dihedral` (primary discriminative axis for percentile/z/by-label comparison).
+  - evidence registry adds stable derived entries in `R2+`:
+    - `E21` (`abs_delta_dihedral` distribution summary),
+    - `E22` (`delta_gap` distribution summary),
+    - `E23` (label-stratified comparison, only when >=2 labels and each label `n>=2`),
+    - `E24` (reliability note).
+  - evidence registry adds stable self-trend entries in `R1+`:
+    - `E_ATB_TREND_1` (`delta_dihedral` bucket + absolute magnitude),
+    - `E_ATB_TREND_2` (`delta_gap` direction + bucket),
+    - `E_ATB_TREND_3` (`delta_volume` direction + bucket),
+    - `E_ATB_TREND_4` (`overall_motion_proxy` + reliability).
+  - `E21/E22` `value_preview` is fixed minimal object:
+    `{target, neighbors_median, neighbors_iqr, target_percentile, z_robust}`.
+  - `summary[]` remains in `risk_scores.neighbor_atb_stats` only (never duplicated in `evidence_registry`).
+- **Output**: strict JSON + semantic validation (evidence path allowlist/existence, chain order, evidence weighting, confidence caps)
 - **Writeback**: RFC6902 patch to `master_reasoning*` root keys only
 - **Execution condition**:
   - gate is ready (`ready_for_reasoning=true` or ready state),
   - `action_plan` contains `run_master_reasoner` (position-independent by default; top1 check optional via config)
+- **Schema strictness note**:
+  - when using Responses strict `json_schema`, root `required` must include all keys in root `properties` (including `recommended_next_actions`) to satisfy provider-side schema validation.
+  - same strict rule also applies to nested objects (`additionalProperties=false`): every property key must appear in `required` (e.g., `supporting_chain[].step_name` in schema v2).
+- **Additional confidence caps**:
+  - if `top1_sim < 0.50` -> `confidence <= 0.45`
+  - if `mechanism_entropy > 0.75` -> `confidence <= 0.50`
+  - if both hold -> `confidence <= 0.42`
+
+### Derived evidence validation strategy (locked)
+
+- `evidence_registry` rows carry source semantics:
+  - `source_type="case"` with `case_path`,
+  - `source_type="derived_pack"` with `pack_path` (+ optional `derived_from_case_paths`).
+- Validator behavior:
+  - `source_type=case`: resolve `case_path` in case JSON and require non-empty value.
+  - `source_type=derived_pack`: resolve `pack_path` in `reasoning_pack` and require non-empty value.
+- Derived evidence (e.g., `E21+`) is **not** required to map to a concrete case JSON path to pass validation.
+
+### In-flight hardening plan (reasoning audit-safety + token efficiency)
+- Prompt hard rule: master must not invent numeric bands/thresholds; numeric bounds can only come from `reasoning_config.thresholds` (or explicitly surfaced evidence values).
+- Compact evidence trace stays evidence-id only (`E1..En`) for model output; no `case_path` in model JSON.
+- `reasoning_pack.evidence_registry` stays capped (target 10-20 rows), sorted by importance, and includes `value_preview` + `role_hint` + `note_hint` to reduce model drift.
+- Schema upgrade to `master_output_schema_v3`: keep strict JSON, require `supporting_chain[].step_name`, and lock step-name enum for deterministic chain semantics.
+- Validation hardening:
+  - reject unknown `evidence_id`;
+  - reject citations resolving to missing/null/empty case values;
+  - reject invented thresholds/range text unless numeric values are present in configured thresholds;
+  - in conservative mode, require limits to mention missing literature/experiment when lane is disabled.
+- Keep orchestrator contract unchanged: RFC6902 patch path guards, replay artifacts, idempotency, and evidence_table no-touch.
+- Prompt payload trim (locked):
+  - remove neighbor full-feature payload from model-facing prompt,
+  - keep compact neighbor summaries and `neighbor_atb_stats` only.
+- Summary quality upgrade (next patch):
+  - expand `five_signals.evidence_chain` to 8-12 evidence-id items with fixed block ordering (uncertainty bounds -> aTB cues -> missing discriminators),
+  - expand `five_signals.conclusion.natural_language_mechanism` to a 3-paragraph narrative (best hypothesis, mixture boundary, falsifiable next tests),
+  - keep citations evidence-id only and avoid threshold/range wording unless explicit `reasoning_config.thresholds` key/value is cited.
+- Mechanism-agnostic prompt refactor (next patch):
+  - remove hard-coded mechanism labels from master prompt instructions and trace narratives,
+  - inject dynamic candidate-set text from `reasoning_pack.mechanism_context.candidate_mechanisms_top3`,
+  - fallback to generic hypothesis wording when candidate priors are absent.
+- Plan B (hint isolation):
+  - keep `risk_scores.mechanism_hint` / `risk_scores.hint_confidence` in case file for routing/debug,
+  - exclude both fields from `reasoning_pack` (master input),
+  - forbid master evidence references to these paths during validation.
+
+### Planned implementation (iterative closure v2.3, pre-code lock)
+- Add `RoundRunner` outer loop (`Round0 -> RoundN`) while keeping orchestrator core unchanged.
+- Add two runner modes:
+  - `dryrun_then_commit` (default): R0 writes only minimal `/iterative/*` state; R1+ may write reasoning/eval outputs.
+  - `commit_all_rounds`: all rounds may write outputs.
+- Add config-based `EvidenceProfileSelector` (`R0..R3`) and make R0/R1 include target aTB summary as baseline input.
+- Extend evaluator sidecar output with feasibility:
+  - `feasibility` (lane capabilities, constraints, overall_score)
+  - `voi_ranked_actions[*]` with `feasible`, `feasibility_score`, `blocked_by`, `unblock_actions`.
+- Keep `master_output_schema_version=v3` unchanged; new iteration fields are sidecar + minimal `/iterative/*` case state.
+
+### Iterative stop/next policy hardening (v2.4)
+
+- Add explicit information-gain handling in evaluator:
+  - consume `count_added` and `hypothesis_changed` signals from round runner.
+- Stop policy additions:
+  - if `count_added==0` and next profile equals current profile -> stop with `reason_code=stagnation_no_new_evidence`.
+  - if `count_added==0` and profile changed but lane has no higher usable evidence layer -> stop with `reason_code=no_new_evidence_available_in_lane`.
+  - in `atb_cache_only`, if `R1 -> R2` adds no new evidence IDs, force `next_round_profile=NONE` and stop immediately.
+- `atb_cache_only` action ranking adjustment:
+  - top actions should become lane-unblocking actions (`switch_run_lane_offline_pdf`, `provide_offline_pdf`),
+  - avoid repeatedly returning `request_manual_pdf` as top-1 when lane is disabled.
+
+### Planned implementation (runtime progress feedback, pre-code lock)
+- Add non-business telemetry in `RoundRunner` and `run_one`:
+  - stdout structured events for `round_start`, `master_call`, `validate`, `judge`, `apply_patch`, `stop`, `round_end`.
+  - every event includes `round_index`, `max_rounds`, `active_profile`, `stage`, `status`, `elapsed_ms`.
+- Add atomic run status file at artifacts root:
+  - `<artifacts_dir>/run_status.json` (single latest snapshot, atomically overwritten).
+  - required fields: `run_id`, `case_id`, `round_index`, `max_rounds`, `active_profile`,
+    `round_runner_mode`, `stage`, `last_event`, `last_updated_at`, `errors`, `round_dir`, `latest_eval_report`.
+- Add failure summary propagation:
+  - for `failed_llm` / `failed_schema_validation`, emit concise `error_codes` + `error_paths` to stdout
+  - mirror same summary into `run_status.json.errors`.
+- Add status tail tool:
+  - `python -m src.orchestration.tail_status --artifacts-dir ...`
+  - polling interval 0.5s, print latest `run_status.json`, Ctrl+C exits cleanly.
+- Add minimal tests:
+  - R0 writes `run_status.json` at least once,
+  - 2-round run updates `round_index` to 1,
+  - failure path fills non-empty `errors`.
+
+### Planned implementation (optional evaluator LLM layer, pre-code lock)
+- Keep deterministic Judge/Rule evaluator as source of truth for:
+  - feasibility,
+  - stop policy,
+  - baseline scorecard/action list.
+- Add optional `LLMEvaluator` sidecar layer, enabled only when:
+  - `reasoning_config.evaluator.use_llm=true`.
+- LLM evaluator input must stay compact:
+  - `reasoning_pack`,
+  - `master_output_parsed`,
+  - `reasoning_config.policy + reasoning_config.thresholds`,
+  - `run_lane_capabilities`.
+- Add strict schema `eval_llm_output_schema_v1` with fields:
+  - `critique_points`, `conflicts`, `voi_ranked_actions`, `confidence_delta_suggestion`, `next_round_profile_suggestion`.
+- Merge policy:
+  - final `eval_report` still comes from deterministic evaluator,
+  - store LLM output under `eval_report.llm_layer`,
+  - update action ranking score with
+    `expected_information_gain * feasibility_score * llm_priority_weight`.
+- Safety:
+  - LLM evaluator writes no case patch,
+  - outputs only sidecar + merged `eval_report`.
+
+### Planned implementation (LLM config split: master vs evaluator, pre-code lock)
+- Introduce explicit config split inside `reasoning_config`:
+  - `reasoning_config.master.{model, reasoning_effort}`
+  - `reasoning_config.evaluator.{use_llm, model, reasoning_effort}`
+- Default inheritance rule:
+  - evaluator model/effort inherit master settings unless evaluator fields are explicitly set.
+- Apply split in runtime calls:
+  - MasterReasoner LLM call uses `reasoning_config.master.*`.
+  - LLMEvaluator call uses `reasoning_config.evaluator.*` (or inherited master values).
+- Keep backward compatibility:
+  - existing top-level `model` / `reasoning_effort` still accepted as fallback.
+- Add tests:
+  - evaluator override model/effort path works,
+  - inheritance path (no explicit evaluator model/effort) uses master settings.
 
 ---
 

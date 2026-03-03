@@ -105,6 +105,129 @@ For each `{run_id}/{step}` directory:
 - `06_case_diff.json`
 - `manifest.json` (sha256 for all files)
 
+### Master reasoning (v3 final lock)
+
+`master_output_schema_version` remains `v3`. Runtime default is `tagged_repair`; strict provider JSON schema is optional.
+
+#### Required tagged fields in model output (tagged_repair mode)
+
+- `TEMPLATE_USED`
+- `STATUS`
+- `PRIMARY_LABEL`
+- `PRIMARY_CONFIDENCE`
+- `PRIMARY`
+- `COMPETING`
+- `EVIDENCE`
+- `PREDICTIONS`
+- `LIMITS`
+- `NEXT_ACTIONS`
+
+Missing required tagged fields result in `failed_schema_validation`.
+
+#### `mechanism_label` normalization
+
+- Runtime config key: `reasoning_config.allowed_mechanism_labels`.
+- Default: `["TICT","ESIPT","ICT","other","unknown"]`.
+- Accepted pool for `PRIMARY_LABEL`:
+  - `allowed_mechanism_labels`
+  - plus `reasoning_pack.mechanism_context.candidate_mechanisms_top3` labels
+  - plus `unknown` / `other`
+- If parsed label is outside pool: normalize to `unknown` and emit warning.
+
+#### Confidence fields (raw vs final)
+
+- `PRIMARY_CONFIDENCE` is treated as model raw value only.
+- Final written value `mechanism_claim.confidence` is computed by soft-penalty policy.
+- `master_reasoning_meta` must include:
+  - `raw_confidence_from_model`
+  - `final_confidence`
+  - `penalty_components`
+  - `confidence_formula_version`
+
+#### R1 self-trend stats block (pack-only)
+
+When active profile is `R1+`, reasoning pack contains:
+
+- `risk_scores.atb_trends_self`
+
+Compact structure:
+
+```json
+{
+  "enabled": true,
+  "fields_used": ["delta_dihedral", "delta_gap", "delta_volume", "excitation_energy"],
+  "delta_dihedral_abs_deg": 0.0,
+  "delta_dihedral_bucket": "none|weak|strong",
+  "delta_dihedral_direction": "increase|decrease|mixed|unknown",
+  "delta_gap_direction": "decrease|flat|increase|unknown",
+  "delta_gap_bucket": "weak|moderate|strong|unknown",
+  "delta_volume_direction": "decrease|flat|increase|unknown",
+  "delta_volume_bucket": "weak|moderate|strong|unknown",
+  "overall_motion_proxy": "low|medium|high|unknown",
+  "reliability": "low|medium|high",
+  "notes": []
+}
+```
+
+Rules:
+- self-trend is computed from target aTB only and is independent from neighbor distributions.
+- all thresholds/buckets must come from configured policy thresholds (no ad-hoc bands).
+- serialized object must stay compact (target `<1KB`).
+
+#### R2 discriminative stats block
+
+When active profile is `R2+`, reasoning pack contains:
+
+- `risk_scores.neighbor_atb_stats_by_label`
+
+Compact structure:
+
+```json
+{
+  "sample_size": 0,
+  "reliability": "low|medium|high",
+  "fields": {
+    "delta_dihedral": {
+      "target": 0.0,
+      "neighbors_median": 0.0,
+      "neighbors_iqr": 0.0,
+      "target_percentile": 0.0,
+      "z_robust": 0.0
+    },
+    "delta_gap": {},
+    "delta_volume": {}
+  },
+  "by_label": {
+    "ICT": {"n": 0, "median": 0.0, "iqr": 0.0, "percentile_of_target": 0.0}
+  },
+  "closest_label_by_field": {"delta_dihedral": "ICT|unknown"},
+  "separation_score": 0.0,
+  "summary": []
+}
+```
+
+Rules:
+- Include only neighbors with `cache_status=="success"` and complete delta fields.
+- No full neighbor feature dump in pack.
+- Deterministic trim order must guarantee serialized size `<3072` bytes.
+
+#### Evidence IDs for R2 discriminative block
+
+- `E21`: delta_dihedral comparative summary
+- `E22`: delta_gap comparative summary
+- `E23`: by-label comparative summary (conditional)
+- `E24`: reliability + sample size (+ separation note)
+
+#### Evidence IDs for R1 self-trend block
+
+- `E_ATB_TREND_1`: self delta_dihedral bucket + absolute magnitude
+- `E_ATB_TREND_2`: self delta_gap direction + bucket
+- `E_ATB_TREND_3`: self delta_volume direction + bucket
+- `E_ATB_TREND_4`: self overall motion proxy + reliability
+
+`value_preview` for E21/E22 must stay minimal:
+`{target, neighbors_median, neighbors_iqr, target_percentile, z_robust}`.
+
 
 ## 1. `data/private_clean.parquet`
 
@@ -675,6 +798,9 @@ The Case File is the central artifact for SMILES-first workflow. It is created b
 | mechanism_hint | string | Yes | Top mechanism label from neighbors |
 | hint_confidence | float | Yes | Probability of top label [0,1] |
 | atb_neighbor_consistency | object | No | Robust outlier check: target aTB delta vs neighbors' aTB delta distribution (see below) |
+| atb_neighbor_features_all | list[object] | No | Neighbor aTB rows (`features_summary` only) used for compact derived stats |
+| atb_trends_self | object | No | **Reasoning-pack projection only**: target-only self-trend buckets/directions for R1+ (not a persisted business field) |
+| neighbor_atb_stats | object | No | Compact R2+ discriminative stats derived from target-vs-neighbor aTB distributions |
 
 #### risk_scores.atb_neighbor_consistency (optional)
 
@@ -717,6 +843,52 @@ This block is computed from **structure-only** top-k neighbors (ECFP retrieval u
 - `risk_scores.readiness_atb_neighbor_flag` may mirror `atb_neighbor_consistency.flag` for gate/rationale convenience.  
   This is optional and must not replace the full object.
 
+#### risk_scores.neighbor_atb_stats (optional, R2+)
+
+Compact discriminative block for iterative R2/R3 reasoning; optimized for token budget and auditability.
+
+**Direction conventions (locked):**
+- `target_percentile` uses mid-rank and is in `[0,1]`:
+  - `target_percentile = (count_lt + 0.5 * count_eq) / n`
+  - lower = target on lower side of neighbor distribution, higher = upper side.
+- `z_robust` sign is fixed:
+  - `(target - neighbors_median) / (1.4826 * MAD)`
+  - positive => target above median; negative => below median.
+
+**delta_dihedral representation:**
+- keep both raw and absolute channels:
+  - `fields.delta_dihedral` (signed audit value),
+  - `fields.abs_delta_dihedral` (primary discriminative axis for percentile/z/by-label comparison).
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| sample_size | int | Yes | Neighbor count after success+key-field filtering |
+| fields | object | Yes | Per-field compact stats (`delta_dihedral`, `abs_delta_dihedral`, `delta_gap`, `delta_volume`) |
+| by_label | object | No | Label-stratified medians; emitted only when at least 2 labels and each emitted label has `n>=2` |
+| summary | list[string] | Yes | Human-readable compact findings (kept in stats only, not duplicated in evidence registry) |
+| reliability | string | Yes | `"low" | "medium" | "high"` |
+
+Per-field object keys (`fields.<name>`):
+- `target`, `neighbors_median`, `neighbors_iqr`, `target_percentile`, `z_robust`
+
+Low-sample behavior:
+- if `sample_size < 5`: `reliability="low"` and `z_robust=null`; percentile can still be populated if computable.
+
+#### risk_scores.atb_neighbor_features_all (optional)
+
+This list carries compact neighbor aTB rows (success-only), sorted by neighbor rank.
+`features_summary` is retained; full neighbor `features.json` payload is excluded from master prompt context.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| neighbor_inchikey | string | Yes | Neighbor identifier |
+| rank | int\|null | Yes | Neighbor rank in structure retrieval |
+| sim | float\|null | Yes | Neighbor structural similarity |
+| delta_gap | float\|null | Yes | Neighbor aTB delta_gap (if present) |
+| delta_dihedral | float\|null | Yes | Neighbor aTB delta_dihedral (if present) |
+| delta_volume | float\|null | Yes | Neighbor aTB delta_volume (if present) |
+| features_summary | object\|null | Yes | Neighbor summary features (when available) |
+
 ### post_uq (reserved; V1-P6 stub)
 
 This block is reserved for a **dedicated Post-UQ agent** that reads (`case_file` + `master_output`) and emits a gating decision + next actions.
@@ -739,15 +911,65 @@ Master output is written to top-level root keys to avoid collision with legacy `
 | master_reasoning | object\|null | No | Strict schema output from master reasoner |
 | master_reasoning_meta | object | No | `{run_id, inputs_hash, pack_hash, pack_version, prompt_bundle_version, template_version, model, status, errors[], updated_at}` |
 | master_reasoning_status | string | No | `completed` / `failed_schema_validation` / `failed_llm` / `stubbed` |
-| master_reasoning_used_evidence_paths | list[string] | No | Deduplicated referenced case paths validated against reasoning pack allowlist |
+| master_reasoning_used_evidence_paths | list[string] | No | Deduplicated referenced case paths resolved from cited evidence IDs |
+| reasoning.master_reasoning | object\|null | No | Mirror write for compact reasoning namespace |
+| reasoning.status | string | No | Mirror of `master_reasoning_status` |
+| reasoning.used_evidence_paths | list[string] | No | Resolved canonical case paths from evidence IDs |
+| reasoning.used_evidence_ids | list[string] | No | Deduplicated cited evidence IDs (`E1...`) |
+| reasoning.used_evidence | list[object] | No | Expanded citation rows `{evidence_id, case_path, value_preview, label, role, note}` |
 
 #### master_reasoning evidence reference contract
 
 - Every `evidence_used` entry must use object form:
-  - `{case_path, note, role}`
-- `case_path` must:
-  - be present in `reasoning_pack.allowed_evidence_paths`,
-  - resolve to an existing path in case JSON (value may be null; existence check only).
+  - `{evidence_id, note, role}`
+- `evidence_id` must:
+  - match `^E[0-9]+$` or `^E_ATB_TREND_[1-4]$`,
+  - resolve through `reasoning_pack.evidence_registry[]`,
+  - for `source_type=case`: `case_path` must resolve to an existing non-null/non-empty value in case JSON,
+  - for `source_type=derived_pack`: `pack_path` must resolve to an existing non-null/non-empty value in reasoning_pack.
+- `reasoning_pack.evidence_registry` is the only citation namespace for master:
+  - list rows with `{evidence_id, source_type, label, value_preview, role_hint, note_hint}` and either:
+    - `source_type=case`: `{case_path}`,
+    - `source_type=derived_pack`: `{pack_path, derived_from_case_paths?}`,
+  - capped (target 10-20 rows) and sorted by importance,
+  - no `path_map` / `allowed_evidence_paths` payload in the model prompt.
+- R2+ derived evidence IDs:
+  - `E21` abs-delta-dihedral distribution summary,
+  - `E22` delta-gap distribution summary,
+  - `E23` label-stratified comparison (conditional),
+  - `E24` reliability note.
+- R1+ self-trend evidence IDs:
+  - `E_ATB_TREND_1..4` from `risk_scores.atb_trends_self` (target-only trend interpretation).
+- Debug-only hints in case file:
+  - `risk_scores.mechanism_hint` and `risk_scores.hint_confidence` may exist for routing/debug,
+  - but both are excluded from master model input (`reasoning_pack`) and are forbidden as master evidence references.
+- Neighbor support rule:
+  - when `risk_scores.top1_sim < 0.55`, evidence paths under `/neighbors/*` may not use `role="support"`.
+- aTB citation minimum in `supporting_chain`:
+  - require at least 2 citations with prefix `/evidence_readiness/atb/features_summary/`,
+  - and at least 1 of them with `role="support"`.
+- required chain shape:
+  - `supporting_chain` length must be 4 with ordered `step_id` = `A,B,C,D`.
+  - each step must include at least one `evidence_used` entry.
+  - step A must include at least one aTB citation.
+  - step D requires explicit discrimination intent (or `predictions` length >= 3).
+
+#### master_output_schema_v3 (default)
+
+- `mechanism_claim.primary_hypothesis.atb_support_level`: `"none" | "weak" | "strong"`
+- `competing_hypotheses[*].atb_support_level`: `"none" | "weak" | "strong"`
+- `supporting_chain[*].step_id`: `"A" | "B" | "C" | "D"`
+- `supporting_chain[*].step_name`: enum:
+  - `"ct_family" | "torsion_access" | "aIE_bridge" | "neighbor_priors" | "discriminators" | "limits"`
+- validator rejects invented thresholds/ranges in generated text unless numeric values come from `reasoning_config.thresholds`.
+
+#### aTB support-level rubric (validator)
+
+- from `abs(evidence_readiness.atb.features_summary.delta_dihedral)`:
+  - `< 8.0` => `none`
+  - `>= 8.0 and < 15.0` => `weak`
+  - `>= 15.0` => `strong`
+- validator requires primary hypothesis support level to be consistent with this mapping.
 
 ### evidence_readiness
 
