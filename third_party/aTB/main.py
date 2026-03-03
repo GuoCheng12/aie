@@ -2,38 +2,25 @@
 # coding: utf-8
 
 # In[1]:
-import argparse, logging,calculator,json
+import argparse, logging,calculator,json,mol_to_graph
 from ase import io
-<<<<<<< HEAD
-=======
+import numpy as np
 from rdkit import Chem
 from rdkit.Chem import AllChem
 from ase import Atoms
->>>>>>> 605e931 (add ionic caculator & rota. const. & excited energy)
+import time,shutil,os,sys
 # In[ ]:
 # -------------------- input parameters --------------------
 def parse_args():
     p = argparse.ArgumentParser(description="CI-NEB + volume by Multiwfn (Folder Isolated)")
-    p.add_argument("--begin", default="begin.xyz", help="initial structure file path")
-    p.add_argument("--end",  default="end.xyz",  help="excited structure file path")
     p.add_argument("--nimg",  type=int, default=3, help="number of images for NEB calculation")
-    p.add_argument("--neb_fmax",  type=float, default=0.1, help="max force convergence threshold for NEB (eV/Å-1)")
-    p.add_argument("--opt_fmax",  type=float, default=0.03, help="max force convergence threshold for opt (eV/Å-1)")
-<<<<<<< HEAD
-    p.add_argument("--npara", type=int, default=2, help="number of parallel processes for Amesp")
-    p.add_argument("--maxcore", type=int, default=4000, help="avilable memory (in MB) for Amesp")
-    p.add_argument("--workdir", default="work_dirs", help="working directory")
-    p.add_argument("--properties", default="HOMO-LUMO,charge,structure", help="properties to extract, comma-separated")
-    p.add_argument("--smiles",default=None,help="SMILES string")
-    p.add_argument("--charge",type=int,default=None,help="Molecular charge (auto-detected from SMILES if not provided)")
-=======
+    p.add_argument("--neb_fmax",  type=float, default=0.2, help="max force convergence threshold for NEB (eV/Å-1)")
     p.add_argument("--npara", type=int, default=4, help="number of parallel processes for Amesp")
     p.add_argument("--maxcore", type=int, default=4000, help="avilable memory (in MB) for Amesp")
     p.add_argument("--workdir", default="work_dirs", help="working directory")
     p.add_argument("--properties", default="HOMO-LUMO,charge,structure,rotational_constant,excited_energy", help="properties to extract, comma-separated")
     p.add_argument("--smiles",default=None,help="SMILES string")
     p.add_argument("--charge",type=int,default=0,help="Molecular charge (auto-detected from SMILES if not provided)")
->>>>>>> 605e931 (add ionic caculator & rota. const. & excited energy)
     p.add_argument("--nstates",default=3,help="Number of excited states")
     p.add_argument("--excit_root",default=1,help="number of the excited state focused on")
     p.add_argument("--mult",default=1,help="multiplicity of the excited state")
@@ -44,40 +31,15 @@ def parse_args():
 # In[3]:
 
 
-def analysis(args,type,log):
+def analysis(args,type_cal,log):
     import get_feature
-    dirs = f'{args.workdir}/{type}/{type}'
-    log.info(f"Analyzing {type} calculation")
+    dirs = f'{args.workdir}/{type_cal}/{type_cal}'
+    log.info(f"Analyzing {type_cal} calculation")
     features = {}
-    features = get_feature.get_features_dict(open(dirs+'_run.aop').read(), type, log,*args.properties.split(','))   
+    features = get_feature.get_features_dict(open(dirs+'_run.aop').read(), type_cal, log,args)   
     return features
 
-<<<<<<< HEAD
-
-# In[4]:
-def get_formal_charge_from_smiles(smiles):
-    """
-    Calculate formal charge from SMILES string.
-
-    Parameters:
-        smiles: SMILES string
-
-    Returns:
-        int: Total formal charge of the molecule
-    """
-    from rdkit import Chem
-
-    mol = Chem.MolFromSmiles(smiles)
-    if mol is None:
-        return 0  # Default to neutral if SMILES is invalid
-
-    return Chem.GetFormalCharge(mol)
-
-
-def smiles_to_ase_atoms(smiles, random_seed=42):
-=======
 def smiles_to_ase_atoms(args, random_seed=42):
->>>>>>> 605e931 (add ionic caculator & rota. const. & excited energy)
     """
     Convert SMILES string to ASE Atoms object (with robust 3D embedding).
 
@@ -88,28 +50,16 @@ def smiles_to_ase_atoms(args, random_seed=42):
     Returns:
         ASE Atoms object
     """
-<<<<<<< HEAD
-    from rdkit import Chem
-    from rdkit.Chem import AllChem
-    from ase import Atoms
-
-    # 1. Create RDKit molecule object from SMILES
-    mol = Chem.MolFromSmiles(smiles)
-=======
 
     # 1. Create RDKit molecule object from SMILES
     mol = Chem.MolFromSmiles(args.smiles)
->>>>>>> 605e931 (add ionic caculator & rota. const. & excited energy)
     if mol is None:
-        raise ValueError(f"Invalid SMILES: {smiles}")
+        raise ValueError(f"Invalid SMILES: {args.smiles}")
 
     # 2. Add hydrogen atoms (required for 3D structure generation)
     mol = Chem.AddHs(mol)
-<<<<<<< HEAD
-=======
     
     args.charge = Chem.GetFormalCharge(mol)
->>>>>>> 605e931 (add ionic caculator & rota. const. & excited energy)
 
     # 3. Generate initial 3D coordinates with ETKDG (fallback to random coords)
     params = None
@@ -138,11 +88,7 @@ def smiles_to_ase_atoms(args, random_seed=42):
 
     # 4. Light geometry cleanup (does not replace quantum optimization)
     try:
-<<<<<<< HEAD
-        AllChem.UFFOptimizeMolecule(mol, maxIters=200)
-=======
         AllChem.UFFOptimizeMolecule(mol, maxIters=2000)
->>>>>>> 605e931 (add ionic caculator & rota. const. & excited energy)
     except Exception:
         pass
 
@@ -164,7 +110,8 @@ def smiles_to_ase_atoms(args, random_seed=42):
     # 7. Create ASE Atoms object
     atoms = Atoms(symbols=symbols, positions=positions)
 
-    return atoms
+    return atoms,args.charge
+
 
 # In[5]:
 # -------------------- main function -------------------
@@ -178,67 +125,80 @@ def main():
     # read in the initial and final structures
     if args.smiles:
         log.info("Start generating begin structure from SMILES")
-<<<<<<< HEAD
-        initial = smiles_to_ase_atoms(args.smiles)
+        initial,args.charge = smiles_to_ase_atoms(args)
+        log.info(f"Auto-detected charge from SMILES: {args.charge}")
 
-        # Auto-detect charge from SMILES if not provided
-        if args.charge is None:
-            args.charge = get_formal_charge_from_smiles(args.smiles)
-=======
-        initial = smiles_to_ase_atoms(args)
-
-        # Auto-detect charge from SMILES if not provided
-        if args.charge is None:
-            args.charge = get_formal_charge_from_smiles(args)
->>>>>>> 605e931 (add ionic caculator & rota. const. & excited energy)
-            log.info(f"Auto-detected charge from SMILES: {args.charge}")
-        else:
-            log.info(f"Using provided charge: {args.charge}")
     else:
-        log.info("Start reading begin structure from xyz file")
-        initial = io.read(args.begin)
-        if args.charge is None:
-            args.charge = 0  # Default to neutral for xyz input
-            log.info(f"Using default charge: {args.charge}")
+        raise ValueError("SMILES string is required to generate initial structure.")
+
+    start_time = time.time()
+
+    if os.path.exists(args.workdir):
+        shutil.rmtree(args.workdir+'/opt',ignore_errors=True)
+        shutil.rmtree(args.workdir+'/excit',ignore_errors=True)
+        shutil.rmtree(args.workdir+'/neb',ignore_errors=True)
 
 
-    # 1. optimize initial structure
+    # 1. calculation
     opted_atoms=calculator.run_calculate(args, 'opt', initial,log)
-    opted_features = analysis(args,'opt',log)
-    opted_features['volume'] = calculator.volume_Mutifwfn(f'{args.workdir}/opt/opted.xyz') 
 
-    # 2. optimize excited structure
+    if not opted_atoms:
+        log.error(f"Opt. Calculation failed. Exit code 1.")        
+        sys.exit(1)
+
+    
     excited_atoms = calculator.run_calculate(args, 'excit', opted_atoms,log)
+    if not excited_atoms:
+        log.error(f"Excit. Calculation failed. Exit code 2.")
+        sys.exit(2)
+        # 2. analysis features
+
+    # optimized state features
+    opted_features = analysis(args,'opt',log)
+    charge=sum(opted_features['charge']['charge'])
+
+    # excited state features
     excited_features = analysis(args,'excit',log)
-    excited_features['volume'] = calculator.volume_Mutifwfn(f'{args.workdir}/excit/excited.xyz') 
+    charge=sum(excited_features['charge']['charge'])
+    
+    #volume analysis.
+    opted_features['volume'] = calculator.volume_Mutifwfn(f'{args.workdir}/opt/opted.xyz',log)
+    excited_features['volume'] = calculator.volume_Mutifwfn(f'{args.workdir}/excit/excited.xyz',log)
 
-    # 3. run NEB calculation to simulate the excitation process
-    neb_imgs = calculator.run_calculate(args, 'neb', opted_atoms,log, excited_atoms)
-
-    # 4. calculate the volume
-    volumes = calculator.compute_all_volumes(args,neb_imgs,log)
-    neb_mean_volume=(sum(volumes)/len(volumes))
-
-<<<<<<< HEAD
-    log.info(f"NEB mean volume: {neb_mean_volume}")
-
-    results = {'ground_state' : opted_features, 'excited_state' : excited_features,'NEB': neb_mean_volume}
-=======
-    # 5. calculated diff charge
+    # 3. calculated diff charge
     results= {'charge':{'element' : excited_features['charge']['element'], 'charge_variation':None}}
+    results['charge']['charge_variation'] = list(np.array(excited_features['charge']['charge'])-np.array(opted_features['charge']['charge']))
+    # 4. NEB calculation
 
-    results['charge']['charge_variation'] = list(excited_features['charge']['charge']-opted_features['charge']['charge'])
+    neb_imgs = calculator.run_calculate(args, 'neb', opted_atoms,log, excited_atoms)
+    if neb_imgs:
+        volumes = calculator.compute_all_volumes(args,neb_imgs,log)
+        neb_mean_volume = (sum(volumes)/len(volumes))
+        if neb_mean_volume == ((float(excited_features['volume'])+float(opted_features['volume']))/float(args.nimg)) :
+            log.error("NEB calculation failed. Exit code 3.")
+            sys.exit(3)
+    else:
+        neb_mean_volume = None
+        log.error("NEB calculation failed. Exit code 3.")
+        sys.exit(3)
 
-    del excited_features['charge']
-    del opted_features['charge']
 
-    log.info(f"NEB mean volume: {neb_mean_volume}")
 
-    results.update({'ground_state' : opted_features, 'excited_state' : excited_features,'exciting_path_mean_volume': neb_mean_volume})
->>>>>>> 605e931 (add ionic caculator & rota. const. & excited energy)
+    # 5. generate the molecule graph
+    try:
+        mol_to_graph.mol_to_graph(f'{args.workdir}/opt/opted.xyz',opted_features['charge']['charge'],'opt',int(charge),args,log)
+        mol_to_graph.mol_to_graph(f'{args.workdir}/excit/excited.xyz',excited_features["charge"]["charge"],'excit',int(charge),args,log)
+    except Exception as e:
+        log.info(f'Failed to generate the molecule graph. Error: {str(e)}')
+
+    end_time = time.time()
+
+    log.info(f"Running time: {end_time-start_time}")
+
+    results.update({'ground_state' : opted_features, 'excited_state' : excited_features,'exciting_path_mean_volume': neb_mean_volume if neb_mean_volume else None})
 
     with open(args.workdir+'/result.json', 'w') as f:
-        json.dump(results, f)
+        json.dump(results, f,indent=2)
 
 # In[6]:
 if __name__ == "__main__":

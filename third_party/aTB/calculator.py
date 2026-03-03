@@ -1,12 +1,20 @@
 from PyAmesp import Amesp
 from ase import io
 from ase.mep import NEB
-<<<<<<< HEAD
-from ase.optimize import BFGS
-=======
+from ase.mep import NEBTools
 from ase.optimize import LBFGS
->>>>>>> 605e931 (add ionic caculator & rota. const. & excited energy)
 from pathlib import Path
+
+def detect_state(lines,log):
+    if not lines:
+        log.error("计算结果文件为空，无法判断计算状态")
+        return False
+
+    if 'Stop' in lines[-1].strip().split():
+        log.error("Calculation did not complete successfully.")
+        return False
+    else:
+        return True
 
 # -------------------- return the PyAmesp calculator --------------------
 def make_amesp_calc(atoms, args,calculation_type,idx=None):
@@ -23,11 +31,7 @@ def make_amesp_calc(atoms, args,calculation_type,idx=None):
 
         # define calculate options
         keywords=["atb", "opt","force"]
-<<<<<<< HEAD
-        opt = {'maxcyc': 2000, 'gediis': 'off', 'maxstep' : 0.3}
-=======
         opt = {'maxcyc': 2000, 'gediis': 'off', 'maxstep' : 0.1,'geomtol': 'loose'}
->>>>>>> 605e931 (add ionic caculator & rota. const. & excited energy)
 
     elif calculation_type == "excit":
         # define a work_dirs/excit/
@@ -37,11 +41,7 @@ def make_amesp_calc(atoms, args,calculation_type,idx=None):
 
         # define calculate options
         keywords=["atb", "tda", 'opt',"force"]
-<<<<<<< HEAD
-        opt = {'maxcyc': 2000, 'gediis': 'off', 'maxstep' : 0.3}
-=======
         opt = {'maxcyc': 2000, 'gediis': 'off', 'maxstep' : 0.1,'geomtol': 'loose'}
->>>>>>> 605e931 (add ionic caculator & rota. const. & excited energy)
         posthf = {'nstates': args.nstates, 'root': args.excit_root}
     
     elif calculation_type == "neb" :
@@ -57,11 +57,6 @@ def make_amesp_calc(atoms, args,calculation_type,idx=None):
             keywords=["atb", "force"]
             opt = None  
     
-<<<<<<< HEAD
-    # Get charge from args (auto-detected or provided), default to 0 if not set
-    charge = getattr(args, 'charge', 0) if hasattr(args, 'charge') and args.charge is not None else 0
-=======
->>>>>>> 605e931 (add ionic caculator & rota. const. & excited energy)
 
     calc = Amesp(
         atoms=atoms,
@@ -69,11 +64,7 @@ def make_amesp_calc(atoms, args,calculation_type,idx=None):
         command="amesp PREFIX.aip",
         npara=args.npara,
         maxcore=args.maxcore,
-<<<<<<< HEAD
-        charge=charge, mult=int(args.mult),
-=======
         charge=args.charge, mult=int(args.mult),
->>>>>>> 605e931 (add ionic caculator & rota. const. & excited energy)
         keywords=keywords,
         opt = opt,
         scf = {'maxcyc':2000,'vshift': 500},
@@ -81,7 +72,7 @@ def make_amesp_calc(atoms, args,calculation_type,idx=None):
     )
     return calc
 
-def run_calculate(args, type, begin_atoms, log, end_atoms=None):
+def run_calculate(args, type_calc, begin_atoms, log, end_atoms=None):
     """
     Execute different types of quantum chemical calculations.
     
@@ -102,7 +93,7 @@ def run_calculate(args, type, begin_atoms, log, end_atoms=None):
         ValueError: If end_atoms is not provided for NEB calculation
     """
     
-    if type == "neb":
+    if type_calc == "neb":
         # NEB (Nudged Elastic Band) calculation: Find minimum energy path for reaction pathways
         if end_atoms is None:
             log.error("NEB calculation requires end_atoms parameter")
@@ -128,67 +119,84 @@ def run_calculate(args, type, begin_atoms, log, end_atoms=None):
         log.debug("NEB object created and interpolated using IDPP method")
         
         # 4. Initialize optimizer and run NEB calculation
-<<<<<<< HEAD
-        dyn = BFGS(neb, 
-                   trajectory=f"{args.workdir}/neb/neb.traj", 
-                   logfile=f"{args.workdir}/neb/neb.log",
-                   maxstep=0.1)
-=======
         dyn = LBFGS(neb, 
                    trajectory=f"{args.workdir}/neb/neb.traj", 
                    logfile=f"{args.workdir}/neb/neb.log",
                    maxstep=0.05,
                    memory=200
                    )
->>>>>>> 605e931 (add ionic caculator & rota. const. & excited energy)
         log.info("Running NEB optimization...")
-        dyn.run(fmax=args.neb_fmax)
-        
-        log.info("NEB calculation completed successfully")
-        return images
+        try:
+            dyn.run(fmax=args.neb_fmax, steps=300)
+            neb_atoms = NEBTools(images)
+            if neb_atoms.get_fmax() <= args.neb_fmax:
+                log.info("NEB optimization converged successfully")
+                return images
+            else:
+                log.error("NEB optimization did not converge within the maximum steps")
+                return None
+        except Exception as e:
+            log.error(f"NEB calculation failed: {str(e)}")
+            raise e
         
     else:
         # Ground state or excited state optimization
         atoms = begin_atoms.copy()
-        
-        if type == "opt":
+
+        if type_calc == "opt":
             log.info("Starting ground state optimization")
             atoms.calc = make_amesp_calc(atoms, args, 'opt')
-        elif type == "excit":
+        elif type_calc == "excit":
             log.info("Starting excited state optimization")
             atoms.calc = make_amesp_calc(atoms, args, 'excit')
         
         # Perform initial calculation to set up the system
-        log.debug("Performing initial energy calculation...")
-        atoms.get_potential_energy()
-        
+        try:
+            atoms.get_potential_energy()
+        except Exception as e:
+            log.error(f"{type_calc} calculation failed")
+            return None
+
+        with open(f"{args.workdir}/{type_calc}/{type_calc}_run.aop",'r') as aop_f:
+            lines = aop_f.readlines() # skip header line
+            aop_file = [line.rstrip('\n') for line in lines if line.strip()]
+
+            if not detect_state(aop_file,log):
+                log.error(f"{type_calc} calculation did not complete successfully.")
+                return None
+
+        aop_f.close()
+
         # Read calculation results
         elements, positions = atoms.calc.read_results()
-        log.debug(f"Results obtained for {len(elements[-1])} atoms")
         
         # Write optimized structure to XYZ file
-        output_file = f"{args.workdir}/{type}/{type}ed.xyz"
+        output_file = f"{args.workdir}/{type_calc}/{type_calc}ed.xyz"
         with open(output_file, 'w') as f:
             f.write(f"{len(elements[-1])}\n")
             f.write("Generated from AOP output\n")
             for elem, pos in zip(elements[-1], positions[-1]):
                 f.write(f"{elem:2s} {pos[0]:12.6f} {pos[1]:12.6f} {pos[2]:12.6f}\n")
-        log.debug(f"Optimized structure written to {output_file}")
         
         # Read back the optimized structure
         atoms = io.read(output_file)
-        log.info(f"{type} calculation completed successfully")
+        log.info(f"{type_calc} calculation completed successfully")
         
         return atoms
     
-def volume_Mutifwfn(xyz):
+def volume_Mutifwfn(xyz,log):
     import subprocess
     """
     return the volume of xyz.file
     """
     cmd = "Multiwfn"
     stdin = f"{xyz}\n12\n0\nq\n"
-    out = subprocess.run(cmd, input=stdin, text=True, capture_output=True)
+    try:
+        out = subprocess.run(cmd, input=stdin, text=True, capture_output=True)
+    except Exception as e:
+        log.error(f"Error running Multiwfn: {str(e)}")
+        raise e
+
     for line in out.stdout.splitlines():
         if line.strip().startswith("Volume:"):
             parts = line.split('(')
@@ -212,10 +220,10 @@ def compute_all_volumes(args,neb_imgs,log):
     xyz_list = sorted(Path(out_dir).glob("image_*.xyz"))
 
     if not xyz_list:
-        #log.error("Con't find xyz files, please run NEB or check neb_structures folder")
-        return []
+        log.error("Con't find xyz files, please run NEB or check neb_structures folder")
+        return None
 
-    vols = [volume_Mutifwfn(str(f)) for f in xyz_list]
+    vols = [volume_Mutifwfn(str(f),log) for f in xyz_list]
     
     with open(out_dir+"volumes.log", "w") as fp:
         fp.write("Image\tVolume(Ang^3)\n")
@@ -242,10 +250,5 @@ if __name__ == "__main__":
         return args
     args = parse_args()
 
-    # read in the initial and final structures
-    initial = io.read(args.begin)
-    try:
-        compute_all_volumes()
-        #run_calculate(args, 'excited', initial)
-    except Exception as e:
-        sys.exit(1)
+    v=volume_Mutifwfn('work_dirs/opt/opted.xyz')
+    print(v)

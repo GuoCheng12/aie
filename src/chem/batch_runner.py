@@ -22,39 +22,6 @@ from src.chem.atb_parser import parse_result_json
 
 logger = get_logger(__name__)
 
-
-def is_ionic_molecule(smiles: str) -> bool:
-    """
-    Check if a molecule is ionic (contains charged fragments).
-
-    Ionic molecules are temporarily skipped in V0 due to amesp limitations.
-    TODO: Re-enable ionic molecules after proper charge handling is validated.
-
-    Args:
-        smiles: SMILES string
-
-    Returns:
-        True if molecule contains ionic fragments (e.g., [I-], [n+], [O-])
-    """
-    if not smiles:
-        return False
-
-    # Quick heuristic: check for common ionic patterns in SMILES
-    ionic_patterns = [
-        "[I-]", "[Br-]", "[Cl-]", "[F-]",  # Halide anions
-        "[O-]", "[S-]", "[N-]",  # Common anions
-        "[n+]", "[N+]", "[P+]", "[S+]",  # Common cations
-        ".[Na+]", ".[K+]", ".[Li+]",  # Metal cations
-        "[BF4-]", "[PF6-]",  # Complex anions
-    ]
-
-    for pattern in ionic_patterns:
-        if pattern in smiles:
-            return True
-
-    return False
-
-
 def run_batch(
     molecule_table_path: str = "data/molecule_table.parquet",
     cache_dir: str = "cache/atb",
@@ -63,7 +30,6 @@ def run_batch(
     limit_end: Optional[int] = None,
     force_rerun: bool = False,
     retry_failed: bool = False,
-    skip_ionic: bool = True,
     max_heavy_atoms: Optional[int] = None,
     rdkit_features_path: str = "data/rdkit_features.parquet",
     config: Optional[Dict[str, Any]] = None,
@@ -82,7 +48,6 @@ def run_batch(
         limit: Limit number of molecules (for dry-run)
         force_rerun: Force rerun all molecules (including succeeded and failed)
         retry_failed: Retry only failed molecules (skip succeeded)
-        skip_ionic: Skip ionic molecules (V0 default). Set False to include ionic.
         max_heavy_atoms: Skip molecules with heavy atom count above this threshold
         rdkit_features_path: Path to rdkit_features.parquet for heavy atom counts
         config: Optional config overrides for aTB
@@ -100,7 +65,7 @@ def run_batch(
     total_molecules = len(molecule_table)
     logger.info(f"Found {total_molecules} unique molecules")
 
-    if limit_begin and limit_end:
+    if limit_begin+1 and limit_end:
         molecule_table = molecule_table.iloc[limit_begin:limit_end]
         logger.info(f"Limited from {limit_begin+1} to {limit_end} molecules (dry-run mode)")
 
@@ -117,7 +82,6 @@ def run_batch(
     start_time = time.time()
 
     invalid_smiles = 0
-    skipped_ionic = 0
     skipped_size = 0
 
     heavy_atom_map: Dict[str, float] = {}
@@ -131,6 +95,7 @@ def run_batch(
             heavy_atom_map = rdkit_df.set_index("inchikey")["n_heavy_atoms"].to_dict()
 
     for idx, row in molecule_table.iterrows():
+        idx=idx-limit_begin
         inchikey = row["inchikey"]
         smiles = row["canonical_smiles"]  # From molecule_table (single source of truth)
 
@@ -138,27 +103,6 @@ def run_batch(
         if not inchikey or len(inchikey) < 2:
             logger.warning(f"[{idx+1}/{len(molecule_table)}] Skipping invalid InChIKey (empty): SMILES={smiles[:50] if smiles else 'None'}...")
             invalid_smiles += 1
-            continue
-
-        # Skip ionic molecules (V0 limitation - TODO: re-enable after charge handling is validated)
-        if not skip_ionic and is_ionic_molecule(smiles):
-            logger.warning(f"[{idx+1}/{len(molecule_table)}] Skipping ionic molecule (V0 limitation): {inchikey}")
-            skipped_ionic += 1
-            # Record as skipped_ionic in QC table
-            qc_rows.append({
-                "inchikey": inchikey,
-                "run_status": "skipped",
-                "fail_stage": "ionic",
-                "error_msg": "Ionic molecules temporarily skipped in V0",
-                "runtime_sec": None,
-                "atb_version": None,
-                "timestamp": datetime.now().isoformat(),
-            })
-            features_rows.append({
-                "inchikey": inchikey,
-                "run_status": "skipped",
-                "fail_stage": "ionic",
-            })
             continue
 
         if max_heavy_atoms is not None and heavy_atom_map:
@@ -305,7 +249,6 @@ def run_batch(
     summary = {
         "total_molecules": len(molecule_table),
         "invalid_smiles": invalid_smiles,
-        "skipped_ionic": skipped_ionic,
         "skipped_size": skipped_size,
         "skipped_cached": skipped,
         "succeeded": succeeded,
@@ -498,7 +441,6 @@ if __name__ == "__main__":
             limit_end=args.limit_end,
             force_rerun=args.force_rerun,
             retry_failed=args.retry_failed,
-            skip_ionic=not args.include_ionic,
             max_heavy_atoms=args.max_heavy_atoms,
             rdkit_features_path=args.rdkit_features,
             config=config,

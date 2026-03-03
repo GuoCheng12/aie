@@ -20,19 +20,11 @@ logger = get_logger(__name__)
 
 # Default configuration
 DEFAULT_CONFIG = {
-<<<<<<< HEAD
-    "npara": 4,
-    "maxcore": 4000,
-    "nimg": 3,
-    "neb_fmax": 0.1,
-=======
     "npara": 2,
     "maxcore": 4000,
     "nimg": 4,
     "neb_fmax": 0.2,
->>>>>>> 605e931 (add ionic caculator & rota. const. & excited energy)
-    "opt_fmax": 0.03,
-    "timeout": 3600,  # 1 hour timeout
+    "timeout": 3600*24, 
 }
 
 # Path to AIE-aTB main.py (relative to project root)
@@ -103,7 +95,6 @@ def run_atb(
         "--maxcore", str(cfg["maxcore"]),
         "--nimg", str(cfg["nimg"]),
         "--neb_fmax", str(cfg["neb_fmax"]),
-        "--opt_fmax", str(cfg["opt_fmax"]),
     ]
 
     logger.info(f"Running AIE-aTB for {inchikey}")
