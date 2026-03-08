@@ -1,0 +1,105 @@
+version: P3b_post_atb
+timestamp: '2026-01-27T16:19:08.572717'
+data_summary:
+  n_rows: 1225
+feature_blocks:
+  experimental_observables:
+    description: Experimental photophysical properties from private dataset
+  rdkit_descriptors:
+    description: RDKit molecular descriptors (z-score normalized)
+    columns:
+    - mw
+    - logp
+    - tpsa
+    - n_rotatable_bonds
+    - n_hbd
+    - n_hba
+    - n_rings
+    - n_aromatic_rings
+    - n_heavy_atoms
+    scaled_columns:
+    - mw_scaled
+    - logp_scaled
+    - tpsa_scaled
+    - n_rotatable_bonds_scaled
+    - n_hbd_scaled
+    - n_hba_scaled
+    - n_rings_scaled
+    - n_aromatic_rings_scaled
+    - n_heavy_atoms_scaled
+  atb_features:
+    description: aTB cache-derived descriptors (z-score normalized where available)
+    columns:
+    - delta_volume
+    - delta_gap
+    - delta_dihedral
+    - excitation_energy
+    - s0_volume
+    - s1_volume
+    - s0_homo_lumo_gap
+    - s1_homo_lumo_gap
+    - s0_dihedral_avg
+    - s1_dihedral_avg
+    - s0_charge_dipole
+    - s1_charge_dipole
+    - delta_dipole
+    scaled_columns:
+    - delta_volume_scaled
+    - delta_gap_scaled
+    - delta_dihedral_scaled
+    - excitation_energy_scaled
+    - s0_volume_scaled
+    - s1_volume_scaled
+    - s0_homo_lumo_gap_scaled
+    - s1_homo_lumo_gap_scaled
+    - s0_dihedral_avg_scaled
+    - s1_dihedral_avg_scaled
+    - s0_charge_dipole_scaled
+    - s1_charge_dipole_scaled
+    - delta_dipole_scaled
+  ecfp_fingerprints:
+    description: ECFP4 fingerprints (radius=2, 2048 bits)
+    column: ecfp_2048
+    dtype: list[int8]
+    scaling: none (preserved as-is)
+  missing_indicators:
+    description: Boolean indicators for missing critical fields
+    pattern: '{field}_missing'
+  metadata:
+    description: Identifiers and auxiliary info
+    examples:
+    - id
+    - code
+    - inchikey
+    - canonical_smiles
+    - mechanism_id
+    - features_id
+scaling:
+  scaler_path: data/scaler.pkl
+  scaled_columns:
+  - mw
+  - logp
+  - tpsa
+  - n_rotatable_bonds
+  - n_hbd
+  - n_hba
+  - n_rings
+  - n_aromatic_rings
+  - n_heavy_atoms
+  - delta_volume
+  - delta_gap
+  - delta_dihedral
+  - excitation_energy
+  - s0_volume
+  - s1_volume
+  - s0_homo_lumo_gap
+  - s1_homo_lumo_gap
+  - s0_dihedral_avg
+  - s1_dihedral_avg
+  - s0_charge_dipole
+  - s1_charge_dipole
+  - delta_dipole
+  method: z-score (mean/std, NaN ignored)
+anchor_retrieval:
+  policy: structure-only
+  note: Do NOT use aTB features for retrieval/re-ranking

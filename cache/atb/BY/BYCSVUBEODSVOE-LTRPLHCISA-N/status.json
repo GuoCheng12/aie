@@ -2,8 +2,8 @@
   "inchikey": "BYCSVUBEODSVOE-LTRPLHCISA-N",
   "run_status": "failed",
   "fail_stage": "opt",
-  "error_msg": "Timeout after 3600s",
-  "timestamp": "2026-01-13T11:32:13.057084",
+  "error_msg": "FTYPER: Unrecognized charge state for atom: 1\n[13:43:08] UFFTYPER: Warning: hybridization set to SP3 for atom 1\n[13:43:08] UFFTYPER: Unrecognized charge state for atom: 1\n2026-01-28 13:43:08,439 | Auto-detected charge from SMILES: 0\n2026-01-28 13:43:08,452 | Starting ground state optimization\n2026-01-28 13:46:49,263 | Calculation did not complete successfully.\n2026-01-28 13:46:49,263 | opt calculation did not complete successfully.\n2026-01-28 13:46:49,264 | Opt. Calculation failed. Exit code 1.\n",
+  "timestamp": "2026-01-28T13:46:49.936261",
   "atb_version": null,
-  "runtime_sec": 3600.37
+  "runtime_sec": 237.52
 }

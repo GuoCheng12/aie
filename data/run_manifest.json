@@ -1,7 +1,7 @@
 {
-  "run_id": "2026-02-10T13:26:29.235625",
-  "timestamp": "2026-02-10T13:26:29.235772",
-  "git_commit": "3f62be503735e4634ccdd8b5ce74d6eec1270fd8",
+  "run_id": "2026-02-10T14:07:05.714209",
+  "timestamp": "2026-02-10T14:07:05.714360",
+  "git_commit": "6db81102bd059e2bd78d9bb2a5de9c22b4dcdd6b",
   "rdkit": "2025.09.3",
   "pandas": "2.3.3",
   "numpy": "2.2.6",
@@ -11,11 +11,12 @@
   "encoding_used": "utf-8-sig",
   "n_molecules_input": 506,
   "n_molecules_processed": 500,
-  "n_unique_molecules": 433,
-  "n_valid_inchikeys": 459,
+  "n_unique_molecules": 432,
+  "n_valid_inchikeys": 457,
+  "n_blank_inchikey_normalized": 0,
   "counts": {
     "records": 500,
-    "molecules": 433
+    "molecules": 432
   },
   "artifacts": {
     "private_clean": "data/private_clean.parquet",

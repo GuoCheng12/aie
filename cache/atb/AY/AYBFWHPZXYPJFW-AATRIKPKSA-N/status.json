@@ -2,8 +2,8 @@
   "inchikey": "AYBFWHPZXYPJFW-AATRIKPKSA-N",
   "run_status": "failed",
   "fail_stage": "neb",
-  "error_msg": "Timeout after 3600s",
-  "timestamp": "2026-01-12T21:09:56.496715",
+  "error_msg": "2-01 05:38:48,276 | Analyzing opt calculation\n2026-02-01 05:38:48,282 | Structure found from aop for opt\n2026-02-01 05:38:48,284 | Analyzing excit calculation\n2026-02-01 05:38:48,286 | Structure found from aop for excit\n2026-02-01 05:38:49,228 | Starting NEB calculation with 4 intermediate images\n2026-02-01 05:38:49,258 | Running NEB optimization...\n2026-02-01 05:47:08,419 | NEB optimization did not converge within the maximum steps\n2026-02-01 05:47:08,423 | NEB calculation failed. Exit code 3.\n",
+  "timestamp": "2026-02-01T05:47:09.041023",
   "atb_version": null,
-  "runtime_sec": 3600.04
+  "runtime_sec": 521.65
 }

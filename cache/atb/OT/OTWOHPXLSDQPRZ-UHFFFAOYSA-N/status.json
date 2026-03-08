@@ -2,8 +2,8 @@
   "inchikey": "OTWOHPXLSDQPRZ-UHFFFAOYSA-N",
   "run_status": "failed",
   "fail_stage": "excit",
-  "error_msg": "Timeout after 1800s",
-  "timestamp": "2026-01-22T21:31:26.156605",
+  "error_msg": "PER: Unrecognized atom type: Se2+2 (72)\n2026-02-01 02:39:07,816 | Auto-detected charge from SMILES: 0\n2026-02-01 02:39:07,871 | Starting ground state optimization\n2026-02-01 02:42:33,296 | opt calculation completed successfully\n2026-02-01 02:42:33,300 | Starting excited state optimization\n2026-02-01 10:58:50,160 | Calculation did not complete successfully.\n2026-02-01 10:58:50,161 | excit calculation did not complete successfully.\n2026-02-01 10:58:50,336 | Excit. Calculation failed. Exit code 2.\n",
+  "timestamp": "2026-02-01T10:58:50.976161",
   "atb_version": null,
-  "runtime_sec": 1800.25
+  "runtime_sec": 29998.17
 }

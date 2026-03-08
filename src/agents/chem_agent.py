@@ -17,6 +17,7 @@ from src.chem.atb_neighbor_consistency import compute_atb_neighbor_consistency
 from src.chem.atb_cache import get_atb_cache_record
 from src.core.types import AgentContext, AgentResult
 from src.tools.llm_client import LLMClientError, ResponsesLLMClient
+from src.tools.llm_trace_store import write_agent_response_trace
 from src.tools.mineru_runner import MineruRunner
 
 
@@ -203,11 +204,28 @@ def _select_best(candidates: Sequence[Dict[str, Any]], field: str) -> Optional[D
     return pool[0]
 
 
-def _neighbor_feature_row_from_pack(pack: Dict[str, Any], fields: Sequence[str]) -> Dict[str, Any]:
+def _neighbor_feature_row_from_pack(
+    pack: Dict[str, Any],
+    fields: Sequence[str],
+    *,
+    neighbor_inchikey: str,
+    rank: Any,
+    sim: Any,
+) -> Dict[str, Any]:
     features_summary = pack.get("features_summary")
     if not isinstance(features_summary, dict):
         features_summary = {}
-    row: Dict[str, Any] = {"cache_status": str(pack.get("cache_status") or "").lower()}
+    features = pack.get("features")
+    if not isinstance(features, dict):
+        features = None
+    row: Dict[str, Any] = {
+        "cache_status": str(pack.get("cache_status") or "").lower(),
+        "neighbor_inchikey": neighbor_inchikey,
+        "rank": rank,
+        "sim": sim,
+        "features_summary": features_summary,
+        "features": features,
+    }
     for field in fields:
         row[field] = features_summary.get(field)
     return row
@@ -219,27 +237,94 @@ def _collect_neighbor_feature_rows(
     fields: Sequence[str],
 ) -> Tuple[List[Dict[str, Any]], Dict[str, Any]]:
     rows: List[Dict[str, Any]] = []
-    stats: Dict[str, Any] = {"total_neighbors": 0, "used_neighbor_pack": 0, "used_cache_lookup": 0}
+    stats: Dict[str, Any] = {
+        "total_neighbors": 0,
+        "used_neighbor_pack": 0,
+        "used_cache_lookup": 0,
+        "enriched_neighbor_pack_from_cache": 0,
+    }
     for neighbor in neighbors:
         if not isinstance(neighbor, dict):
             continue
         stats["total_neighbors"] += 1
-        pack = neighbor.get("neighbor_atb")
-        if isinstance(pack, dict):
-            rows.append(_neighbor_feature_row_from_pack(pack, fields))
-            stats["used_neighbor_pack"] += 1
-            continue
+        rank = neighbor.get("rank")
+        sim = neighbor.get("sim")
         neighbor_inchikey = str(neighbor.get("neighbor_inchikey") or neighbor.get("inchikey") or "").strip()
         if neighbor_inchikey == "":
+            continue
+        pack = neighbor.get("neighbor_atb")
+        if isinstance(pack, dict):
+            rec_pack = dict(pack)
+            need_enrich = (
+                not isinstance(rec_pack.get("features"), dict)
+                or not isinstance(rec_pack.get("features_summary"), dict)
+                or not str(rec_pack.get("cache_status") or "").strip()
+            )
+            if need_enrich:
+                rec = get_atb_cache_record(neighbor_inchikey)
+                if not isinstance(rec_pack.get("features"), dict):
+                    rec_pack["features"] = rec.get("features")
+                if not isinstance(rec_pack.get("features_summary"), dict):
+                    rec_pack["features_summary"] = rec.get("features_summary")
+                if not str(rec_pack.get("cache_status") or "").strip():
+                    rec_pack["cache_status"] = rec.get("cache_status")
+                stats["enriched_neighbor_pack_from_cache"] += 1
+            rows.append(
+                _neighbor_feature_row_from_pack(
+                    rec_pack,
+                    fields,
+                    neighbor_inchikey=neighbor_inchikey,
+                    rank=rank,
+                    sim=sim,
+                )
+            )
+            stats["used_neighbor_pack"] += 1
             continue
         rec = get_atb_cache_record(neighbor_inchikey)
         rec_pack = {
             "cache_status": rec.get("cache_status"),
             "features_summary": rec.get("features_summary"),
+            "features": rec.get("features"),
         }
-        rows.append(_neighbor_feature_row_from_pack(rec_pack, fields))
+        rows.append(
+            _neighbor_feature_row_from_pack(
+                rec_pack,
+                fields,
+                neighbor_inchikey=neighbor_inchikey,
+                rank=rank,
+                sim=sim,
+            )
+        )
         stats["used_cache_lookup"] += 1
     return rows, stats
+
+
+def _neighbor_atb_features_all(
+    rows: Sequence[Dict[str, Any]],
+    *,
+    fields: Sequence[str],
+) -> List[Dict[str, Any]]:
+    out: List[Dict[str, Any]] = []
+    for row in rows:
+        if str(row.get("cache_status") or "").lower() != "success":
+            continue
+        parsed: Dict[str, Optional[float]] = {}
+        for field in fields:
+            fv = _to_float(row.get(field))
+            parsed[field] = fv
+        out.append(
+            {
+                "neighbor_inchikey": row.get("neighbor_inchikey"),
+                "rank": row.get("rank"),
+                "sim": _to_float(row.get("sim")),
+                "cache_status": row.get("cache_status"),
+                "features_summary": row.get("features_summary") if isinstance(row.get("features_summary"), dict) else None,
+                "features": row.get("features") if isinstance(row.get("features"), dict) else None,
+                **parsed,
+            }
+        )
+    out = sorted(out, key=lambda x: int(x.get("rank")) if isinstance(x.get("rank"), int) else 10**9)
+    return out
 
 
 class ChemAgent(CaseAgent):
@@ -253,6 +338,7 @@ class ChemAgent(CaseAgent):
         "/target_fields_provenance/",
         "/evidence_candidates_staging/-",
         "/risk_scores/atb_neighbor_consistency",
+        "/risk_scores/atb_neighbor_features_all",
         "/agent_runs/-",
     )
     append_only_prefixes = ("/evidence_candidates_staging", "/agent_runs")
@@ -296,11 +382,17 @@ class ChemAgent(CaseAgent):
                 {"op": "add", "path": "/evidence_readiness/atb/error_stage", "value": (atb_rec.get("status") or {}).get("fail_stage")},
                 {"op": "add", "path": "/evidence_readiness/atb/error_msg", "value": (atb_rec.get("status") or {}).get("error_msg")},
                 {"op": "add", "path": "/evidence_readiness/atb/features_summary", "value": atb_rec.get("features_summary")},
+                {"op": "add", "path": "/evidence_readiness/atb/features", "value": atb_rec.get("features")},
             ]
         )
         raw_outputs["atb_cache_record"] = atb_rec
 
-        target_features = atb_rec.get("features_summary") if cache_status == "success" else None
+        target_features = None
+        if cache_status == "success":
+            if isinstance(atb_rec.get("features"), dict):
+                target_features = atb_rec.get("features")
+            else:
+                target_features = atb_rec.get("features_summary")
         neighbor_rows, neighbor_row_stats = _collect_neighbor_feature_rows(
             case.get("neighbors") or [],
             fields=ATB_CONSISTENCY_FIELDS,
@@ -312,6 +404,10 @@ class ChemAgent(CaseAgent):
             min_sample_size=5,
             z_max_threshold=3.5,
         )
+        atb_neighbor_features_all = _neighbor_atb_features_all(
+            neighbor_rows,
+            fields=ATB_CONSISTENCY_FIELDS,
+        )
         patch.append(
             {
                 "op": "add",
@@ -319,10 +415,18 @@ class ChemAgent(CaseAgent):
                 "value": atb_neighbor_consistency,
             }
         )
+        patch.append(
+            {
+                "op": "add",
+                "path": "/risk_scores/atb_neighbor_features_all",
+                "value": atb_neighbor_features_all,
+            }
+        )
         raw_outputs["atb_neighbor_consistency"] = {
             "result": atb_neighbor_consistency,
             "neighbor_rows_stats": neighbor_row_stats,
         }
+        raw_outputs["atb_neighbor_features_all"] = atb_neighbor_features_all
 
         run_lane = str(inputs.get("run_lane") or "atb_cache_only")
         if run_lane == "atb_cache_only":
@@ -449,6 +553,20 @@ class ChemAgent(CaseAgent):
 
         raw_outputs["literature_sources"] = source_rows
         raw_outputs["llm_trace"] = llm_trace
+        if llm_trace:
+            raw_outputs["llm_trace_path"] = write_agent_response_trace(
+                ctx=ctx,
+                agent_name=self.name,
+                payload={
+                    "run_id": ctx.run_id,
+                    "case_id": inputs.get("case_id"),
+                    "agent": self.name,
+                    "model": ctx.model,
+                    "reasoning_effort": ctx.llm_reasoning_effort,
+                    "status": "completed" if staged else "partial",
+                    "responses": llm_trace,
+                },
+            )
 
         for cand in staged:
             patch.append({"op": "add", "path": "/evidence_candidates_staging/-", "value": cand})

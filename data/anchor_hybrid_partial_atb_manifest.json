@@ -1,0 +1,32 @@
+{
+  "n_success_cache": 76,
+  "n_used_after_feature_filter": 76,
+  "n_final_with_ecfp": 76,
+  "feature_list": [
+    "delta_volume",
+    "delta_gap",
+    "delta_dihedral",
+    "excitation_energy"
+  ],
+  "weights": {
+    "w_ecfp": 0.7,
+    "w_atb": 0.3
+  },
+  "k": 10,
+  "atb_feature_stats": {
+    "means": {
+      "delta_volume": -0.047787894736841294,
+      "delta_gap": -0.6458242587903492,
+      "delta_dihedral": -0.5371422168610439,
+      "excitation_energy": 1.3802407894736843
+    },
+    "stds": {
+      "delta_volume": 3.0556312635484293,
+      "delta_gap": 0.32137624868033093,
+      "delta_dihedral": 7.087618107583765,
+      "excitation_energy": 0.8739460464765594
+    }
+  },
+  "timestamp": "2026-01-14T22:03:36.685347",
+  "output_path": "data/anchor_neighbors_hybrid_partial_atb.parquet"
+}

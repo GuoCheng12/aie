@@ -11,6 +11,8 @@ from datetime import datetime
 from pathlib import Path
 import subprocess
 
+import pandas as pd
+
 from src.data.loader import load_private_dataset
 from src.data.standardizer import standardize_dataset
 from src.data.canonicalizer import add_canonical_smiles_and_inchikey, create_molecule_table
@@ -101,6 +103,18 @@ def run_p1_pipeline(
     logger.info("\n[Step 3/7] Canonicalizing SMILES and generating InChIKeys")
     df_clean = add_canonical_smiles_and_inchikey(df_clean, smiles_col="SMILES")
 
+    # Defensive normalization in pipeline to prevent empty/whitespace InChIKey leakage.
+    blank_inchikey_mask = (
+        df_clean["inchikey"].notna()
+        & (df_clean["inchikey"].astype(str).str.strip() == "")
+    )
+    n_blank_inchikey = int(blank_inchikey_mask.sum())
+    if n_blank_inchikey > 0:
+        logger.warning(
+            f"Normalizing {n_blank_inchikey} blank/whitespace InChIKeys to null before molecule table creation"
+        )
+        df_clean.loc[blank_inchikey_mask, "inchikey"] = pd.NA
+
     # Step 4: Create molecule table
     logger.info("\n[Step 4/7] Creating molecule table")
     molecule_table = create_molecule_table(df_clean)
@@ -146,6 +160,7 @@ def run_p1_pipeline(
         "n_molecules_processed": int(len(df_clean)),
         "n_unique_molecules": int(len(molecule_table)),
         "n_valid_inchikeys": int(df_clean["inchikey"].notna().sum()),
+        "n_blank_inchikey_normalized": n_blank_inchikey,
         "counts": {
             "records": int(len(df_clean)),
             "molecules": int(len(molecule_table)),

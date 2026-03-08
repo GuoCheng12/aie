@@ -1,0 +1,32 @@
+{
+  "strategy": "two_stage",
+  "n_molecules": 76,
+  "M": 50,
+  "k": 10,
+  "weights": {
+    "w_ecfp": 0.7,
+    "w_atb": 0.3
+  },
+  "feature_list": [
+    "delta_volume",
+    "delta_gap",
+    "delta_dihedral",
+    "excitation_energy"
+  ],
+  "atb_feature_stats": {
+    "means": {
+      "delta_volume": -0.047787894736841294,
+      "delta_gap": -0.6458242587903492,
+      "delta_dihedral": -0.5371422168610436,
+      "excitation_energy": 1.380240789473684
+    },
+    "stds": {
+      "delta_volume": 3.0759346846703735,
+      "delta_gap": 0.3235116625286531,
+      "delta_dihedral": 7.134712433691255,
+      "excitation_energy": 0.8797530608343278
+    }
+  },
+  "source_manifest": "data/anchor_hybrid_partial_atb_manifest.json",
+  "output_path": "data/anchor_neighbors_two_stage_partial_atb.parquet"
+}

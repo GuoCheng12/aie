@@ -22,10 +22,16 @@ REASONING_MODES = {"blocked", "normal", "conservative"}
 # Minimal allowlist for action_plan.action (v0.7+). Keep small and explicit.
 ALLOWED_ACTIONS = {
     "run_master_reasoner",
+    "run_master_reasoner_stub",
     "compute_target_atb",
     "retry_target_atb_alt_settings",
+    "retry_target_atb",
     "literature_search_web",
     "mineru_extract_pdf",
+    "rerun_offline_pdf_extractor",
+    "manual_extract",
+    "manual_identity_verify_from_pdf",
+    "request_manual_pdf",
     "request_min_experiment_emission",
     "request_experiment_qy",
     "request_experiment_tau",

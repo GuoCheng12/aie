@@ -105,6 +105,73 @@ For each `{run_id}/{step}` directory:
 - `06_case_diff.json`
 - `manifest.json` (sha256 for all files)
 
+### Case-centric output layout (release runtime)
+
+When `case-run` uses `--output-layout case_centric` (default), outputs are organized under:
+
+- `<artifacts_dir>/cases/<case_id>/latest/`
+- `<artifacts_dir>/cases/<case_id>/runs/<timestamp>__<run_id8>/`
+- `<artifacts_dir>/cases/<case_id>/history_index.json`
+- `<artifacts_dir>/cases/<case_id>/latest.json`
+
+`run_id` remains required in all trace JSON for audit joins.
+
+#### `run_summary.json` additions
+
+Runtime summary now includes:
+
+- `primary_output_dir`
+- `latest_dir`
+- `history_index_path`
+- `legacy_paths` (when compatibility pointers are enabled)
+
+#### `quick_view.json` contract
+
+`latest/quick_view.json` is a stable, human-readable summary:
+
+```json
+{
+  "case_id": "IK...",
+  "run_id": "abc123...",
+  "run_time": "2026-03-04T15:42:10Z",
+  "final_label": "unknown",
+  "final_confidence": 0.51,
+  "final_gate": {"state": "ready_conservative", "reasoning_mode": "conservative"},
+  "rounds_executed": 3,
+  "stop_recommendation": {"should_stop": true, "reason_code": "stagnation_no_new_evidence"},
+  "used_evidence_ids_top": ["E31", "E32", "E24"],
+  "paths": {
+    "case_json": ".../latest/case.json",
+    "run_summary_json": ".../latest/run_summary.json",
+    "rounds_dir": ".../latest/rounds",
+    "llm_dir": ".../latest/llm"
+  }
+}
+```
+
+#### `history_index.json` contract
+
+Per-case run index:
+
+```json
+{
+  "case_id": "IK...",
+  "retain_runs": 10,
+  "updated_at": "2026-03-04T15:42:30Z",
+  "runs": [
+    {
+      "run_id": "abc123...",
+      "run_name": "20260304T154210Z__abc12345",
+      "run_time": "2026-03-04T15:42:10Z",
+      "status": "ok",
+      "final_label": "unknown",
+      "final_confidence": 0.51,
+      "run_dir": ".../runs/20260304T154210Z__abc12345"
+    }
+  ]
+}
+```
+
 ### Master reasoning (v3 final lock)
 
 `master_output_schema_version` remains `v3`. Runtime default is `tagged_repair`; strict provider JSON schema is optional.
@@ -799,7 +866,8 @@ The Case File is the central artifact for SMILES-first workflow. It is created b
 | hint_confidence | float | Yes | Probability of top label [0,1] |
 | atb_neighbor_consistency | object | No | Robust outlier check: target aTB delta vs neighbors' aTB delta distribution (see below) |
 | atb_neighbor_features_all | list[object] | No | Neighbor aTB rows (`features_summary` only) used for compact derived stats |
-| atb_trends_self | object | No | **Reasoning-pack projection only**: target-only self-trend buckets/directions for R1+ (not a persisted business field) |
+| atb_trends_self | object | No | **Reasoning-pack projection only**: legacy target-only trend projection for compatibility |
+| atb_trend_profile | object | No | **Reasoning-pack projection only**: self-only target aTB trend profile (`atb_trend_v1`) used by Master in R1+ |
 | neighbor_atb_stats | object | No | Compact R2+ discriminative stats derived from target-vs-neighbor aTB distributions |
 
 #### risk_scores.atb_neighbor_consistency (optional)
@@ -874,6 +942,21 @@ Per-field object keys (`fields.<name>`):
 Low-sample behavior:
 - if `sample_size < 5`: `reliability="low"` and `z_robust=null`; percentile can still be populated if computable.
 
+#### risk_scores.atb_trend_profile (optional, R1+; reasoning-pack only)
+
+Self-only trend profile computed from target `evidence_readiness.atb.features_summary` (no neighbor input).
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| version | string | Yes | Fixed `atb_trend_v1` |
+| abs_values | object | Yes | `{delta_dihedral, delta_gap, delta_volume}` absolute magnitudes |
+| buckets | object | Yes | Bucketed strength per delta field (`low/mid/high`) |
+| direction | object | Yes | Sign-only trend direction (`increase/decrease/flat/unknown`) |
+| overall_motion_proxy | string | Yes | `low/medium/high` derived from dihedral+volume buckets |
+| ct_proxy | object | Yes | Compact CT proxy summary (`delta_gap_bucket`) |
+| reliability | string | Yes | `low/medium/high` from parseable key fields |
+| notes | list[string] | Yes | Short compact notes; no free-form threshold invention |
+
 #### risk_scores.atb_neighbor_features_all (optional)
 
 This list carries compact neighbor aTB rows (success-only), sorted by neighbor rank.
@@ -939,6 +1022,11 @@ Master output is written to top-level root keys to avoid collision with legacy `
   - `E23` label-stratified comparison (conditional),
   - `E24` reliability note.
 - R1+ self-trend evidence IDs:
+  - `E31` aTB torsion trend (`/evidence_readiness/atb/features_summary/delta_dihedral`, note from self profile bucket/direction),
+  - `E32` aTB CT proxy trend (`/evidence_readiness/atb/features_summary/delta_gap`),
+  - `E33` aTB volume trend (`/evidence_readiness/atb/features_summary/delta_volume`),
+  - `E34` aTB overall motion proxy (`/risk_scores/atb_trend_profile/overall_motion_proxy`, derived-pack evidence),
+  - legacy compatibility IDs:
   - `E_ATB_TREND_1..4` from `risk_scores.atb_trends_self` (target-only trend interpretation).
 - Debug-only hints in case file:
   - `risk_scores.mechanism_hint` and `risk_scores.hint_confidence` may exist for routing/debug,

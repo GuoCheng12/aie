@@ -63,6 +63,11 @@ class _FakeChemAgent(CaseAgent):
             patch=[
                 {"op": "add", "path": "/evidence_readiness/atb/cache_status", "value": "success"},
                 {"op": "add", "path": "/evidence_readiness/atb/request_status", "value": "done"},
+                {
+                    "op": "add",
+                    "path": "/evidence_readiness/atb/features_summary",
+                    "value": {"delta_dihedral": 12.0, "delta_gap": 0.1, "delta_volume": 0.5},
+                },
                 {"op": "add", "path": "/evidence_readiness/literature/status", "value": "not_started"},
                 {"op": "add", "path": "/evidence_readiness/experiment/status", "value": "not_requested"},
                 {
@@ -81,7 +86,18 @@ class _FakeChemAgent(CaseAgent):
 
 
 def test_run_one_writes_master_reasoning_block(monkeypatch, tmp_path: Path):
-    def _fake_responses_json(self, *, instructions, input_text, schema_name, schema):
+    def _fake_responses_json(self, *, instructions, input_text, schema_name, schema, **kwargs):
+        _ = kwargs
+        payload = json.loads(input_text)
+        registry = payload.get("evidence_registry") or {}
+
+        def _eid(case_path: str) -> str:
+            rows = registry if isinstance(registry, list) else list((registry or {}).values())
+            for row in rows:
+                if isinstance(row, dict) and row.get("case_path") == case_path and isinstance(row.get("evidence_id"), str):
+                    return str(row.get("evidence_id"))
+            raise AssertionError(f"missing evidence id for {case_path}")
+
         return {
             "request": {"schema_name": schema_name},
             "response": {"id": "resp-master"},
@@ -93,20 +109,48 @@ def test_run_one_writes_master_reasoning_block(monkeypatch, tmp_path: Path):
                         "mechanism_label": "ICT",
                         "aie_rationale_type": "stable",
                         "natural_language_mechanism": "ICT likely dominates",
+                        "atb_support_level": "weak",
                     },
                     "confidence": 0.6,
                     "reasoning_mode_used": "conservative",
                 },
                 "supporting_chain": [
                     {
-                        "claim": "high structural similarity",
-                        "evidence_used": [{"case_path": "/risk_scores/top1_sim", "note": "0.91", "role": "support"}],
-                    }
+                        "step_id": "A",
+                        "step_name": "torsion_access",
+                        "claim": "Excited-state structure indicates torsional access.",
+                        "evidence_used": [{"evidence_id": _eid("/evidence_readiness/atb/features_summary/delta_dihedral"), "note": "dihedral", "role": "support"}],
+                    },
+                    {
+                        "step_id": "B",
+                        "step_name": "ct_family",
+                        "claim": "Nonradiative CT/torsion channel is plausible.",
+                        "evidence_used": [{"evidence_id": _eid("/evidence_readiness/atb/features_summary/delta_gap"), "note": "ct context", "role": "context"}],
+                    },
+                    {
+                        "step_id": "C",
+                        "step_name": "aIE_bridge",
+                        "claim": "Aggregation rigidification suppresses nonradiative path.",
+                        "evidence_used": [{"evidence_id": _eid("/evidence_readiness/atb/features_summary/delta_volume"), "note": "rigidification proxy", "role": "context"}],
+                    },
+                    {
+                        "step_id": "D",
+                        "step_name": "discriminators",
+                        "claim": "Compare and measure discriminative tests across ICT/TICT/ESIPT.",
+                        "evidence_used": [{"evidence_id": _eid("/risk_scores/top1_sim"), "note": "prior", "role": "context"}],
+                    },
                 ],
-                "competing_hypotheses": [],
-                "predictions": [],
+                "competing_hypotheses": [{"name": "TICT", "confidence": 0.25, "atb_support_level": "weak", "evidence_used": [{"evidence_id": _eid("/risk_scores/top1_sim"), "note": "prior", "role": "context"}]}],
+                "predictions": [
+                    {"prediction": "measure TRPL", "expected_signal": "lifetime change", "evidence_used": [{"evidence_id": _eid("/evidence_readiness/atb/features_summary/delta_dihedral"), "note": "torsion", "role": "context"}]},
+                    {"prediction": "compare solvent polarity", "expected_signal": "CT shift", "evidence_used": [{"evidence_id": _eid("/evidence_readiness/atb/features_summary/delta_gap"), "note": "ct", "role": "context"}]},
+                    {"prediction": "compare aggregation state", "expected_signal": "suppression trend", "evidence_used": [{"evidence_id": _eid("/evidence_readiness/atb/features_summary/delta_volume"), "note": "aggregation", "role": "context"}]},
+                ],
                 "limits": ["conservative estimate; no emission evidence"],
-                "evidence_used": [{"case_path": "/risk_scores/top1_sim", "note": "0.91", "role": "support"}],
+                "evidence_used": [
+                    {"evidence_id": _eid("/risk_scores/top1_sim"), "note": "0.91 prior", "role": "context"},
+                    {"evidence_id": _eid("/evidence_readiness/atb/features_summary/delta_dihedral"), "note": "support", "role": "support"},
+                ],
                 "recommended_next_actions": ["request_manual_pdf"],
             },
         }
@@ -135,6 +179,7 @@ def test_run_one_writes_master_reasoning_block(monkeypatch, tmp_path: Path):
         emit_stage_snapshots=False,
         stage_snapshots_dir=str(tmp_path / "snapshots"),
         artifacts_dir=str(tmp_path / "artifacts"),
+        llm_response_dir=str(tmp_path / "llm_responses"),
         outdir=str(tmp_path / "cases"),
         base_url="http://example/v1",
         model="gpt-test",
@@ -159,3 +204,10 @@ def test_run_one_writes_master_reasoning_block(monkeypatch, tmp_path: Path):
     assert isinstance(case["master_reasoning"], dict)
     assert case["master_reasoning"]["mechanism_claim"]["primary_hypothesis"]["mechanism_label"] == "ICT"
     assert "/risk_scores/top1_sim" in case["master_reasoning_used_evidence_paths"]
+    assert "reasoning" in case
+    assert "/risk_scores/top1_sim" in case["reasoning"]["used_evidence_paths"]
+    assert any(str(x).startswith("E") for x in case["reasoning"]["used_evidence_ids"])
+    run_id = out["run_id"]
+    llm_run_dir = tmp_path / "llm_responses" / run_id
+    assert (llm_run_dir / f"{run_id}.reasoning_agent.response.json").exists()
+    assert (llm_run_dir / f"{run_id}.reasoning_agent.summary5.json").exists()

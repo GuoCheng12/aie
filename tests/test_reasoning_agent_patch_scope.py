@@ -44,6 +44,6 @@ def test_reasoning_agent_patch_paths_are_whitelisted(tmp_path):
         append_only_prefixes=agent.append_only_prefixes,
     )
     assert all(
-        p["path"].startswith("/master_reasoning")
+        p["path"].startswith("/master_reasoning") or p["path"].startswith("/reasoning/") or p["path"] == "/reasoning"
         for p in result.patch
     )

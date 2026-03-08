@@ -1,0 +1,64 @@
+{
+  "config": {
+    "k": 10,
+    "w_ecfp": 0.7,
+    "w_atb": 0.3,
+    "ecfp_threshold": 0.2,
+    "n_molecules": 76
+  },
+  "results": [
+    {
+      "M": 5,
+      "low_ecfp_pct": 11.31578947368421,
+      "rank1_low_pct": 7.894736842105263,
+      "rank10_low_pct": 0.0,
+      "ecfp_median": 0.3500942803268385,
+      "overlap_at_10": 0.06029496818970503
+    },
+    {
+      "M": 8,
+      "low_ecfp_pct": 16.776315789473685,
+      "rank1_low_pct": 7.894736842105263,
+      "rank10_low_pct": 0.0,
+      "ecfp_median": 0.3137254901960784,
+      "overlap_at_10": 0.049342105263157895
+    },
+    {
+      "M": 10,
+      "low_ecfp_pct": 20.657894736842106,
+      "rank1_low_pct": 7.894736842105263,
+      "rank10_low_pct": 34.21052631578947,
+      "ecfp_median": 0.28317610062893084,
+      "overlap_at_10": 0.04401354262850108
+    },
+    {
+      "M": 12,
+      "low_ecfp_pct": 21.842105263157894,
+      "rank1_low_pct": 7.894736842105263,
+      "rank10_low_pct": 31.57894736842105,
+      "ecfp_median": 0.2777777777777778,
+      "overlap_at_10": 0.04401354262850108
+    },
+    {
+      "M": 15,
+      "low_ecfp_pct": 23.81578947368421,
+      "rank1_low_pct": 9.210526315789474,
+      "rank10_low_pct": 36.8421052631579,
+      "ecfp_median": 0.26666666666666666,
+      "overlap_at_10": 0.04401354262850108
+    },
+    {
+      "M": 20,
+      "low_ecfp_pct": 28.42105263157895,
+      "rank1_low_pct": 9.210526315789474,
+      "rank10_low_pct": 47.36842105263158,
+      "ecfp_median": 0.2553579571363429,
+      "overlap_at_10": 0.04401354262850108
+    }
+  ],
+  "recommendations": {
+    "lowest_drift_M": 5,
+    "best_overlap_M": 5,
+    "best_ecfp_M": 5
+  }
+}

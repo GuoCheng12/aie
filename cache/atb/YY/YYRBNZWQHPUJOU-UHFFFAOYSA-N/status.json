@@ -1,9 +1,9 @@
 {
   "inchikey": "YYRBNZWQHPUJOU-UHFFFAOYSA-N",
-  "run_status": "failed",
-  "fail_stage": "opt",
-  "error_msg": "Timeout after 1800s",
-  "timestamp": "2026-01-25T15:30:31.977053",
-  "atb_version": null,
-  "runtime_sec": 1801.2
+  "run_status": "success",
+  "fail_stage": null,
+  "error_msg": null,
+  "timestamp": "2026-02-03T03:02:49.597543",
+  "atb_version": "AIE-aTB-v0",
+  "runtime_sec": 166.69
 }

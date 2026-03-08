@@ -1,9 +1,9 @@
 {
   "inchikey": "MQILWOBWEXGLEJ-UHFFFAOYSA-N",
   "run_status": "failed",
-  "fail_stage": "excit",
-  "error_msg": "Timeout after 1800s",
-  "timestamp": "2026-01-23T11:46:56.876714",
+  "fail_stage": "opt",
+  "error_msg": "Timeout after 86400s",
+  "timestamp": "2026-01-30T23:35:53.857894",
   "atb_version": null,
-  "runtime_sec": 1800.8
+  "runtime_sec": 86400.41
 }

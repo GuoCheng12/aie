@@ -2,8 +2,8 @@
   "inchikey": "XBMLXWJCQXWUAO-UHFFFAOYSA-M",
   "run_status": "failed",
   "fail_stage": "opt",
-  "error_msg": "/miniconda/envs/ase-amesp/lib/python3.10/site-packages/PyAmesp/amesp.py\", line 117, in read_results\n    self.results['forces'] = parse_aop_force(text)\n  File \"/mnt/afs/250010045/conda/miniconda/envs/ase-amesp/lib/python3.10/site-packages/PyAmesp/amesp.py\", line 348, in parse_aop_force\n    force_data = np.array([f.split()[1:]\nValueError: setting an array element with a sequence. The requested array has an inhomogeneous shape after 1 dimensions. The detected shape was (114,) + inhomogeneous part.\n",
-  "timestamp": "2026-01-25T16:55:02.947085",
+  "error_msg": "ues/new?template=distutils-deprecation.yml\n  warnings.warn(\n2026-02-03 05:33:15,576 | Start generating begin structure from SMILES\n[05:33:15] UFFTYPER: Warning: hybridization set to SP3 for atom 1\n[05:33:15] UFFTYPER: Warning: hybridization set to SP3 for atom 62\n2026-02-03 05:33:16,099 | Auto-detected charge from SMILES: 0\n2026-02-03 05:33:16,110 | Starting ground state optimization\n2026-02-03 05:34:38,787 | opt calculation failed\n2026-02-03 05:34:38,787 | Opt. Calculation failed. Exit code 1.\n",
+  "timestamp": "2026-02-03T05:34:39.455766",
   "atb_version": null,
-  "runtime_sec": 172.01
+  "runtime_sec": 98.21
 }

@@ -1,9 +1,9 @@
 {
   "inchikey": "WGPCSCBARSPSOG-UHFFFAOYSA-N",
-  "run_status": "failed",
-  "fail_stage": "excit",
-  "error_msg": "Timeout after 1800s",
-  "timestamp": "2026-01-25T02:21:44.193312",
-  "atb_version": null,
-  "runtime_sec": 1800.82
+  "run_status": "success",
+  "fail_stage": null,
+  "error_msg": null,
+  "timestamp": "2026-02-03T16:27:37.042235",
+  "atb_version": "AIE-aTB-v0",
+  "runtime_sec": 54.3
 }

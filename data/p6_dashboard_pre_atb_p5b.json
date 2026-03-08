@@ -1,0 +1,233 @@
+{
+  "dashboard_version": "P6a_pre_atb_p5b",
+  "total_records": 500,
+  "action_counts_p5b": {
+    "Known/Stable": 283,
+    "Evidence-insufficient": 132,
+    "In-domain ambiguous": 48,
+    "Novelty-candidate": 37
+  },
+  "top_missing_fields": {
+    "emission_aggr": 390,
+    "emission_solid": 232
+  },
+  "top_novelty_ids": [
+    {
+      "id": 1081,
+      "inchikey": "UHOVQNZJYSORNB-UHFFFAOYSA-N",
+      "novelty": 1.0
+    },
+    {
+      "id": 1082,
+      "inchikey": "RBDGROJIIPTVMY-UHFFFAOYSA-N",
+      "novelty": 1.0
+    },
+    {
+      "id": 1083,
+      "inchikey": "RBDGROJIIPTVMY-UHFFFAOYSA-N",
+      "novelty": 1.0
+    },
+    {
+      "id": 1626,
+      "inchikey": "SOUICWYQFIUBFX-BVDGQYGUSA-N",
+      "novelty": 1.0
+    },
+    {
+      "id": 1694,
+      "inchikey": "RKCCHOOOPIHOND-HKWRFOASSA-N",
+      "novelty": 1.0
+    },
+    {
+      "id": 1761,
+      "inchikey": "PLENPNYOOYSMPT-UHFFFAOYSA-N",
+      "novelty": 1.0
+    },
+    {
+      "id": 1837,
+      "inchikey": "IPOYRFPXPLZXMA-UHFFFAOYSA-N",
+      "novelty": 1.0
+    },
+    {
+      "id": 1844,
+      "inchikey": "UFQNTLLANIJNHC-UHFFFAOYSA-M",
+      "novelty": 1.0
+    },
+    {
+      "id": 1862,
+      "inchikey": "FMZONXDHAJOTGT-LSJACRKWSA-M",
+      "novelty": 1.0
+    },
+    {
+      "id": 1888,
+      "inchikey": "UKQMYQYNWYUXRZ-COISYASHSA-N",
+      "novelty": 1.0
+    },
+    {
+      "id": 1890,
+      "inchikey": "WESAVONVBXPAKT-UHFFFAOYSA-N",
+      "novelty": 1.0
+    },
+    {
+      "id": 1906,
+      "inchikey": "HNHRGLQTQJOVEJ-UHFFFAOYSA-N",
+      "novelty": 1.0
+    },
+    {
+      "id": 1922,
+      "inchikey": "UBEXEFRJHYAJLK-BQYQJAHWSA-N",
+      "novelty": 1.0
+    },
+    {
+      "id": 1934,
+      "inchikey": "SPYWLBHPZQNZPB-UHFFFAOYSA-N",
+      "novelty": 1.0
+    },
+    {
+      "id": 1961,
+      "inchikey": "UINDPMQCLDKUOB-KSKHYJKRSA-J",
+      "novelty": 1.0
+    },
+    {
+      "id": 1981,
+      "inchikey": "IIBQILWKZYGYRQ-BQYQJAHWSA-N",
+      "novelty": 1.0
+    },
+    {
+      "id": 1997,
+      "inchikey": "QUOFFRGVMSPPOZ-UHFFFAOYSA-N",
+      "novelty": 1.0
+    },
+    {
+      "id": 2021,
+      "inchikey": "RCBSZGSHSLQLBI-UHFFFAOYSA-N",
+      "novelty": 1.0
+    },
+    {
+      "id": 2078,
+      "inchikey": "KWVHTWVRZTUAIO-WQVHNPAPSA-N",
+      "novelty": 1.0
+    },
+    {
+      "id": 2094,
+      "inchikey": "HAWUMHAEHURWQY-UHFFFAOYSA-N",
+      "novelty": 1.0
+    }
+  ],
+  "top_mechanism_entropy_ids": [
+    {
+      "id": 1022,
+      "inchikey": "MYMJMXQJGOVFSG-UHFFFAOYSA-N",
+      "mechanism_entropy": 1.0
+    },
+    {
+      "id": 1108,
+      "inchikey": "MLSKMJHMBWZJEY-WYYOLBRMSA-N",
+      "mechanism_entropy": 1.0
+    },
+    {
+      "id": 1939,
+      "inchikey": "WOMWRTYORIYMHP-UHFFFAOYSA-M",
+      "mechanism_entropy": 0.9991
+    },
+    {
+      "id": 2203,
+      "inchikey": "GEDZMUORJOHXSV-UHFFFAOYSA-N",
+      "mechanism_entropy": 0.9988
+    },
+    {
+      "id": 2396,
+      "inchikey": "BGYHYWUJYOAWBL-UHFFFAOYSA-N",
+      "mechanism_entropy": 0.9988
+    },
+    {
+      "id": 1107,
+      "inchikey": "MDFPYLUHVSCOPW-DBFBYELTSA-N",
+      "mechanism_entropy": 0.9988
+    },
+    {
+      "id": 2434,
+      "inchikey": "MWAKUDAXZUDOCG-UHFFFAOYSA-N",
+      "mechanism_entropy": 0.9988
+    },
+    {
+      "id": 2210,
+      "inchikey": "NNOSLQHVARCOCT-UHFFFAOYSA-N",
+      "mechanism_entropy": 0.9985
+    },
+    {
+      "id": 2211,
+      "inchikey": "DCWZWEPCSHNEGB-UHFFFAOYSA-N",
+      "mechanism_entropy": 0.9985
+    },
+    {
+      "id": 2094,
+      "inchikey": "HAWUMHAEHURWQY-UHFFFAOYSA-N",
+      "mechanism_entropy": 0.9983
+    },
+    {
+      "id": 1781,
+      "inchikey": "YXQJVGXGBFVLJQ-UHFFFAOYSA-N",
+      "mechanism_entropy": 0.9977
+    },
+    {
+      "id": 1837,
+      "inchikey": "IPOYRFPXPLZXMA-UHFFFAOYSA-N",
+      "mechanism_entropy": 0.9975
+    },
+    {
+      "id": 2188,
+      "inchikey": "DMLYVOKAGUBXPG-UHFFFAOYSA-N",
+      "mechanism_entropy": 0.9958
+    },
+    {
+      "id": 2084,
+      "inchikey": "QAKMXYFDVPDIPT-UHFFFAOYSA-N",
+      "mechanism_entropy": 0.9943
+    },
+    {
+      "id": 2090,
+      "inchikey": "QAKMXYFDVPDIPT-UHFFFAOYSA-N",
+      "mechanism_entropy": 0.9943
+    },
+    {
+      "id": 1987,
+      "inchikey": "SQEFQTLTABVSDW-UHFFFAOYSA-N",
+      "mechanism_entropy": 0.9941
+    },
+    {
+      "id": 2181,
+      "inchikey": "ZOIPEHWQNVETDY-UHFFFAOYSA-N",
+      "mechanism_entropy": 0.9934
+    },
+    {
+      "id": 2200,
+      "inchikey": "ZOIPEHWQNVETDY-UHFFFAOYSA-N",
+      "mechanism_entropy": 0.9934
+    },
+    {
+      "id": 1029,
+      "inchikey": "IRRPIWGPVSMOGZ-UHFFFAOYSA-N",
+      "mechanism_entropy": 0.9908
+    },
+    {
+      "id": 2054,
+      "inchikey": "JLPSDRGHDRFATB-UHFFFAOYSA-M",
+      "mechanism_entropy": 0.9904
+    }
+  ],
+  "invalid_inchikey_count": 43,
+  "target_atb_status_counts": {
+    "failed": 298,
+    "success": 159,
+    "absent": 43
+  },
+  "thresholds": {
+    "cov_low": 0.3225191867291372,
+    "cov_high": 0.5806553448561385,
+    "nov_high": 0.6860192203808587,
+    "mech_ent_high": 0.8787651423705142,
+    "mech_ent_high_source": "molecule_level",
+    "n_molecules_for_mech_ent_high": 417,
+    "n_records_for_cov_nov": 442
+  }
+}

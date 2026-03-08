@@ -2,8 +2,8 @@
   "inchikey": "SNCXIQROKQGBES-UHFFFAOYSA-N",
   "run_status": "failed",
   "fail_stage": "opt",
-  "error_msg": "Timeout after 1800s",
-  "timestamp": "2026-01-22T11:29:48.090169",
+  "error_msg": "port setuptools first, and avoid setting SETUPTOOLS_USE_DISTUTILS=stdlib. Register concerns at https://github.com/pypa/setuptools/issues/new?template=distutils-deprecation.yml\n  warnings.warn(\n2026-02-03 02:41:10,610 | Start generating begin structure from SMILES\n2026-02-03 02:41:10,750 | Auto-detected charge from SMILES: 0\n2026-02-03 02:41:10,761 | Starting ground state optimization\n2026-02-03 02:41:31,605 | opt calculation failed\n2026-02-03 02:41:31,605 | Opt. Calculation failed. Exit code 1.\n",
+  "timestamp": "2026-02-03T02:41:32.205587",
   "atb_version": null,
-  "runtime_sec": 1800.5
+  "runtime_sec": 35.12
 }

@@ -1,7 +1,11 @@
 """
 src/agents/atb_agent.py
 
-aTB Agent: Cache management and status tracking for aTB computations.
+Chem Agent (aTB component): Cache management and status tracking for aTB computations.
+
+Note: This module handles the aTB computation cache. The Chem Agent encompasses
+multiple tools: aTB computation, literature search, and experimental requests.
+This file specifically manages the aTB cache layer.
 """
 
 import json

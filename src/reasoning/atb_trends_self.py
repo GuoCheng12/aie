@@ -25,6 +25,12 @@ def _to_float(value: Any) -> Optional[float]:
     return out
 
 
+def _clip01(value: Optional[float]) -> Optional[float]:
+    if value is None:
+        return None
+    return max(0.0, min(1.0, float(value)))
+
+
 def _direction(value: Optional[float], *, flat_eps: float, mixed_label: str = "flat") -> str:
     if value is None:
         return "unknown"
@@ -67,6 +73,34 @@ def _overall_motion_proxy(dihedral_bucket: str, volume_bucket: str) -> str:
     if dihedral_bucket == "none" and volume_bucket in {"weak", "unknown"}:
         return "low"
     return "medium"
+
+
+def _percentile_from_abs(
+    value: Optional[float],
+    *,
+    weak: float,
+    strong: float,
+) -> Optional[float]:
+    """
+    Global percentile estimate using only configured bucket thresholds.
+
+    This is intentionally coarse and deterministic (self-only; no neighbors):
+    - [0, weak): 0.10 -> 0.40
+    - [weak, strong): 0.40 -> 0.80
+    - [strong, +inf): 0.80 -> asymptotic <= 0.98
+    """
+    if value is None:
+        return None
+    v = abs(float(value))
+    weak_t = max(0.0, float(weak))
+    strong_t = max(weak_t + 1e-9, float(strong))
+    if v < weak_t:
+        return _clip01(0.10 + 0.30 * (v / max(weak_t, 1e-9)))
+    if v < strong_t:
+        span = max(strong_t - weak_t, 1e-9)
+        return _clip01(0.40 + 0.40 * ((v - weak_t) / span))
+    tail = (v - strong_t) / max(strong_t, 1e-9)
+    return _clip01(0.80 + 0.18 * (tail / (1.0 + tail)))
 
 
 def _reliability(values: Dict[str, Optional[float]]) -> str:
@@ -134,6 +168,11 @@ def compute_atb_trends_self(
         flat_eps=float(th.get("atb_dihedral_flat_eps", 1e-6)),
         mixed_label="mixed",
     )
+    dihedral_pct = _percentile_from_abs(
+        dihedral,
+        weak=float(th.get("atb_dihedral_thresh_none", 8.0)),
+        strong=float(th.get("atb_dihedral_thresh_strong", 15.0)),
+    )
 
     gap_flat_eps = float(th.get("atb_gap_flat_eps", 0.05))
     gap_direction = _direction(gap, flat_eps=gap_flat_eps, mixed_label="flat")
@@ -142,10 +181,20 @@ def compute_atb_trends_self(
         weak=float(th.get("atb_gap_weak", 0.2)),
         strong=float(th.get("atb_gap_strong", 0.6)),
     )
+    gap_pct = _percentile_from_abs(
+        gap,
+        weak=float(th.get("atb_gap_weak", 0.2)),
+        strong=float(th.get("atb_gap_strong", 0.6)),
+    )
 
     vol_flat_eps = float(th.get("atb_vol_flat_eps", 0.1))
     vol_direction = _direction(volume, flat_eps=vol_flat_eps, mixed_label="flat")
     vol_bucket = _abs_bucket(
+        volume,
+        weak=float(th.get("atb_vol_weak", 0.5)),
+        strong=float(th.get("atb_vol_strong", 2.0)),
+    )
+    vol_pct = _percentile_from_abs(
         volume,
         weak=float(th.get("atb_vol_weak", 0.5)),
         strong=float(th.get("atb_vol_strong", 2.0)),
@@ -160,6 +209,7 @@ def compute_atb_trends_self(
         notes.append(f"delta_gap shows {gap_direction} trend with {gap_bucket} magnitude.")
     if vol_direction != "unknown":
         notes.append(f"delta_volume shows {vol_direction} trend with {vol_bucket} magnitude.")
+    notes.append("Global percentile estimates are threshold-based (self-only), not neighbor-distribution percentiles.")
     notes.append(f"overall_motion_proxy={overall_motion}; reliability={reliability}.")
 
     out = {
@@ -168,10 +218,13 @@ def compute_atb_trends_self(
         "delta_dihedral_abs_deg": dihedral_abs,
         "delta_dihedral_bucket": dihedral_bucket,
         "delta_dihedral_direction": dihedral_direction,
+        "delta_dihedral_percentile_global": dihedral_pct,
         "delta_gap_direction": gap_direction,
         "delta_gap_bucket": gap_bucket,
+        "delta_gap_percentile_global": gap_pct,
         "delta_volume_direction": vol_direction,
         "delta_volume_bucket": vol_bucket,
+        "delta_volume_percentile_global": vol_pct,
         "overall_motion_proxy": overall_motion,
         "reliability": reliability,
         "notes": notes[:4],
@@ -180,4 +233,3 @@ def compute_atb_trends_self(
 
 
 __all__ = ["compute_atb_trends_self"]
-

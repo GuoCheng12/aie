@@ -34,6 +34,7 @@ from src.cases.case_schema import (
     validate_case_file,
     evaluate_gate,
 )
+from src.cases.case_sections import sync_case_sections
 from src.chem.atb_cache import (
     get_atb_cache_status,
     get_atb_features_summary as _get_atb_features_summary,
@@ -898,6 +899,7 @@ def create_case_from_smiles(
         'action_rationale': action_rationale,
         'history': history
     }
+    sync_case_sections(case)
 
     # Validate
     is_valid, errors = validate_case_file(case)

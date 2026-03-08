@@ -23,6 +23,10 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Set, Tuple
 
 from src.core.hashing import canonical_json_bytes, sha256_json
 from src.reasoning.evidence_profiles import resolve_evidence_profiles
+from src.reasoning.atb_ct_proxy_profile import compute_atb_ct_proxy_profile
+from src.reasoning.atb_shape_rigidity_profile import compute_atb_shape_rigidity_profile
+from src.reasoning.atb_structural_relaxation_profile import compute_atb_structural_relaxation_profile
+from src.reasoning.atb_trend_profile import compute_atb_trend_profile
 from src.reasoning.atb_trends_self import compute_atb_trends_self
 from src.reasoning.neighbor_atb_stats import (
     ATB_DELTA_FIELDS,
@@ -94,6 +98,8 @@ ATB_TREND_EVIDENCE_IDS = (
     "E_ATB_TREND_3",
     "E_ATB_TREND_4",
 )
+ATB_TREND_PROFILE_EVIDENCE_IDS = ("E31", "E32", "E33", "E34")
+ATB_ENRICHMENT_EVIDENCE_IDS = ("E35", "E36", "E37", "E38", "E39")
 
 
 def _now_iso8601() -> str:
@@ -229,14 +235,24 @@ def _thresholds(reasoning_config: Dict[str, Any]) -> Dict[str, float]:
         "atb_gap_flat_eps": float(policy.get("atb_gap_flat_eps", 0.05)),
         "atb_gap_weak": float(policy.get("atb_gap_weak", 0.2)),
         "atb_gap_strong": float(policy.get("atb_gap_strong", 0.6)),
+        "atb_dipole_flat_eps": float(policy.get("atb_dipole_flat_eps", 0.05)),
+        "atb_dipole_weak": float(policy.get("atb_dipole_weak", 0.2)),
+        "atb_dipole_strong": float(policy.get("atb_dipole_strong", 0.6)),
         "atb_vol_flat_eps": float(policy.get("atb_vol_flat_eps", 0.1)),
         "atb_vol_weak": float(policy.get("atb_vol_weak", 0.5)),
         "atb_vol_strong": float(policy.get("atb_vol_strong", 2.0)),
+        "atb_bonds_weak": float(policy.get("atb_bonds_weak", 0.02)),
+        "atb_bonds_strong": float(policy.get("atb_bonds_strong", 0.08)),
+        "atb_angles_weak": float(policy.get("atb_angles_weak", 0.2)),
+        "atb_angles_strong": float(policy.get("atb_angles_strong", 0.8)),
+        "atb_asymmetry_weak": float(policy.get("atb_asymmetry_weak", 0.05)),
+        "atb_asymmetry_strong": float(policy.get("atb_asymmetry_strong", 0.2)),
+        "atb_rotconst_rel_weak": float(policy.get("atb_rotconst_rel_weak", 0.05)),
+        "atb_rotconst_rel_strong": float(policy.get("atb_rotconst_rel_strong", 0.15)),
         "top1_sim_low": float(policy["top1_sim_low"]),
         "entropy_high": float(policy["entropy_high"]),
-        "conf_cap_top1_sim_low": float(policy["conf_cap_top1_sim_low"]),
-        "conf_cap_entropy_high": float(policy["conf_cap_entropy_high"]),
-        "conf_cap_both": float(policy["conf_cap_both"]),
+        "global_confidence_cap": float(policy.get("global_confidence_cap", 0.95)),
+        "r0_penalty_factor": float(policy.get("r0_penalty_factor", 0.90)),
         "conservative_confidence_cap": float(cfg.get("conservative_confidence_cap", 0.65)),
     }
 
@@ -267,40 +283,6 @@ def _atb_support_level_from_features(
     if abs_dihedral < float(policy["atb_dihedral_thresh_strong"]):
         return "weak"
     return "strong"
-
-
-def _compute_confidence_cap(
-    reasoning_pack: Dict[str, Any],
-    reasoning_config: Dict[str, Any],
-) -> float:
-    policy = _policy(reasoning_config)
-    gate_mode = str((reasoning_pack.get("gate") or {}).get("reasoning_mode") or "").lower()
-    risk = reasoning_pack.get("risk_scores") or {}
-    top1 = _to_float(risk.get("top1_sim"))
-    entropy = _to_float(risk.get("mechanism_entropy"))
-
-    top1_low = float(policy.get("top1_sim_low", 0.5))
-    entropy_high = float(policy.get("entropy_high", 0.75))
-    sim_strength = float(policy.get("penalty_sim_strength", 0.25))
-    ent_strength = float(policy.get("penalty_entropy_strength", 0.25))
-
-    sim_pen = 1.0
-    if top1 is not None and top1_low > 0.0 and top1 < top1_low:
-        sim_pen = max(0.55, 1.0 - sim_strength * ((top1_low - top1) / max(top1_low, 1e-9)))
-
-    ent_pen = 1.0
-    if entropy is not None and entropy > entropy_high:
-        ent_pen = max(
-            0.55,
-            1.0
-            - ent_strength
-            * ((entropy - entropy_high) / max(1.0 - entropy_high, 1e-9)),
-        )
-
-    cap = sim_pen * ent_pen
-    if gate_mode == "conservative":
-        cap = min(cap, float(reasoning_config.get("conservative_confidence_cap", 0.65)))
-    return float(max(0.0, min(1.0, cap)))
 
 
 def _separation_score(reasoning_pack: Dict[str, Any]) -> Optional[float]:
@@ -376,24 +358,46 @@ def _soft_confidence(
         delta = separation - center
         separation_boost = max(0.8, min(1.25, 1.0 + strength * delta))
 
-    final = raw * sim_factor * entropy_factor * mode_factor * separation_boost
-    cap = float(reasoning_config.get("conservative_confidence_cap", 0.65)) if gate_mode == "conservative" else 1.0
-    final = min(final, cap)
-    final = max(0.0, min(1.0, final))
+    active_profile = str((((reasoning_pack.get("evidence_profile") or {}).get("active_profile")) or "R0")).upper()
+    round_index_raw = reasoning_config.get("round_index") if isinstance(reasoning_config, dict) else None
+    try:
+        round_index = int(round_index_raw) if round_index_raw is not None else None
+    except Exception:
+        round_index = None
+    r0_penalty_factor = float(policy.get("r0_penalty_factor", 0.90))
+    apply_r0_penalty = bool(active_profile == "R0" or round_index == 0)
+
+    final_pre_cap = raw * sim_factor * entropy_factor * mode_factor * separation_boost
+    if apply_r0_penalty:
+        final_pre_cap *= r0_penalty_factor
+
+    global_cap = float(policy.get("global_confidence_cap", 0.95))
+    cap_value = max(0.05, min(0.95, global_cap))
+    cap_reason = "global_cap"
+    if gate_mode == "conservative":
+        cap_value = min(cap_value, float(reasoning_config.get("conservative_confidence_cap", 0.65)))
+        cap_reason = "conservative_cap"
+
+    final = min(final_pre_cap, cap_value)
+    final = max(0.05, min(0.95, final))
 
     components = {
         "raw_confidence_from_model": raw,
-        "base_template_confidence": base,
+        "base_conf": base,
         "top1_sim": top1,
         "mechanism_entropy": entropy,
         "sim_factor": round(sim_factor, 6),
-        "entropy_factor": round(entropy_factor, 6),
+        "ent_factor": round(entropy_factor, 6),
         "mode_factor": round(mode_factor, 6),
         "separation_score": separation,
         "separation_reliability": separation_rel,
-        "separation_boost": round(separation_boost, 6),
-        "conservative_cap": cap,
-        "final_confidence": round(final, 6),
+        "neighbor_factor": round(separation_boost, 6),
+        "final_conf_pre_cap": round(float(final_pre_cap), 6),
+        "final_conf_post_cap": round(float(final), 6),
+        "cap_value": round(float(cap_value), 6),
+        "cap_reason": cap_reason,
+        "r0_penalty_applied": apply_r0_penalty,
+        "r0_penalty_factor": round(float(r0_penalty_factor), 6),
         "confidence_formula_version": "soft_v1",
     }
     return round(float(final), 6), components
@@ -565,6 +569,10 @@ def _fallback_evidence_ids(reasoning_pack: Dict[str, Any]) -> List[str]:
     out: List[str] = []
     seen: Set[str] = set()
     registry = _registry_map(reasoning_pack.get("evidence_registry") or [])
+    for eid in ATB_ENRICHMENT_EVIDENCE_IDS:
+        if eid in registry and eid not in seen:
+            seen.add(eid)
+            out.append(eid)
     for eid in ATB_TREND_EVIDENCE_IDS:
         if eid in registry and eid not in seen:
             seen.add(eid)
@@ -844,18 +852,32 @@ def _tagged_text_to_master_output(
         "recommended_next_actions": rec_next[:5],
         "__meta": {
             "raw_confidence_from_model": conf_components.get("raw_confidence_from_model"),
-            "final_confidence": conf_components.get("final_confidence"),
-            "penalty_components": {
+            "final_confidence": conf_components.get("final_conf_post_cap"),
+            "confidence_components": {
+                "base_conf": conf_components.get("base_conf"),
                 "sim_factor": conf_components.get("sim_factor"),
-                "entropy_factor": conf_components.get("entropy_factor"),
+                "ent_factor": conf_components.get("ent_factor"),
                 "mode_factor": conf_components.get("mode_factor"),
-                "separation_score": conf_components.get("separation_score"),
-                "separation_reliability": conf_components.get("separation_reliability"),
-                "separation_boost": conf_components.get("separation_boost"),
-                "base_template_confidence": conf_components.get("base_template_confidence"),
-                "top1_sim": conf_components.get("top1_sim"),
-                "mechanism_entropy": conf_components.get("mechanism_entropy"),
-                "conservative_cap": conf_components.get("conservative_cap"),
+                "neighbor_factor": conf_components.get("neighbor_factor"),
+                "final_conf_pre_cap": conf_components.get("final_conf_pre_cap"),
+                "final_conf_post_cap": conf_components.get("final_conf_post_cap"),
+                "cap_value": conf_components.get("cap_value"),
+                "cap_reason": conf_components.get("cap_reason"),
+                "r0_penalty_applied": conf_components.get("r0_penalty_applied"),
+                "r0_penalty_factor": conf_components.get("r0_penalty_factor"),
+            },
+            "penalty_components": {
+                "base_conf": conf_components.get("base_conf"),
+                "sim_factor": conf_components.get("sim_factor"),
+                "ent_factor": conf_components.get("ent_factor"),
+                "mode_factor": conf_components.get("mode_factor"),
+                "neighbor_factor": conf_components.get("neighbor_factor"),
+                "final_conf_pre_cap": conf_components.get("final_conf_pre_cap"),
+                "final_conf_post_cap": conf_components.get("final_conf_post_cap"),
+                "cap_value": conf_components.get("cap_value"),
+                "cap_reason": conf_components.get("cap_reason"),
+                "r0_penalty_applied": conf_components.get("r0_penalty_applied"),
+                "r0_penalty_factor": conf_components.get("r0_penalty_factor"),
             },
             "allowed_mechanism_labels": allowed_labels,
             "missing_required_sections": missing_sections,
@@ -1021,6 +1043,11 @@ def _build_evidence_registry(
     case_json: Dict[str, Any],
     neighbors_topk: Sequence[Dict[str, Any]],
     *,
+    include_target_atb_signals: bool,
+    atb_trend_profile: Optional[Dict[str, Any]],
+    atb_ct_proxy_profile: Optional[Dict[str, Any]],
+    atb_structural_relaxation_profile: Optional[Dict[str, Any]],
+    atb_shape_rigidity_profile: Optional[Dict[str, Any]],
     include_literature_status: bool,
     include_experiment_status: bool,
     include_atb_trends_self: bool,
@@ -1059,32 +1086,33 @@ def _build_evidence_registry(
     _add("/risk_scores/mechanism_entropy", "neighbor mechanism entropy", "context", "neighbor label uncertainty")
     _add("/risk_scores/novelty_struct", "structural novelty", "context", "structural novelty score")
 
-    # aTB evidence keys
-    _add("/evidence_readiness/atb/cache_status", "aTB cache status", "context", "target aTB cache readiness")
-    _add(
-        "/evidence_readiness/atb/features_summary/delta_dihedral",
-        "aTB delta dihedral",
-        "support",
-        "excited-state torsional accessibility",
-    )
-    _add(
-        "/evidence_readiness/atb/features_summary/delta_gap",
-        "aTB delta gap",
-        "context",
-        "CT-family weak context",
-    )
-    _add(
-        "/evidence_readiness/atb/features_summary/delta_volume",
-        "aTB delta volume",
-        "context",
-        "packing/rigidification proxy",
-    )
-    _add(
-        "/evidence_readiness/atb/features_summary/excitation_energy",
-        "aTB excitation energy",
-        "context",
-        "excited-state energy context",
-    )
+    # aTB evidence keys (R1+ by default; excluded from R0 prior-only stage).
+    if include_target_atb_signals:
+        _add("/evidence_readiness/atb/cache_status", "aTB cache status", "context", "target aTB cache readiness")
+        _add(
+            "/evidence_readiness/atb/features_summary/delta_dihedral",
+            "aTB delta dihedral",
+            "support",
+            "excited-state torsional accessibility",
+        )
+        _add(
+            "/evidence_readiness/atb/features_summary/delta_gap",
+            "aTB delta gap",
+            "context",
+            "CT-family weak context",
+        )
+        _add(
+            "/evidence_readiness/atb/features_summary/delta_volume",
+            "aTB delta volume",
+            "context",
+            "packing/rigidification proxy",
+        )
+        _add(
+            "/evidence_readiness/atb/features_summary/excitation_energy",
+            "aTB excitation energy",
+            "context",
+            "excited-state energy context",
+        )
 
     # Neighbors: top-2 sim + label as prior
     for i, row in enumerate(neighbors_topk[:2]):
@@ -1126,6 +1154,168 @@ def _build_evidence_registry(
             }
         )
 
+    if isinstance(atb_trend_profile, dict):
+        buckets = atb_trend_profile.get("buckets") if isinstance(atb_trend_profile.get("buckets"), dict) else {}
+        direction = atb_trend_profile.get("direction") if isinstance(atb_trend_profile.get("direction"), dict) else {}
+        reliability = str(atb_trend_profile.get("reliability") or "unknown")
+        motion = str(atb_trend_profile.get("overall_motion_proxy") or "unknown")
+        reg.extend(
+            [
+                {
+                    "evidence_id": "E31",
+                    "source_type": "case",
+                    "case_path": "/evidence_readiness/atb/features_summary/delta_dihedral",
+                    "label": "aTB torsion trend",
+                    "value_preview": {
+                        "bucket": buckets.get("delta_dihedral"),
+                        "direction": direction.get("delta_dihedral"),
+                    },
+                    "role_hint": "support",
+                    "note_hint": f"torsion trend bucket={buckets.get('delta_dihedral')} direction={direction.get('delta_dihedral')}",
+                },
+                {
+                    "evidence_id": "E32",
+                    "source_type": "case",
+                    "case_path": "/evidence_readiness/atb/features_summary/delta_gap",
+                    "label": "aTB CT proxy trend",
+                    "value_preview": {
+                        "bucket": buckets.get("delta_gap"),
+                        "direction": direction.get("delta_gap"),
+                    },
+                    "role_hint": "context",
+                    "note_hint": f"ct proxy bucket={buckets.get('delta_gap')} direction={direction.get('delta_gap')}",
+                },
+                {
+                    "evidence_id": "E33",
+                    "source_type": "case",
+                    "case_path": "/evidence_readiness/atb/features_summary/delta_volume",
+                    "label": "aTB volume trend",
+                    "value_preview": {
+                        "bucket": buckets.get("delta_volume"),
+                        "direction": direction.get("delta_volume"),
+                    },
+                    "role_hint": "context",
+                    "note_hint": f"volume trend bucket={buckets.get('delta_volume')} direction={direction.get('delta_volume')}",
+                },
+                {
+                    "evidence_id": "E34",
+                    "source_type": "derived_pack",
+                    "pack_path": "/risk_scores/atb_trend_profile/overall_motion_proxy",
+                    "derived_from_case_paths": [
+                        "/evidence_readiness/atb/features_summary/delta_dihedral",
+                        "/evidence_readiness/atb/features_summary/delta_gap",
+                        "/evidence_readiness/atb/features_summary/delta_volume",
+                    ],
+                    "label": "aTB overall motion proxy",
+                    "value_preview": {"overall_motion_proxy": motion, "reliability": reliability},
+                    "role_hint": "context",
+                    "note_hint": "self-only motion proxy from bucketized aTB trend profile",
+                },
+            ]
+        )
+
+    def _append_registry_entry(row: Dict[str, Any]) -> None:
+        preview = row.get("value_preview")
+        if _is_empty_value(preview):
+            return
+        reg.append(row)
+
+    if isinstance(atb_ct_proxy_profile, dict):
+        _append_registry_entry(
+            {
+                "evidence_id": "E35",
+                "source_type": "case",
+                "case_path": "/evidence_readiness/atb/features_summary/delta_dipole",
+                "label": "aTB charge-separation proxy",
+                "value_preview": {
+                    "delta_dipole_bucket": atb_ct_proxy_profile.get("delta_dipole_bucket"),
+                    "delta_dipole_direction": atb_ct_proxy_profile.get("delta_dipole_direction"),
+                    "reliability": atb_ct_proxy_profile.get("reliability"),
+                },
+                "role_hint": "support",
+                "note_hint": "charge-separation change from target-only aTB",
+            }
+        )
+        _append_registry_entry(
+            {
+                "evidence_id": "E36",
+                "source_type": "derived_pack",
+                "pack_path": "/risk_scores/atb_ct_proxy_profile/ct_proxy_score",
+                "derived_from_case_paths": [
+                    "/evidence_readiness/atb/features_summary/delta_dipole",
+                    "/evidence_readiness/atb/features_summary/delta_gap",
+                ],
+                "label": "aTB CT proxy summary",
+                "value_preview": {
+                    "ct_proxy_score": atb_ct_proxy_profile.get("ct_proxy_score"),
+                    "delta_gap_bucket": atb_ct_proxy_profile.get("delta_gap_bucket"),
+                    "delta_dipole_bucket": atb_ct_proxy_profile.get("delta_dipole_bucket"),
+                },
+                "role_hint": "support",
+                "note_hint": "compact CT proxy from dipole and gap change",
+            }
+        )
+
+    if isinstance(atb_structural_relaxation_profile, dict):
+        _append_registry_entry(
+            {
+                "evidence_id": "E37",
+                "source_type": "derived_pack",
+                "pack_path": "/risk_scores/atb_structural_relaxation_profile/relaxation_proxy_score",
+                "derived_from_case_paths": [
+                    "/evidence_readiness/atb/features_summary/delta_dihedral",
+                    "/evidence_readiness/atb/features_summary/delta_bonds",
+                    "/evidence_readiness/atb/features_summary/delta_angles",
+                    "/evidence_readiness/atb/features_summary/delta_volume",
+                ],
+                "label": "aTB structural relaxation summary",
+                "value_preview": {
+                    "relaxation_proxy_score": atb_structural_relaxation_profile.get("relaxation_proxy_score"),
+                    "delta_dihedral_bucket": ((atb_structural_relaxation_profile.get("buckets") or {}).get("delta_dihedral")),
+                    "delta_volume_bucket": ((atb_structural_relaxation_profile.get("buckets") or {}).get("delta_volume")),
+                },
+                "role_hint": "support",
+                "note_hint": "combined structural relaxation from torsion, bonds, angles, and volume",
+            }
+        )
+        _append_registry_entry(
+            {
+                "evidence_id": "E38",
+                "source_type": "case",
+                "case_path": "/evidence_readiness/atb/features_summary/exciting_path_mean_volume",
+                "label": "aTB excited-path volume cue",
+                "value_preview": {
+                    "exciting_path_mean_volume": (
+                        ((case_json.get("evidence_readiness") or {}).get("atb") or {}).get("features_summary", {})
+                    ).get("exciting_path_mean_volume"),
+                },
+                "role_hint": "context",
+                "note_hint": "excited-path volume cue from cached aTB output",
+            }
+        )
+
+    if isinstance(atb_shape_rigidity_profile, dict):
+        _append_registry_entry(
+            {
+                "evidence_id": "E39",
+                "source_type": "derived_pack",
+                "pack_path": "/risk_scores/atb_shape_rigidity_profile/rigidity_proxy",
+                "derived_from_case_paths": [
+                    "/evidence_readiness/atb/features_summary/s0_rays_asymmetry_parameter",
+                    "/evidence_readiness/atb/features_summary/s1_rays_asymmetry_parameter",
+                    "/evidence_readiness/atb/features_summary/s0_rotational_constant_a",
+                    "/evidence_readiness/atb/features_summary/s1_rotational_constant_a",
+                ],
+                "label": "aTB shape-rigidity summary",
+                "value_preview": {
+                    "rigidity_proxy": atb_shape_rigidity_profile.get("rigidity_proxy"),
+                    "reliability": atb_shape_rigidity_profile.get("reliability"),
+                },
+                "role_hint": "context",
+                "note_hint": "auxiliary rigidity/shape cue from asymmetry and rotational changes",
+            }
+        )
+
     if include_atb_trends_self and isinstance(atb_trends_self, dict):
         if bool(atb_trends_self.get("enabled")) or str(atb_trends_self.get("reliability") or "").lower() in {"low", "medium", "high"}:
             reg_seed = [
@@ -1137,6 +1327,7 @@ def _build_evidence_registry(
                         "delta_dihedral_abs_deg": atb_trends_self.get("delta_dihedral_abs_deg"),
                         "delta_dihedral_bucket": atb_trends_self.get("delta_dihedral_bucket"),
                         "delta_dihedral_direction": atb_trends_self.get("delta_dihedral_direction"),
+                        "delta_dihedral_percentile_global": atb_trends_self.get("delta_dihedral_percentile_global"),
                     },
                     "support",
                     "Target-only torsional self trend bucket.",
@@ -1148,6 +1339,7 @@ def _build_evidence_registry(
                     {
                         "delta_gap_direction": atb_trends_self.get("delta_gap_direction"),
                         "delta_gap_bucket": atb_trends_self.get("delta_gap_bucket"),
+                        "delta_gap_percentile_global": atb_trends_self.get("delta_gap_percentile_global"),
                     },
                     "context",
                     "Target-only gap trend direction and magnitude bucket.",
@@ -1159,6 +1351,7 @@ def _build_evidence_registry(
                     {
                         "delta_volume_direction": atb_trends_self.get("delta_volume_direction"),
                         "delta_volume_bucket": atb_trends_self.get("delta_volume_bucket"),
+                        "delta_volume_percentile_global": atb_trends_self.get("delta_volume_percentile_global"),
                     },
                     "context",
                     "Target-only volume trend direction and magnitude bucket.",
@@ -1283,7 +1476,7 @@ def _build_evidence_registry(
             )
     # Keep registry compact (target <=20) while preserving derived comparative entries.
     if len(reg) > 20:
-        protected = {"E21", "E22", "E23", "E24", *ATB_TREND_EVIDENCE_IDS}
+        protected = {"E21", "E22", "E23", "E24", *ATB_TREND_PROFILE_EVIDENCE_IDS, *ATB_ENRICHMENT_EVIDENCE_IDS, *ATB_TREND_EVIDENCE_IDS}
         trimmed: List[Dict[str, Any]] = []
         for row in reg:
             if len(trimmed) >= 20:
@@ -1340,6 +1533,18 @@ def build_reasoning_pack(case_json: Dict[str, Any], reasoning_config: Dict[str, 
     include_neighbor_feature_rows = bool(active_profile_cfg.get("include_neighbor_feature_rows", False))
     include_target_atb_summary = bool(active_profile_cfg.get("include_target_atb_summary", True))
     include_target_atb_full = bool(active_profile_cfg.get("include_target_atb_full", False))
+    include_atb_trend_profile = bool(
+        active_profile_cfg.get("include_atb_trend_profile", active_profile in {"R1", "R2", "R3"})
+    )
+    include_atb_ct_proxy_profile = bool(
+        active_profile_cfg.get("include_atb_ct_proxy_profile", active_profile in {"R1", "R2", "R3"})
+    )
+    include_atb_structural_relaxation_profile = bool(
+        active_profile_cfg.get("include_atb_structural_relaxation_profile", active_profile in {"R1", "R2", "R3"})
+    )
+    include_atb_shape_rigidity_profile = bool(
+        active_profile_cfg.get("include_atb_shape_rigidity_profile", active_profile in {"R1", "R2", "R3"})
+    )
     include_literature_status = bool(active_profile_cfg.get("include_literature_status", True))
     include_experiment_status = bool(active_profile_cfg.get("include_experiment_status", True))
     registry_max_items = int(active_profile_cfg.get("registry_max_items", 20) or 20)
@@ -1380,6 +1585,52 @@ def build_reasoning_pack(case_json: Dict[str, Any], reasoning_config: Dict[str, 
             "notes": ["atb_trends_self disabled by profile"],
         }
     risk_subset["atb_trends_self"] = atb_trends_self
+    atb_trend_profile: Optional[Dict[str, Any]] = None
+    if (
+        include_atb_trend_profile
+        and include_target_atb_summary
+        and active_profile in {"R1", "R2", "R3"}
+        and atb_status == "success"
+        and isinstance(target_summary, dict)
+    ):
+        atb_trend_profile = compute_atb_trend_profile(target_summary)
+        risk_subset["atb_trend_profile"] = atb_trend_profile
+    atb_ct_proxy_profile: Optional[Dict[str, Any]] = None
+    if (
+        include_atb_ct_proxy_profile
+        and include_target_atb_summary
+        and active_profile in {"R1", "R2", "R3"}
+        and atb_status == "success"
+        and isinstance(target_summary, dict)
+    ):
+        atb_ct_proxy_profile = compute_atb_ct_proxy_profile(target_summary, thresholds=_thresholds(reasoning_config))
+        risk_subset["atb_ct_proxy_profile"] = atb_ct_proxy_profile
+    atb_structural_relaxation_profile: Optional[Dict[str, Any]] = None
+    if (
+        include_atb_structural_relaxation_profile
+        and include_target_atb_summary
+        and active_profile in {"R1", "R2", "R3"}
+        and atb_status == "success"
+        and isinstance(target_summary, dict)
+    ):
+        atb_structural_relaxation_profile = compute_atb_structural_relaxation_profile(
+            target_summary,
+            thresholds=_thresholds(reasoning_config),
+        )
+        risk_subset["atb_structural_relaxation_profile"] = atb_structural_relaxation_profile
+    atb_shape_rigidity_profile: Optional[Dict[str, Any]] = None
+    if (
+        include_atb_shape_rigidity_profile
+        and include_target_atb_summary
+        and active_profile in {"R1", "R2", "R3"}
+        and atb_status == "success"
+        and isinstance(target_summary, dict)
+    ):
+        atb_shape_rigidity_profile = compute_atb_shape_rigidity_profile(
+            target_summary,
+            thresholds=_thresholds(reasoning_config),
+        )
+        risk_subset["atb_shape_rigidity_profile"] = atb_shape_rigidity_profile
     if include_neighbor_atb_stats and active_profile in {"R2", "R3"}:
         neighbor_atb_stats = compute_neighbor_atb_stats_by_label(
             target_features_summary=target_summary if isinstance(target_summary, dict) else {},
@@ -1437,6 +1688,11 @@ def build_reasoning_pack(case_json: Dict[str, Any], reasoning_config: Dict[str, 
     pack["evidence_registry"] = _build_evidence_registry(
         case_json,
         neighbors_topk,
+        include_target_atb_signals=include_target_atb_summary and active_profile in {"R1", "R2", "R3"},
+        atb_trend_profile=atb_trend_profile,
+        atb_ct_proxy_profile=atb_ct_proxy_profile,
+        atb_structural_relaxation_profile=atb_structural_relaxation_profile,
+        atb_shape_rigidity_profile=atb_shape_rigidity_profile,
         include_literature_status=include_literature_status,
         include_experiment_status=include_experiment_status,
         include_atb_trends_self=include_atb_trends_self and active_profile in {"R1", "R2", "R3"},
@@ -1455,6 +1711,11 @@ def build_reasoning_pack(case_json: Dict[str, Any], reasoning_config: Dict[str, 
         pack["evidence_registry"] = _build_evidence_registry(
             case_json,
             pack["neighbors_topk"],
+            include_target_atb_signals=include_target_atb_summary and active_profile in {"R1", "R2", "R3"},
+            atb_trend_profile=atb_trend_profile,
+            atb_ct_proxy_profile=atb_ct_proxy_profile,
+            atb_structural_relaxation_profile=atb_structural_relaxation_profile,
+            atb_shape_rigidity_profile=atb_shape_rigidity_profile,
             include_literature_status=include_literature_status,
             include_experiment_status=include_experiment_status,
             include_atb_trends_self=include_atb_trends_self and active_profile in {"R1", "R2", "R3"},
@@ -1530,6 +1791,7 @@ def _candidate_set_text(reasoning_pack: Dict[str, Any]) -> str:
 def build_master_prompt_bundle(reasoning_pack: Dict[str, Any], reasoning_config: Dict[str, Any]) -> Dict[str, Any]:
     template = _choose_template(reasoning_pack)
     gate_mode = str((reasoning_pack.get("gate") or {}).get("reasoning_mode") or "normal").lower()
+    active_profile = str((((reasoning_pack.get("evidence_profile") or {}).get("active_profile")) or "R0")).upper()
     policy = _policy(reasoning_config)
     schema_version = str(reasoning_config.get("master_output_schema_version") or "v3").lower()
     output_mode = str(reasoning_config.get("master_output_mode") or MASTER_OUTPUT_MODE_TAGGED_REPAIR).strip().lower()
@@ -1560,7 +1822,8 @@ def build_master_prompt_bundle(reasoning_pack: Dict[str, Any], reasoning_config:
         "Evidence Weighting Policy:",
         f"- Neighbors are context/prior unless top1_sim >= {policy['neighbor_support_min_sim']:.2f}.",
         "- aTB features are support evidence when available.",
-        "- In R1+ profiles, use self-trend evidence IDs (E_ATB_TREND_1..4) as primary aTB support when present.",
+        "- In R1+ profiles, use self-trend evidence IDs (E31..E34) as primary aTB support when present.",
+        "- When available, also use E35..E39 to summarize CT proxy, structural relaxation, and shape-rigidity cues from target-only aTB.",
         "- Do not use raw absolute aTB values as standalone mechanism verdicts; cite self-trend buckets/directions first.",
         f"- {candidate_set_text}",
         "aTB discriminative rubric:",
@@ -1568,7 +1831,10 @@ def build_master_prompt_bundle(reasoning_pack: Dict[str, Any], reasoning_config:
         "- If you mention threshold logic in text, you must cite exact key=value from reasoning_config.thresholds.",
         "- Otherwise use relative wording only (e.g., modest/large) and avoid threshold/range/band/cutoff terms.",
         "- delta_gap is weak CT-family context only (never strong evidence).",
-        "- For aTB evidence, prefer direction/bucket wording from atb_trends_self over raw numeric thresholds.",
+        "- For aTB evidence, prefer direction/bucket wording from atb_trend_profile (or legacy atb_trends_self) over raw numeric thresholds.",
+        "- Treat delta_dipole plus delta_gap as the CT proxy axis; do not use delta_gap alone as the only CT argument when E35/E36 are available.",
+        "- Treat structural relaxation as a combined signal from torsion, bond, angle, and volume changes; do not rely on delta_dihedral alone when E37 is available.",
+        "- Treat shape-rigidity (E39) as auxiliary context only; it can support neutral-aromatic-like stability but should not override stronger CT or relaxation evidence.",
         "supporting_chain must contain exactly 4 ordered steps A->B->C->D:",
         "- A excited-state structural access (aTB features)",
         "- B hypothesized nonradiative channel",
@@ -1576,7 +1842,8 @@ def build_master_prompt_bundle(reasoning_pack: Dict[str, Any], reasoning_config:
         "- D discriminative predictions to separate the top competing mechanisms listed above (or the top hypotheses you propose if none are provided).",
         "- step_name must be chosen from: ct_family, torsion_access, aIE_bridge, neighbor_priors, discriminators, limits",
         "If constraints cannot be satisfied, set status=insufficient_evidence and still return predictions.",
-        "When citing evidence, use only evidence_id keys (E1, E2, ..., E_ATB_TREND_1..4).",
+        "When citing evidence, use only evidence_id keys (E1, E2, ..., E31..E34, plus legacy E_ATB_TREND_1..4 if present).",
+        "Additional cache-derived aTB evidence IDs may appear as E35..E39; prefer these summaries over raw field-by-field narration when they are present.",
         "Never output case_path anywhere in the JSON (including evidence_used, supporting_chain, competing_hypotheses, predictions).",
         f"PRIMARY_LABEL must be exactly one mechanism token from this set: {', '.join(allowed_labels)}. Do not add explanation text in PRIMARY_LABEL.",
         "Hard output budgets:",
@@ -1592,6 +1859,43 @@ def build_master_prompt_bundle(reasoning_pack: Dict[str, Any], reasoning_config:
         "Hard rule: DO NOT invent numeric thresholds/bands. If threshold mention is necessary, reference reasoning_config.thresholds key/value exactly.",
         f"Configured thresholds (authoritative): {json.dumps(thresholds, ensure_ascii=False, sort_keys=True)}",
     ]
+    if active_profile == "R0":
+        instructions.extend(
+            [
+                "Round contract (R0 prior-only):",
+                "- Treat this as a prior round from neighbor/similarity/novelty signals.",
+                "- Do NOT output a high-confidence final verdict; keep status=insufficient_evidence if uncertainty remains.",
+                "- Focus on candidate mechanism set and explicit discriminators needed for later rounds.",
+            ]
+        )
+    elif active_profile == "R1":
+        instructions.extend(
+            [
+                "Round contract (R1 target-constraint):",
+                "- Use E31..E34 as primary aTB evidence when present.",
+                "- Use E35/E36 to express CT-proxy gain or loss of support when available.",
+                "- Use E37 to express structural-relaxation gain or loss of support when available.",
+                "- Explain which candidate mechanisms gain/lose weight under target self-trend evidence.",
+                "- Prefer bucket/direction/percentile_global wording; do not make absolute-value threshold verdicts.",
+            ]
+        )
+    elif active_profile == "R2":
+        instructions.extend(
+            [
+                "Round contract (R2 comparative-control):",
+                "- Use comparative evidence (E21/E22/E23/E24) to assess neighbor transferability vs outlier behavior.",
+                "- Keep target-only evidence (E35..E39) in view when comparative neighbor evidence is weak or mixed.",
+                "- If comparative evidence is weak/unavailable, state limited information gain and avoid over-updating claims.",
+            ]
+        )
+    elif active_profile == "R3":
+        instructions.extend(
+            [
+                "Round contract (R3 external-evidence):",
+                "- Incorporate literature/experiment readiness with explicit strictness limits.",
+                "- Distinguish plausible narrative from externally verifiable support.",
+            ]
+        )
     if output_mode != MASTER_OUTPUT_MODE_STRICT_SCHEMA:
         instructions.extend(
             [
@@ -1611,11 +1915,10 @@ def build_master_prompt_bundle(reasoning_pack: Dict[str, Any], reasoning_config:
         )
     instructions.extend(
         [
-            "Confidence caps:",
-            "- Apply policy using reasoning_config.thresholds keys:",
-            "- top1_sim_low with conf_cap_top1_sim_low;",
-            "- entropy_high with conf_cap_entropy_high;",
-            "- if both conditions hold, use conf_cap_both.",
+            "Confidence policy:",
+            "- Use continuous soft-penalty factors from reasoning_config thresholds/policy; avoid hard step caps.",
+            "- Apply one final cap only at the end (global cap, and conservative cap when mode is conservative).",
+            "- In R0, apply the configured r0_penalty_factor as a soft multiplier rather than hard clipping.",
         ]
     )
 
@@ -2066,6 +2369,12 @@ def validate_master_output(
     evidence_registry = _registry_map(reasoning_pack.get("evidence_registry") or {})
     policy = _policy(reasoning_config)
     top1_sim = _to_float((reasoning_pack.get("risk_scores") or {}).get("top1_sim"))
+    active_profile = str((((reasoning_pack.get("evidence_profile") or {}).get("active_profile")) or "R0")).upper()
+    trend_ids_in_registry = {
+        eid
+        for eid in (*ATB_TREND_EVIDENCE_IDS, *ATB_TREND_PROFILE_EVIDENCE_IDS)
+        if eid in evidence_registry
+    }
     schema_version = str(reasoning_config.get("master_output_schema_version") or "v3").lower()
 
     # Phase A: structural validation (hard fail).
@@ -2301,6 +2610,23 @@ def validate_master_output(
                 if isinstance(ev, dict):
                     _validate_and_collect(ev, f"/predictions/{i}/evidence_used/{j}")
 
+    # Round-specific evidence discipline.
+    used_ids_set = {str(x) for x in used_evidence_ids}
+    if active_profile == "R1" and trend_ids_in_registry and used_ids_set.isdisjoint(trend_ids_in_registry):
+        warnings.append(
+            _warn(
+                "r1_missing_atb_self_trend_citation",
+                "/supporting_chain",
+                "R1 requires at least one self-trend evidence citation (E31..E34 or legacy E_ATB_TREND_*) when available",
+            )
+        )
+        out["status"] = "insufficient_evidence"
+        limits = _normalize_limits(out.get("limits"))
+        msg = "R1 output lacks self-trend citation; confidence kept conservative until trend evidence is used."
+        if msg not in limits:
+            limits.append(msg)
+        out["limits"] = limits
+
     def _prune_evidence_list(rows: Any) -> List[Dict[str, Any]]:
         out_rows: List[Dict[str, Any]] = []
         if not isinstance(rows, list):
@@ -2324,35 +2650,39 @@ def validate_master_output(
         if isinstance(row, dict):
             row["evidence_used"] = _prune_evidence_list(row.get("evidence_used"))
 
-    # Confidence caps (gate + risk conditions)
+    # Confidence sanity (single cap is applied in _soft_confidence upstream).
     confidence = (
         (out.get("mechanism_claim") or {}).get("confidence")
         if isinstance(out.get("mechanism_claim"), dict)
         else None
     )
-    conf_cap = _compute_confidence_cap(reasoning_pack, reasoning_config)
     try:
         conf_val = float(confidence)
-        if conf_val > conf_cap:
+        if conf_val < 0.05 or conf_val > 0.95:
+            bounded = max(0.05, min(0.95, conf_val))
             warnings.append(
                 _warn(
-                    "confidence_cap_exceeded",
+                    "confidence_out_of_bounds",
                     "/mechanism_claim/confidence",
-                    f"{conf_val}>{conf_cap}; clamped to cap",
+                    f"{conf_val} outside [0.05,0.95]; normalized to {bounded}",
                 )
             )
             if isinstance(out.get("mechanism_claim"), dict):
-                out["mechanism_claim"]["confidence"] = float(conf_cap)
+                out["mechanism_claim"]["confidence"] = float(bounded)
     except Exception:
         warnings.append(
             _warn(
                 "mechanism_claim_confidence_invalid",
                 "/mechanism_claim/confidence",
-                "confidence coerced to 0.0",
+                "confidence coerced to 0.05",
             )
         )
         if isinstance(out.get("mechanism_claim"), dict):
-            out["mechanism_claim"]["confidence"] = 0.0
+            out["mechanism_claim"]["confidence"] = 0.05
+
+    # R0 stays prior-only: status remains conservative, but no hard confidence cut.
+    if active_profile == "R0" and isinstance(out.get("mechanism_claim"), dict):
+        out["status"] = "insufficient_evidence"
 
     # Conservative constraints
     gate_mode = str((reasoning_pack.get("gate") or {}).get("reasoning_mode") or "").lower()

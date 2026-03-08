@@ -145,9 +145,9 @@ def test_round_runner_stops_when_profile_repeats_without_new_evidence(tmp_path: 
         start_profile="R2",
         run_master_fn=_master_stub,
     )
-    assert summary["executed_rounds"] == 2
+    assert summary["executed_rounds"] == 1
     assert summary["stopped"] is True
-    assert summary["stop_reason"] == "stagnation_no_new_evidence"
+    assert summary["stop_reason"] == "no_new_evidence_available_in_lane"
 
 
 def test_round_runner_stops_when_lane_has_no_higher_profile_and_no_new_evidence(tmp_path: Path):
@@ -192,4 +192,4 @@ def test_round_runner_r2_low_reliability_new_ids_do_not_count_as_effective_gain(
     # Round0 initializes hypothesis; Round1 should stop due to no effective gain in repeated R2 profile.
     assert summary["executed_rounds"] == 2
     assert summary["stopped"] is True
-    assert summary["stop_reason"] == "stagnation_no_new_evidence"
+    assert summary["stop_reason"] == "no_new_evidence_available_in_lane"

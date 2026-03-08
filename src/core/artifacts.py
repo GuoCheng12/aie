@@ -9,11 +9,12 @@ from pathlib import Path
 from typing import Any, Dict, List
 
 from src.core.hashing import sha256_file
+from src.core.safe_fs import safe_write_text
 
 
 def _json_dump(path: Path, obj: Any) -> None:
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(obj, indent=2, ensure_ascii=False), encoding="utf-8")
+    safe_write_text(path, json.dumps(obj, indent=2, ensure_ascii=False), encoding="utf-8")
 
 
 def _diff_paths(before: Any, after: Any, prefix: str = "") -> List[str]:
@@ -67,9 +68,15 @@ class StepArtifactWriter:
     ) -> Dict[str, str]:
         out_paths: Dict[str, str] = {}
         out_paths["00_input_snapshot"] = str(self.write_json("00_input_snapshot.json", input_snapshot))
+        out_paths["01_raw_outputs"] = str(self.write_json("01_raw_outputs.json", raw_outputs))
+        raw_index: Dict[str, str] = {}
         for raw_name, raw_obj in raw_outputs.items():
             safe = raw_name.replace("/", "_")
-            out_paths[f"raw:{raw_name}"] = str(self.write_json(f"{safe}.json", raw_obj))
+            p = self.write_json(f"01_raw_{safe}.json", raw_obj)
+            out_paths[f"raw:{raw_name}"] = str(p)
+            raw_index[raw_name] = str(p)
+        if raw_index:
+            out_paths["01_raw_index"] = str(self.write_json("01_raw_index.json", raw_index))
         out_paths["patch"] = str(self.write_json("03_patch.json", patch))
         out_paths["case_before"] = str(self.write_json("04_case_before.json", case_before))
         out_paths["case_after"] = str(self.write_json("05_case_after.json", case_after))
@@ -94,4 +101,3 @@ class StepArtifactWriter:
                 }
             )
         return {"files": rows}
-

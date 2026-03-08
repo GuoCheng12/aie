@@ -16,8 +16,8 @@ class TestCLIFieldFiltering:
         record = {
             "id": 1,
             "inchikey": "TEST-INCHIKEY-X",
-            "emission_sol": 450.0,
-            "qy_sol": 0.65,
+            "emission_solid": 500.0,
+            "emission_aggr": 520.0,
             "comment": "This is sensitive information that should be excluded",
             "random_field": "Should also be excluded",
         }
@@ -27,8 +27,8 @@ class TestCLIFieldFiltering:
         # Allowed fields should be present
         assert "id" in filtered
         assert "inchikey" in filtered
-        assert "emission_sol" in filtered
-        assert "qy_sol" in filtered
+        assert "emission_solid" in filtered
+        assert "emission_aggr" in filtered
 
         # Blocked/unlisted fields should NOT be present
         assert "comment" not in filtered
@@ -50,48 +50,35 @@ class TestCLIFieldFiltering:
         assert "comment" not in filtered
 
     def test_filter_record_fields_all_critical(self):
-        """Test filtering includes all critical photophysical fields."""
+        """Test filtering includes only train-only critical photophysical fields."""
         record = {
-            "emission_sol": 450.0,
             "emission_solid": 500.0,
             "emission_aggr": 520.0,
-            "emission_crys": 540.0,
-            "qy_sol": 0.65,
-            "qy_solid": 0.75,
-            "qy_aggr": 0.85,
-            "qy_crys": 0.95,
-            "tau_sol": 3.2,
-            "tau_solid": 4.5,
-            "tau_aggr": 5.1,
-            "tau_crys": 6.8,
-            "absorption": 430.0,
-            "tested_solvent": "THF",
         }
 
         filtered = filter_record_fields(record)
 
-        # All critical fields should be present
-        assert len(filtered) == 14
-        for field in record.keys():
-            assert field in filtered
+        assert len(filtered) == 2
+        assert "emission_solid" in filtered
+        assert "emission_aggr" in filtered
 
     def test_filter_record_fields_missing_indicators(self):
-        """Test that missing indicators are included."""
+        """Test that train-only missing indicators are included."""
         record = {
             "id": 1,
-            "emission_sol_missing": True,
+            "emission_solid_missing": True,
+            "emission_aggr_missing": False,
             "qy_crys_missing": True,
-            "tau_solid_missing": False,
         }
 
         filtered = filter_record_fields(record)
 
-        assert "emission_sol_missing" in filtered
-        assert "qy_crys_missing" in filtered
-        assert "tau_solid_missing" in filtered
+        assert "emission_solid_missing" in filtered
+        assert "emission_aggr_missing" in filtered
+        assert "qy_crys_missing" not in filtered
 
     def test_filter_record_fields_normalized_fields(self):
-        """Test that normalized/raw fields are included."""
+        """Train-only schema should exclude legacy normalized/raw fields."""
         record = {
             "qy_sol": 0.65,
             "qy_sol_raw": 65.0,
@@ -102,11 +89,7 @@ class TestCLIFieldFiltering:
 
         filtered = filter_record_fields(record)
 
-        assert "qy_sol" in filtered
-        assert "qy_sol_raw" in filtered
-        assert "tau_sol_log" in filtered
-        assert "tau_sol_outlier" in filtered
-        assert "qy_unit_inferred" in filtered
+        assert filtered == {}
 
     def test_blocklist_not_in_allowlist(self):
         """Verify blocklist items are not in allowlist (schema integrity check)."""

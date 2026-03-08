@@ -2,8 +2,8 @@
   "inchikey": "LUZNHKCZOIVKHD-UHFFFAOYSA-L",
   "run_status": "failed",
   "fail_stage": "opt",
-  "error_msg": "line 519, in get_property\n    self.calculate(atoms, [name], system_changes)\n  File \"/mnt/afs/250010045/conda/miniconda/envs/ase-amesp/lib/python3.10/site-packages/ase/calculators/calculator.py\", line 1163, in calculate\n    self.read_results()\n  File \"/mnt/afs/250010045/conda/miniconda/envs/ase-amesp/lib/python3.10/site-packages/PyAmesp/amesp.py\", line 115, in read_results\n    self.results['energy'] = parse_aop_energy(text, nimage)[-1]\nIndexError: index -1 is out of bounds for axis 0 with size 0\n",
-  "timestamp": "2026-01-22T22:58:12.003539",
+  "error_msg": "port setuptools first, and avoid setting SETUPTOOLS_USE_DISTUTILS=stdlib. Register concerns at https://github.com/pypa/setuptools/issues/new?template=distutils-deprecation.yml\n  warnings.warn(\n2026-01-29 20:25:16,395 | Start generating begin structure from SMILES\n2026-01-29 20:25:16,512 | Auto-detected charge from SMILES: 0\n2026-01-29 20:25:16,528 | Starting ground state optimization\n2026-01-29 20:25:20,307 | opt calculation failed\n2026-01-29 20:25:20,307 | Opt. Calculation failed. Exit code 1.\n",
+  "timestamp": "2026-01-29T20:25:20.914399",
   "atb_version": null,
-  "runtime_sec": 58.44
+  "runtime_sec": 19.3
 }

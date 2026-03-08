@@ -18,7 +18,13 @@ from src.reasoning.master_reasoner import (
     build_reasoning_pack,
     run_master_reasoner_once,
 )
+from src.reasoning.reasoning_config import build_allowed_mechanism_labels, build_reasoning_policy
 from src.tools.llm_client import LLMClientError, ResponsesLLMClient
+from src.tools.llm_trace_store import (
+    build_reasoning_five_signals,
+    write_agent_response_trace,
+    write_reasoning_five_signals,
+)
 
 
 def _now_iso8601() -> str:
@@ -49,6 +55,8 @@ class ReasoningAgent(CaseAgent):
         "/master_reasoning_meta",
         "/master_reasoning_status",
         "/master_reasoning_used_evidence_paths",
+        "/reasoning",
+        "/reasoning/",
         "/agent_runs/-",
     )
     append_only_prefixes = ("/agent_runs",)
@@ -58,14 +66,42 @@ class ReasoningAgent(CaseAgent):
         self.require_top1_for_master = bool(require_top1_for_master)
 
     def build_inputs(self, case: Dict[str, Any], ctx: AgentContext) -> Dict[str, Any]:
+        policy = build_reasoning_policy()
         reasoning_config = {
             "run_lane": ctx.run_lane,
             "model": ctx.model,
-            "reasoning_effort": ctx.llm_reasoning_effort,
+            "reasoning_effort": ctx.llm_reasoning_effort or "medium",
+            "temperature": float(ctx.llm_temperature),
+            "use_json_schema": bool(ctx.llm_use_json_schema),
+            "master_output_mode": "tagged_repair",
+            "allowed_mechanism_labels": build_allowed_mechanism_labels(),
+            "master": {
+                "model": ctx.model,
+                "reasoning_effort": ctx.llm_reasoning_effort or "medium",
+                "temperature": float(ctx.llm_temperature),
+                "use_json_schema": bool(ctx.llm_use_json_schema),
+            },
             "pack_version": MASTER_PACK_VERSION,
             "prompt_bundle_version": MASTER_PROMPT_BUNDLE_VERSION,
+            "master_output_schema_version": "v3",
             "require_top1_for_master": self.require_top1_for_master,
             "conservative_confidence_cap": 0.65,
+            "policy": policy,
+            "thresholds": {
+                "neighbor_support_min_sim": policy["neighbor_support_min_sim"],
+                "atb_dihedral_thresh_none": policy["atb_dihedral_thresh_none"],
+                "atb_dihedral_thresh_strong": policy["atb_dihedral_thresh_strong"],
+                "top1_sim_low": policy["top1_sim_low"],
+                "entropy_high": policy["entropy_high"],
+                # Backward-compatible keys for prompt/explainability paths.
+                # New policy uses soft penalty + final cap, but these keys may still be read.
+                "conf_cap_top1_sim_low": policy.get("conf_cap_top1_sim_low", 0.45),
+                "conf_cap_entropy_high": policy.get("conf_cap_entropy_high", 0.50),
+                "conf_cap_both": policy.get("conf_cap_both", 0.42),
+                "global_confidence_cap": policy.get("global_confidence_cap", 0.95),
+                "r0_penalty_factor": policy.get("r0_penalty_factor", 0.90),
+                "conservative_confidence_cap": 0.65,
+            },
         }
         reasoning_pack = build_reasoning_pack(case, reasoning_config)
         prompt_bundle = build_master_prompt_bundle(reasoning_pack, reasoning_config)
@@ -122,6 +158,8 @@ class ReasoningAgent(CaseAgent):
                 None,
                 status="stubbed",
                 used_paths=[],
+                used_evidence_ids=[],
+                used_evidence=[],
                 meta=meta,
             )
             return AgentResult(patch=patch, status="stubbed", raw_outputs={"reasoning_stub": meta})
@@ -133,6 +171,7 @@ class ReasoningAgent(CaseAgent):
                 api_key_env=ctx.llm_api_key_env,
                 max_output_tokens=ctx.llm_max_output_tokens,
                 reasoning_effort=ctx.llm_reasoning_effort,
+                temperature=ctx.llm_temperature,
             )
             run_out = run_master_reasoner_once(
                 case_json=case,
@@ -140,7 +179,43 @@ class ReasoningAgent(CaseAgent):
                 llm_client=llm,
                 reasoning_pack=inputs.get("reasoning_pack"),
             )
-            status = "completed" if run_out["status"] == "success" else "failed_schema_validation"
+            raw_status = str(run_out.get("status") or "failed_schema_validation")
+            if raw_status == "success":
+                status = "completed"
+            elif raw_status == "failed_llm":
+                status = "failed_llm"
+            else:
+                status = "failed_schema_validation"
+            llm_trace_payload = {
+                "run_id": ctx.run_id,
+                "case_id": case.get("case_id"),
+                "agent": self.name,
+                "model": ctx.model,
+                "reasoning_effort": ctx.llm_reasoning_effort,
+                "status": status,
+                "llm_failure_reason": run_out.get("llm_failure_reason"),
+                "validation_errors": run_out.get("validation_errors") or [],
+                "request": run_out.get("llm_request"),
+                "response_raw": run_out.get("llm_response_raw"),
+                "parsed": run_out.get("master_output_parsed"),
+            }
+            llm_trace_path = write_agent_response_trace(
+                ctx=ctx,
+                agent_name=self.name,
+                payload=llm_trace_payload,
+            )
+            summary5_path = write_reasoning_five_signals(
+                ctx=ctx,
+                payload=build_reasoning_five_signals(
+                    run_id=ctx.run_id,
+                    case_id=str(case.get("case_id") or ""),
+                    status=status,
+                    model=ctx.model,
+                    reasoning_effort=ctx.llm_reasoning_effort,
+                    parsed=run_out.get("master_output_parsed"),
+                ),
+            )
+            confidence_meta = run_out.get("confidence_meta") if isinstance(run_out.get("confidence_meta"), dict) else {}
             meta = {
                 "run_id": ctx.run_id,
                 "inputs_hash": inputs.get("pack_hash"),
@@ -150,7 +225,15 @@ class ReasoningAgent(CaseAgent):
                 "template_version": run_out.get("prompt_bundle", {}).get("template_version"),
                 "model": ctx.model,
                 "status": status,
+                "llm_failure_reason": run_out.get("llm_failure_reason"),
                 "errors": run_out.get("validation_errors") or [],
+                "llm_trace_path": llm_trace_path,
+                "summary5_path": summary5_path,
+                "raw_confidence_from_model": confidence_meta.get("raw_confidence_from_model"),
+                "final_confidence": confidence_meta.get("final_confidence"),
+                "confidence_components": confidence_meta.get("confidence_components"),
+                "penalty_components": confidence_meta.get("penalty_components"),
+                "confidence_formula_version": confidence_meta.get("confidence_formula_version"),
                 "updated_at": _now_iso8601(),
             }
             patch = build_master_patch(
@@ -158,6 +241,8 @@ class ReasoningAgent(CaseAgent):
                 run_out.get("normalized_output") if run_out["status"] == "success" else None,
                 status=status,
                 used_paths=run_out.get("used_case_paths") or [],
+                used_evidence_ids=run_out.get("used_evidence_ids") or [],
+                used_evidence=run_out.get("used_evidence") or [],
                 meta=meta,
             )
             raw.update(
@@ -166,13 +251,24 @@ class ReasoningAgent(CaseAgent):
                     "reasoning_pack": run_out.get("reasoning_pack"),
                     "llm_request": run_out.get("llm_request"),
                     "llm_response_raw": run_out.get("llm_response_raw"),
+                    "master_output_raw": run_out.get("master_output_raw"),
                     "master_output_parsed": run_out.get("master_output_parsed"),
                     "master_patch_preview": patch,
                     "validation_errors": run_out.get("validation_errors") or [],
+                    "llm_failure_reason": run_out.get("llm_failure_reason"),
+                    "llm_trace_path": llm_trace_path,
+                    "summary5_path": summary5_path,
                 }
             )
-            if run_out["status"] == "success":
+            if raw_status == "success":
                 return AgentResult(patch=patch, status="success", raw_outputs=raw)
+            if raw_status == "failed_llm":
+                return AgentResult(
+                    patch=patch,
+                    status="partial",
+                    warnings=["reasoning_llm_failed"],
+                    raw_outputs=raw,
+                )
             return AgentResult(
                 patch=patch,
                 status="partial",
@@ -180,6 +276,31 @@ class ReasoningAgent(CaseAgent):
                 raw_outputs=raw,
             )
         except LLMClientError as exc:
+            llm_trace_payload = {
+                "run_id": ctx.run_id,
+                "case_id": case.get("case_id"),
+                "agent": self.name,
+                "model": ctx.model,
+                "reasoning_effort": ctx.llm_reasoning_effort,
+                "status": "failed_llm",
+                "error": f"{exc}",
+            }
+            llm_trace_path = write_agent_response_trace(
+                ctx=ctx,
+                agent_name=self.name,
+                payload=llm_trace_payload,
+            )
+            summary5_path = write_reasoning_five_signals(
+                ctx=ctx,
+                payload=build_reasoning_five_signals(
+                    run_id=ctx.run_id,
+                    case_id=str(case.get("case_id") or ""),
+                    status="failed_llm",
+                    model=ctx.model,
+                    reasoning_effort=ctx.llm_reasoning_effort,
+                    parsed=None,
+                ),
+            )
             meta = {
                 "run_id": ctx.run_id,
                 "inputs_hash": inputs.get("pack_hash"),
@@ -190,12 +311,27 @@ class ReasoningAgent(CaseAgent):
                 "model": ctx.model,
                 "status": "failed_llm",
                 "errors": [f"llm_error:{exc}"],
+                "llm_trace_path": llm_trace_path,
+                "summary5_path": summary5_path,
                 "updated_at": _now_iso8601(),
             }
-            patch = build_master_patch(case, None, status="failed_llm", used_paths=[], meta=meta)
+            patch = build_master_patch(
+                case,
+                None,
+                status="failed_llm",
+                used_paths=[],
+                used_evidence_ids=[],
+                used_evidence=[],
+                meta=meta,
+            )
             return AgentResult(
                 patch=patch,
                 status="partial",
                 warnings=[f"reasoning_llm_failed:{exc}"],
-                raw_outputs={"validation_errors": [f"llm_error:{exc}"], "master_patch_preview": patch},
+                raw_outputs={
+                    "validation_errors": [f"llm_error:{exc}"],
+                    "master_patch_preview": patch,
+                    "llm_trace_path": llm_trace_path,
+                    "summary5_path": summary5_path,
+                },
             )

@@ -27,6 +27,133 @@ Orchestrator refactor: IN PROGRESS (moving from CLI-centered flows to patch-scop
 
 ---
 
+## 2026-03-06 — DeepSeek multi-agent runtime compatibility fixed (chat.completions path)
+
+- Root cause confirmed from failed multi-agent runs using `deepseek-v3.2`:
+  - the shared runtime client (`src/tools/llm_client.py`) only used `client.responses.create(...)`,
+  - the active gateway rejected `deepseek-v3.2` on the Responses API and returned empty outputs after retries,
+  - this surfaced upstream as `no_message_output` / `failed_schema_validation` even though the underlying error was API compatibility.
+- Implemented a shared fix in `src/tools/llm_client.py`:
+  - prefer `chat.completions` for DeepSeek-family models,
+  - keep existing Responses path for GPT/Responses-compatible models,
+  - add explicit fallback from Responses -> chat when the gateway returns `Unsupported model`.
+- Reused the already-proven strategy from the MinerU extractor path rather than changing orchestrator logic.
+- Added focused regression coverage in `tests/test_llm_client.py`:
+  - DeepSeek text mode uses `chat.completions` directly,
+  - JSON mode falls back to chat when Responses rejects the model,
+  - existing Responses retry/error-chain behavior remains intact.
+- Validation run in `aie` env:
+  - `pytest -q tests/test_llm_client.py tests/test_llm_evaluator.py tests/test_master_reasoner_llm_stability.py`
+  - result: `15 passed`
+
+---
+
+## 2026-03-04 — Output layout refactor lock (case-centric)
+
+- Locked runtime output migration from run-id scattered roots to case-centric navigation:
+  - `artifacts/cases/<case_id>/latest/`
+  - `artifacts/cases/<case_id>/runs/<timestamp>__<run_id8>/`
+  - `history_index.json` + `latest.json`
+- Locked default behaviors:
+  - naming key = `case_id + UTC compact timestamp`
+  - retention = latest 10 runs per case (configurable)
+  - one-version legacy pointer writes enabled for old run-id roots.
+- Locked operator-facing artifact:
+  - `latest/quick_view.json` as one-screen summary (label/confidence/gate/rounds/evidence ids/paths).
+- Scope explicitly non-functional:
+  - no change to orchestrator business semantics (patch/whitelist/idempotency/replay/no-touch evidence_table).
+
+---
+
+## 2026-03-04 — Output layout refactor implemented (case-centric + retention + legacy pointers)
+
+- Added `src/core/output_layout.py` as the single planner for runtime output paths:
+  - supports `case_centric` and `run_centric`,
+  - emits case-scoped `runs/<timestamp>__<run_id8>` names,
+  - manages `latest/`, `latest.json`, `history_index.json`,
+  - enforces per-case retention pruning (`retain-runs`).
+- Integrated output layout into `src/orchestration/run_one.py`:
+  - default layout is now case-centric,
+  - runtime writes `quick_view.json` for one-screen inspection,
+  - summary adds `primary_output_dir`, `latest_dir`, `history_index_path`, `legacy_paths`,
+  - legacy compatibility pointer files are emitted when enabled.
+- Updated LLM trace placement behavior:
+  - `src/tools/llm_trace_store.py` now supports run-scoped trace roots and explicit round trace directory separation.
+  - case-centric run stores round reports under `<run_dir>/rounds/` and LLM request/response traces under `<run_dir>/llm/`.
+- Updated `src/cli.py` / `src/orchestration/run_one.py` flags:
+  - `--output-layout`
+  - `--retain-runs`
+  - `--output-timestamp-format`
+  - `--write-legacy-run-view|--no-write-legacy-run-view`
+- Added tests:
+  - `tests/test_output_layout_case_centric_paths.py`
+  - `tests/test_output_latest_pointer_update.py`
+  - `tests/test_output_history_retention.py`
+  - `tests/test_output_legacy_compat_pointer.py`
+  - `tests/test_quick_view_contract.py`
+- Validation runs (aie env):
+  - `pytest -q tests/test_output_layout_case_centric_paths.py tests/test_output_latest_pointer_update.py tests/test_output_history_retention.py tests/test_output_legacy_compat_pointer.py tests/test_quick_view_contract.py tests/test_orchestration_run_one_status.py tests/test_round_runner_status_feedback.py` -> all passed.
+  - `pytest -q tests/test_cli_case_run.py tests/test_cli.py` -> passed.
+  - `pytest -q tests/test_llm_trace_store.py` -> passed.
+
+---
+
+## 2026-03-04 — Confidence de-collapse patch plan lock (minimal)
+
+- Locked change set to reduce confidence collapse without schema/orchestrator contract changes:
+  1) remove duplicate confidence clamp (keep one final cap stage only),
+  2) replace R0 hard cut (`<=0.45`) with auditable soft penalty factor,
+  3) add optional evaluator confidence adjustment (bounded ±0.05, default off) with explicit trigger/audit fields.
+- Scope constraints:
+  - do not modify `master_output_schema_v3`,
+  - do not change patch/whitelist/idempotency/replay/no-touch evidence table guarantees.
+- Audit requirements locked:
+  - master meta must expose `final_conf_pre_cap`, `final_conf_post_cap`, `cap_value`, `cap_reason`, and component factors,
+  - evaluator adjustment writes structured `post_uq.confidence_adjustment` and never mutates mechanism label/gate.
+
+---
+
+## 2026-03-04 — Confidence de-collapse implemented (single-cap + R0 soft penalty + optional evaluator adjustment)
+
+- Master confidence path refactored to avoid repeated hard clipping:
+  - `src/reasoning/master_reasoner.py` now computes:
+    - `final_conf_pre_cap = raw * sim_factor * ent_factor * mode_factor * neighbor_factor` (plus optional R0 soft penalty),
+    - single final cap stage only (`cap_value`), then bounded to `[0.05, 0.95]`.
+  - removed validator-stage duplicate confidence cap and removed R0 hard cut (`<=0.45`).
+  - confidence audit fields expanded in meta:
+    - `base_conf`, `sim_factor`, `ent_factor`, `mode_factor`, `neighbor_factor`,
+    - `final_conf_pre_cap`, `final_conf_post_cap`, `cap_value`, `cap_reason`,
+    - `r0_penalty_applied`, `r0_penalty_factor`.
+- Policy/config updates:
+  - `src/reasoning/reasoning_config.py` removed legacy hard cap constants (`conf_cap_*`) from active defaults.
+  - added `global_confidence_cap` and `r0_penalty_factor`.
+  - `round_runner` passes `round_index` into reasoning config so R0 penalty is explicit/auditable.
+- Optional evaluator confidence adjustment added (default off):
+  - new helper `apply_evaluator_confidence_adjustment(...)` in `src/agents/judge_agent.py`.
+  - bounded adjustment only (`max_abs_delta`, default `0.05`), only when enabled and trigger conditions are met.
+  - trigger sources:
+    - high-weight added evidence IDs (default set includes `E21..E24`),
+    - resolved conflicts.
+  - writes structured audit payload to `eval_report.confidence_adjustment`, propagated to `post_uq.confidence_adjustment`.
+  - mechanism label and gate are untouched by this adjustment path.
+- Runtime plumbing:
+  - `src/orchestration/round_runner.py` applies the adjustment after evaluator output (and optional llm layer merge),
+    using information-gain and conflict delta context.
+  - `src/orchestration/run_one.py` / `src/cli.py` expose optional toggles:
+    - `--evaluator-confidence-adjustment-enabled`
+    - `--evaluator-confidence-adjustment-max-abs-delta`
+  - run summary now includes `round_confidence_summary` for easier per-round inspection.
+- Tests added/updated and passed:
+  - `tests/test_confidence_not_double_clamped.py`
+  - `tests/test_r0_soft_penalty_no_hard_cut.py`
+  - `tests/test_evaluator_confidence_adjustment_guardrails.py`
+  - updated `tests/test_master_output_validation.py` expectation (no duplicate cap warning).
+  - targeted validation run:
+    - `pytest -q tests/test_confidence_not_double_clamped.py tests/test_r0_soft_penalty_no_hard_cut.py tests/test_evaluator_confidence_adjustment_guardrails.py tests/test_master_output_validation.py tests/test_confidence_soft_penalty_not_constant.py tests/test_round_runner_stagnation_stop.py tests/test_round_runner_status_feedback.py tests/test_orchestration_run_one_status.py tests/test_cli_case_run.py`
+    - result: all passed.
+
+---
+
 ## 2026-03-03 — Self-trend aTB evidence plan lock (R1 discriminative increment)
 
 - Problem statement locked:
@@ -41,6 +168,21 @@ Orchestrator refactor: IN PROGRESS (moving from CLI-centered flows to patch-scop
   - no orchestrator contract changes (patch/whitelist/idempotency/replay),
   - no evidence_table writeback,
   - no master output schema field additions (pack-only extension).
+
+## 2026-03-03 — Self-only aTB trend profile v1 (E31–E34)
+
+- Added a new self-only trend projection for Master input:
+  - `risk_scores.atb_trend_profile` (`atb_trend_v1`) computed from target `evidence_readiness.atb.features_summary` only.
+  - fixed bucket constants from successful aTB quantiles for `abs(delta_dihedral/gap/volume)`.
+  - direction semantics use sign + epsilon (`increase/decrease/flat/unknown`), independent from bucket strength.
+- Injected new evidence IDs for compact citation:
+  - `E31` torsion trend (`delta_dihedral`),
+  - `E32` CT proxy trend (`delta_gap`),
+  - `E33` volume trend (`delta_volume`),
+  - `E34` overall motion proxy (`derived_pack` path).
+- Goal of this change:
+  - make Master cite target self trend first in R1+, reducing over-reliance on neighbor labels for early rounds.
+  - keep token budget low while preserving evidence auditability.
 
 ---
 
@@ -4277,3 +4419,111 @@ python -m unittest -v tests.test_graph_retrieval_v1_p3
   - `tests/test_round_runner_stagnation_stop.py`
   - `tests/test_round_runner_llm_layer.py`
   - total: `13 passed`
+
+---
+
+## 2026-03-05 — Plan locked: test.csv mechanism benchmark (evaluation-only)
+
+### Intent
+
+- Build a reproducible benchmark runner over `data/test.csv` using release runtime.
+- Evaluate only mechanism-label agreement vs ground truth.
+- Do not change multi-agent reasoning strategy, schema, or evidence_table behavior.
+
+### Locked decisions
+
+- GT column: `mechanism_id`
+- Prediction path:
+  - primary `/master_reasoning/mechanism_claim/primary_hypothesis/mechanism_label`
+  - fallback `/reasoning/master_reasoning/mechanism_claim/primary_hypothesis/mechanism_label`
+- Runtime mode: single-pass (`iterative=false`) on `run_lane=atb_cache_only`
+- Determinism metadata recorded in report:
+  - model/base_url/reasoning_effort/temperature/json_schema usage
+  - `seed_supported=false`, `seed=null`
+- Evaluation label normalizer is benchmark-only.
+  - `clusterluminescence` and `ESIPT+ICT/TICT` map to `unknown`.
+
+### Deliverables
+
+- `src/eval/evaluate_testset.py`
+- `src/eval/label_normalizer.py`
+- reports under `artifacts/eval/<timestamp>/`:
+  - `predictions.csv`
+  - `evaluation_report.json`
+  - `evaluation_report.md`
+  - optional `failed_cases_index.json`
+
+### Implemented
+
+- Added benchmark runner:
+  - `src/eval/evaluate_testset.py`
+  - release runtime invocation via `src.orchestration.run_one.run_one`
+  - per-row failure tolerance (`failed_run`, `missing_pred`, `missing_gt`, `ok`)
+  - resume support by reusing existing `predictions.csv` in the same `eval_id`
+- Added evaluation-only label normalizer:
+  - `src/eval/label_normalizer.py`
+  - canonical labels: `TICT`, `ICT`, `ESIPT`, `neutral aromatic`, `other`, `unknown`
+  - locked mapping: `clusterluminescence` and `ESIPT+ICT/TICT` -> `unknown`
+- Added outputs under `artifacts/eval/<eval_id>/`:
+  - `predictions.csv`
+  - `evaluation_report.json`
+  - `evaluation_report.md`
+  - `failed_cases_index.json`
+- Metrics implemented:
+  - `top1_accuracy`, `macro_f1`, `per_class_precision_recall_f1`, `confusion_matrix` (on `status=ok`)
+  - `coverage`, `unknown_rate` (full-set derived)
+- Determinism metadata recorded in report:
+  - model/base_url/reasoning_effort/temperature/json_schema usage
+  - `seed_supported=false`, `seed=null`
+
+### Tests
+
+- Added:
+  - `tests/test_eval_label_normalizer.py`
+  - `tests/test_eval_prediction_extractor.py`
+  - `tests/test_eval_pipeline_smoke.py`
+- Result:
+  - `6 passed`
+
+### UX update for benchmark run visibility
+
+- Added live, clean progress output in `src/eval/evaluate_testset.py`:
+  - current sample index + SMILES
+  - current round index (from `run_status.json`)
+  - running accuracy on completed `status=ok` rows
+  - total progress bar
+- Suppressed runtime JSON progress spam in eval mode by muting
+  `emit_progress_event`/`emit_error_summary` during per-sample execution.
+- Added CLI toggles:
+  - `--show-progress/--no-show-progress` (default on)
+  - `--print-report/--no-print-report` (default off)
+
+---
+
+## 2026-03-06 — Cache-derived aTB evidence enrichment for master reasoning
+
+- Expanded cache-backed `features_summary` extraction to surface more of the already-available aTB signal without changing gate semantics:
+  - `delta_dipole`, `delta_bonds`, `delta_angles`
+  - `exciting_path_mean_volume`
+  - asymmetry and rotational-constant fields
+- Added three new compact target-only reasoning profiles from existing aTB cache content:
+  - `risk_scores.atb_ct_proxy_profile`
+  - `risk_scores.atb_structural_relaxation_profile`
+  - `risk_scores.atb_shape_rigidity_profile`
+- Wired the new profiles into `R1+` reasoning packs and evidence registry with compact evidence IDs:
+  - `E35` charge-separation proxy
+  - `E36` CT proxy summary
+  - `E37` structural relaxation summary
+  - `E38` excited-path volume cue
+  - `E39` shape-rigidity summary
+- Updated master prompt guidance so target-only aTB reasoning now explicitly prefers:
+  - `delta_dipole + delta_gap` for CT proxy
+  - `delta_dihedral + delta_bonds + delta_angles + delta_volume` for structural relaxation
+  instead of treating `delta_dihedral` as the only meaningful structural cue.
+- Kept runtime contracts unchanged:
+  - no master schema change,
+  - no evidence_table writeback,
+  - no orchestrator patch/whitelist/idempotency changes.
+- Validation/tests run in `aie`:
+  - `pytest -q tests/test_atb_cache_derived_profiles.py tests/test_chem_agent_atb.py tests/test_reasoning_pack_builder.py tests/test_reasoning_pack_r1_includes_atb_trends_self.py tests/test_master_output_validation.py`
+  - result: `28 passed`

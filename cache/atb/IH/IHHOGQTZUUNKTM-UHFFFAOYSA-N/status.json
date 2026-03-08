@@ -1,9 +1,9 @@
 {
   "inchikey": "IHHOGQTZUUNKTM-UHFFFAOYSA-N",
   "run_status": "failed",
-  "fail_stage": "excit",
-  "error_msg": "Timeout after 1800s",
-  "timestamp": "2026-01-23T17:29:38.446133",
+  "fail_stage": "opt",
+  "error_msg": "8)\n[20:00:14] UFFTYPER: Unrecognized atom type: Zn1+2 (47)\n[20:00:14] UFFTYPER: Unrecognized atom type: Zn1+2 (28)\n[20:00:14] UFFTYPER: Unrecognized atom type: Zn1+2 (47)\n2026-01-30 20:00:15,467 | Auto-detected charge from SMILES: 4\n2026-01-30 20:00:15,481 | Starting ground state optimization\n2026-01-30 20:01:11,777 | Calculation did not complete successfully.\n2026-01-30 20:01:11,777 | opt calculation did not complete successfully.\n2026-01-30 20:01:11,777 | Opt. Calculation failed. Exit code 1.\n",
+  "timestamp": "2026-01-30T20:01:12.378921",
   "atb_version": null,
-  "runtime_sec": 1800.61
+  "runtime_sec": 72.14
 }

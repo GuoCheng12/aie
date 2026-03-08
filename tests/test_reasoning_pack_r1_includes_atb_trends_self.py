@@ -29,6 +29,14 @@ def _case_fixture() -> dict:
                     "delta_gap": -0.34,
                     "delta_volume": 0.42,
                     "excitation_energy": 1.83,
+                    "delta_dipole": 0.51,
+                    "delta_bonds": 0.04,
+                    "delta_angles": 0.35,
+                    "exciting_path_mean_volume": 2.7,
+                    "s0_rays_asymmetry_parameter": 0.10,
+                    "s1_rays_asymmetry_parameter": 0.12,
+                    "s0_rotational_constant_a": 1.0,
+                    "s1_rotational_constant_a": 0.98,
                 },
             },
             "literature": {"status": "not_started", "notes": "lane_disabled"},
@@ -50,10 +58,27 @@ def test_reasoning_pack_r1_contains_atb_trends_self_and_registry_ids():
     assert trends.get("delta_dihedral_bucket") in {"none", "weak", "strong"}
     assert trends.get("delta_gap_direction") in {"decrease", "flat", "increase", "unknown"}
     assert trends.get("delta_volume_direction") in {"decrease", "flat", "increase", "unknown"}
+    assert 0.0 <= float(trends.get("delta_dihedral_percentile_global")) <= 1.0
+    assert 0.0 <= float(trends.get("delta_gap_percentile_global")) <= 1.0
+    assert 0.0 <= float(trends.get("delta_volume_percentile_global")) <= 1.0
 
     ids = {str(x.get("evidence_id")) for x in (pack.get("evidence_registry") or []) if isinstance(x, dict)}
     assert "E_ATB_TREND_1" in ids
     assert "E_ATB_TREND_2" in ids
     assert "E_ATB_TREND_3" in ids
     assert "E_ATB_TREND_4" in ids
+    assert "E31" in ids
+    assert "E32" in ids
+    assert "E33" in ids
+    assert "E34" in ids
+    assert "E35" in ids
+    assert "E36" in ids
+    assert "E37" in ids
+    assert "E38" in ids
+    assert "E39" in ids
 
+    trend_profile = ((pack.get("risk_scores") or {}).get("atb_trend_profile")) or {}
+    assert trend_profile.get("version") == "atb_trend_v1"
+    assert ((pack.get("risk_scores") or {}).get("atb_ct_proxy_profile") or {}).get("version") == "atb_ct_proxy_v1"
+    assert ((pack.get("risk_scores") or {}).get("atb_structural_relaxation_profile") or {}).get("version") == "atb_structural_relaxation_v1"
+    assert ((pack.get("risk_scores") or {}).get("atb_shape_rigidity_profile") or {}).get("version") == "atb_shape_rigidity_v1"

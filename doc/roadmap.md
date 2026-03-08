@@ -125,6 +125,21 @@ Introduce a domain knowledge graph as explicit external memory:
   - Deliverable: official release entrypoint `case-run` with platform-level replay/patch/idempotency/no-touch guarantees.
   - Sequence: Data Agent -> Chem Agent -> Ready Agent -> (conditional) Reasoning Agent -> Judge Agent -> Ready Agent.
   - Checklist add-on: integrate `risk_scores.atb_neighbor_consistency` in ChemAgent (compute) and ReadyAgent (reasoning-mode/rationale actioning) without changing structure retrieval.
+  - Checklist add-on (iterative v2.4):
+    - R2 introduces compact `neighbor_atb_stats` as discriminative evidence (`E21+`) for master reasoning.
+    - Evaluator detects no-information-gain stagnation and emits explicit stop reasons (`stagnation_no_new_evidence`, `no_new_evidence_available_in_lane`).
+    - `atb_cache_only` action ranking prioritizes lane-unblock actions (`switch_run_lane_offline_pdf`, `provide_offline_pdf`) over repeated manual placeholders.
+  - Checklist add-on (final v3 lock):
+    - Replace keyword-derived master label parsing with explicit `PRIMARY_LABEL` + configured label pool (`allowed_mechanism_labels` + candidate labels).
+    - Replace hard confidence clipping behavior with auditable soft-penalty confidence (`raw_confidence_from_model` -> `final_confidence` + penalty components).
+    - Upgrade R2 evidence to `neighbor_atb_stats_by_label` with deterministic `<3KB` trim and discriminative `separation_score`.
+    - Add pre-R2 failure recovery guard in iterative loop to avoid premature stop on repeated master failures.
+    - Move evidence-table no-touch behavior guard to core write entrypoints while retaining content-hash checks.
+  - Checklist add-on (output usability refactor):
+    - Default runtime output layout becomes case-centric (`artifacts/cases/<case_id>/...`) with `latest/` + `runs/` + `history_index.json`.
+    - Add `quick_view.json` for one-screen run outcome inspection.
+    - Keep one-version legacy pointer views for old run-id roots.
+    - Add retention policy (`retain-runs`, default `10`) for per-case run directories.
 - Parallel lane:
   - **P4-pre (offline_pdf lane)**: run single-sample emission completion with MinerU + LLM extraction.
   - **P4 (web_search lane, teammate owner)**: stabilize citations/sources passthrough before strict writeback.

@@ -2,8 +2,8 @@
   "inchikey": "VLGCQQZATIRRRB-UHFFFAOYSA-N",
   "run_status": "failed",
   "fail_stage": "excit",
-  "error_msg": "Timeout after 1800s",
-  "timestamp": "2026-01-24T07:35:59.088042",
+  "error_msg": "/site-packages/ase/calculators/calculator.py\", line 1163, in calculate\n    self.read_results()\n  File \"/mnt/afs/250010045/conda/miniconda/envs/ase-amesp/lib/python3.10/site-packages/PyAmesp/amesp.py\", line 115, in read_results\n    self.results['energy'] = parse_aop_energy(text, nimage)[-1]\nIndexError: index -1 is out of bounds for axis 0 with size 0\n2026-02-12 12:00:37,869 | NEB optimization did not converge within the maximum steps\n2026-02-12 12:00:37,873 | NEB calculation failed. Exit code 3.\n",
+  "timestamp": "2026-02-12T12:00:38.702290",
   "atb_version": null,
-  "runtime_sec": 1800.6
+  "runtime_sec": 79171.89
 }

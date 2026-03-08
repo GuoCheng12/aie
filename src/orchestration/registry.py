@@ -14,7 +14,7 @@ from src.agents.reasoning_agent import ReasoningAgent
 from src.agents.ready_agent import ReadyAgent
 
 
-def build_default_agents() -> List[CaseAgent]:
+def build_default_agents(*, neighbor_topk: int = 10) -> List[CaseAgent]:
     """
     Default execution order:
       1) Data
@@ -25,7 +25,7 @@ def build_default_agents() -> List[CaseAgent]:
       6) Ready (final)
     """
     return [
-        DataCaseAgent(),
+        DataCaseAgent(top_k=int(neighbor_topk)),
         ChemAgent(),
         ReadyAgent(),
         ReasoningAgent(use_llm=True),
@@ -33,3 +33,16 @@ def build_default_agents() -> List[CaseAgent]:
         ReadyAgent(),
     ]
 
+
+def build_setup_agents(*, neighbor_topk: int = 10) -> List[CaseAgent]:
+    """
+    Setup-only execution order for iterative round runner:
+      1) Data
+      2) Chem
+      3) Ready
+    """
+    return [
+        DataCaseAgent(top_k=int(neighbor_topk)),
+        ChemAgent(),
+        ReadyAgent(),
+    ]

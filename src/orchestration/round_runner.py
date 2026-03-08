@@ -13,7 +13,11 @@ from pathlib import Path
 from time import perf_counter
 from typing import Any, Callable, Dict, List, Optional, Sequence, Tuple
 
-from src.agents.judge_agent import build_eval_report, build_post_uq_from_eval
+from src.agents.judge_agent import (
+    apply_evaluator_confidence_adjustment,
+    build_eval_report,
+    build_post_uq_from_eval,
+)
 from src.agents.judge_agent import JudgeAgent
 from src.agents.llm_evaluator import LLMEvaluator, merge_eval_report_with_llm_layer
 from src.agents.reasoning_agent import ReasoningAgent
@@ -25,6 +29,7 @@ from src.reasoning.master_reasoner import build_master_patch, run_master_reasone
 from src.reasoning.reasoning_config import build_allowed_mechanism_labels, build_reasoning_policy
 from src.tools.llm_client import LLMClientError, ResponsesLLMClient
 from src.tools.llm_trace_store import (
+    resolve_rounds_trace_dir,
     write_agent_response_trace,
     write_eval_report,
     write_master_round_report,
@@ -68,16 +73,28 @@ def _build_reasoning_config(
     ctx: AgentContext,
     *,
     active_profile: str,
+    round_index: int,
     profiles_cfg: Dict[str, Any],
+    neighbor_topk: int = 10,
     evaluator_use_llm: bool = False,
     master_model: Optional[str] = None,
     master_reasoning_effort: Optional[str] = None,
     evaluator_model: Optional[str] = None,
     evaluator_reasoning_effort: Optional[str] = None,
+    evaluator_confidence_adjustment_enabled: bool = False,
+    evaluator_confidence_adjustment_max_abs_delta: float = 0.05,
 ) -> Dict[str, Any]:
     policy = build_reasoning_policy()
     resolved_master_model = str(master_model or ctx.model)
     resolved_master_effort = master_reasoning_effort if master_reasoning_effort is not None else (ctx.llm_reasoning_effort or "medium")
+    resolved_neighbor_topk = max(1, int(neighbor_topk or 10))
+    profiles_copy = deepcopy((profiles_cfg or {}).get("profiles") or {})
+    for name, row in profiles_copy.items():
+        if not isinstance(row, dict):
+            continue
+        if str(name).upper() in {"R0", "R1", "R2", "R3"}:
+            row["neighbor_topk"] = resolved_neighbor_topk
+
     return {
         "run_lane": ctx.run_lane,
         # Backward-compatible top-level mirrors master defaults.
@@ -86,6 +103,7 @@ def _build_reasoning_config(
         "temperature": float(ctx.llm_temperature),
         "use_json_schema": bool(ctx.llm_use_json_schema),
         "master_output_mode": "tagged_repair",
+        "round_index": int(round_index),
         "allowed_mechanism_labels": build_allowed_mechanism_labels(),
         "master": {
             "model": resolved_master_model,
@@ -111,14 +129,19 @@ def _build_reasoning_config(
             "atb_vol_strong": policy.get("atb_vol_strong", 2.0),
             "top1_sim_low": policy["top1_sim_low"],
             "entropy_high": policy["entropy_high"],
-            "conf_cap_top1_sim_low": policy["conf_cap_top1_sim_low"],
-            "conf_cap_entropy_high": policy["conf_cap_entropy_high"],
-            "conf_cap_both": policy["conf_cap_both"],
+            "global_confidence_cap": policy.get("global_confidence_cap", 0.95),
+            "r0_penalty_factor": policy.get("r0_penalty_factor", 0.90),
             "conservative_confidence_cap": 0.65,
+        },
+        "evaluator_confidence_adjustment": {
+            "enabled": bool(evaluator_confidence_adjustment_enabled),
+            "max_abs_delta": float(max(0.0, min(0.2, evaluator_confidence_adjustment_max_abs_delta))),
+            "require_new_evidence": True,
+            "high_weight_evidence_ids": ["E21", "E22", "E23", "E24"],
         },
         "evidence_profiles": {
             "active_profile": active_profile,
-            "profiles": deepcopy((profiles_cfg or {}).get("profiles") or {}),
+            "profiles": profiles_copy,
         },
         "evaluator": {
             "use_llm": bool(evaluator_use_llm),
@@ -393,7 +416,10 @@ def run_iterative_rounds(
     master_reasoning_effort: Optional[str] = None,
     evaluator_model: Optional[str] = None,
     evaluator_reasoning_effort: Optional[str] = None,
+    evaluator_confidence_adjustment_enabled: bool = False,
+    evaluator_confidence_adjustment_max_abs_delta: float = 0.05,
     pre_r2_failure_recovery_mode: str = "force_r2",
+    neighbor_topk: int = 10,
 ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
     if mode not in ROUND_RUNNER_MODES:
         raise ValueError(f"unsupported_round_runner_mode:{mode}")
@@ -436,9 +462,11 @@ def run_iterative_rounds(
     prev_used_ids: List[str] = []
     seen_used_ids_global: set[str] = set()
     prev_conflict_ids: List[str] = []
+    prev_feasibility_score: Optional[float] = None
+    prev_scorecard_total: Optional[float] = None
     invalid_master_streak = 0
     pre_r2_recovery_used = False
-    rounds_root = (Path(ctx.llm_response_dir) / str(ctx.run_id) / "rounds").resolve()
+    rounds_root = resolve_rounds_trace_dir(ctx, create=True).resolve()
 
     def _update_status(
         *,
@@ -506,12 +534,16 @@ def run_iterative_rounds(
         reasoning_config = _build_reasoning_config(
             ctx,
             active_profile=active_profile,
+            round_index=round_index,
             profiles_cfg=profiles_cfg,
+            neighbor_topk=neighbor_topk,
             evaluator_use_llm=evaluator_use_llm,
             master_model=master_model,
             master_reasoning_effort=master_reasoning_effort,
             evaluator_model=evaluator_model,
             evaluator_reasoning_effort=evaluator_reasoning_effort,
+            evaluator_confidence_adjustment_enabled=evaluator_confidence_adjustment_enabled,
+            evaluator_confidence_adjustment_max_abs_delta=evaluator_confidence_adjustment_max_abs_delta,
         )
         master_status = "failed_schema_validation"
         run_out: Dict[str, Any]
@@ -706,6 +738,54 @@ def run_iterative_rounds(
                     status="failed",
                     t0=t_judge_llm,
                 )
+
+        current_unresolved_conflicts = set(
+            str((row or {}).get("conflict_id") or "")
+            for row in (eval_report.get("conflict_adjudication") or [])
+            if isinstance(row, dict) and str((row or {}).get("status") or "").lower() != "resolved"
+        )
+        current_unresolved_conflicts.discard("")
+        prev_conflict_set = set(str(x) for x in prev_conflict_ids if str(x))
+        resolved_conflicts = sorted(prev_conflict_set - current_unresolved_conflicts)
+        new_conflicts = sorted(current_unresolved_conflicts - prev_conflict_set)
+
+        current_feasibility = _to_float(((eval_report.get("feasibility") or {}).get("overall_score")))
+        if current_feasibility is None:
+            current_feasibility = 0.0
+        scorecard_total = 0.0
+        for row in (eval_report.get("evidence_scorecard") or []):
+            if not isinstance(row, dict):
+                continue
+            scorecard_total += float(_to_float(row.get("score")) or 0.0)
+        scorecard_improved = (
+            prev_scorecard_total is not None and float(scorecard_total) > float(prev_scorecard_total) + 1.0e-12
+        )
+        feasibility_improved = (
+            prev_feasibility_score is not None and float(current_feasibility) > float(prev_feasibility_score) + 1.0e-12
+        )
+        claim_conf = _to_float((_extract_mechanism_claim(parsed_master) or {}).get("confidence"))
+        if claim_conf is None:
+            claim_conf = _to_float(((eval_report.get("confidence_update") or {}).get("new")))
+        if claim_conf is None:
+            claim_conf = 0.05
+        global_cap = float(((reasoning_config.get("thresholds") or {}).get("global_confidence_cap") or 0.95))
+        cap_value = max(0.05, min(0.95, global_cap))
+        gate_mode = str((current.get("current_gate") or {}).get("reasoning_mode") or "").lower()
+        if gate_mode == "conservative":
+            cap_value = min(cap_value, float(reasoning_config.get("conservative_confidence_cap", 0.65)))
+
+        eval_report = apply_evaluator_confidence_adjustment(
+            eval_report=eval_report,
+            config=deepcopy(reasoning_config.get("evaluator_confidence_adjustment") or {}),
+            master_confidence=float(claim_conf),
+            cap=float(cap_value),
+            added_ids=list(effective_added_ids),
+            count_added=int(count_added),
+            resolved_conflicts=resolved_conflicts,
+            scorecard_improved=bool(scorecard_improved),
+            feasibility_improved=bool(feasibility_improved),
+            conflicts_increased=bool(new_conflicts),
+        )
 
         suggested_next = str(eval_report.get("next_round_profile") or "NONE").upper()
         chosen_next = suggested_next
@@ -953,6 +1033,14 @@ def run_iterative_rounds(
             if isinstance(row, dict) and str((row or {}).get("status") or "").lower() != "resolved"
         ]
         prev_conflict_ids = [x for x in prev_conflict_ids if x]
+        prev_feasibility_score = _to_float(((eval_report.get("feasibility") or {}).get("overall_score")))
+        if prev_feasibility_score is None:
+            prev_feasibility_score = 0.0
+        prev_scorecard_total = 0.0
+        for row in (eval_report.get("evidence_scorecard") or []):
+            if not isinstance(row, dict):
+                continue
+            prev_scorecard_total += float(_to_float(row.get("score")) or 0.0)
 
         if stop_now:
             break

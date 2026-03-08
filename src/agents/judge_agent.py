@@ -5,7 +5,7 @@ Judge Agent: post-reasoning critique and next-action suggestions.
 from __future__ import annotations
 
 from copy import deepcopy
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Sequence
 
 from src.agents.base import CaseAgent
 from src.core.types import AgentContext, AgentResult
@@ -204,6 +204,10 @@ def build_eval_report(
         should_stop = True
         reason_code = "no_new_evidence_available_in_lane"
         next_profile = "NONE"
+    elif lane_atb_only and str(active_profile or "").upper() in {"R2", "R3"} and count_added == 0:
+        should_stop = True
+        reason_code = "no_new_evidence_available_in_lane"
+        next_profile = "NONE"
     elif not effective_gain and profile_repeated:
         should_stop = True
         reason_code = "stagnation_no_new_evidence"
@@ -307,13 +311,106 @@ def build_post_uq_from_eval(eval_report: Dict[str, Any]) -> Dict[str, Any]:
         if act and act not in recommended:
             recommended.append(act)
     conf = _to_float(((eval_copy.get("confidence_update") or {}).get("new")))
+    confidence_adjustment = eval_copy.get("confidence_adjustment")
+    if not isinstance(confidence_adjustment, dict):
+        confidence_adjustment = {}
     return {
         "status": str(eval_copy.get("status") or "not_started"),
         "confidence": conf,
         "contradictions": contradictions,
         "missing_evidence": missing,
         "recommended_actions": recommended,
+        "confidence_adjustment": confidence_adjustment,
     }
+
+
+def apply_evaluator_confidence_adjustment(
+    *,
+    eval_report: Dict[str, Any],
+    config: Dict[str, Any],
+    master_confidence: float,
+    cap: float,
+    added_ids: Sequence[str],
+    count_added: int,
+    resolved_conflicts: Sequence[str],
+    scorecard_improved: bool,
+    feasibility_improved: bool,
+    conflicts_increased: bool,
+) -> Dict[str, Any]:
+    out = deepcopy(eval_report if isinstance(eval_report, dict) else {})
+    cfg = config if isinstance(config, dict) else {}
+    enabled = bool(cfg.get("enabled", False))
+    max_abs = float(cfg.get("max_abs_delta", 0.05) or 0.05)
+    max_abs = max(0.0, min(0.2, max_abs))
+    require_new = bool(cfg.get("require_new_evidence", True))
+    high_weight = {str(x).strip() for x in (cfg.get("high_weight_evidence_ids") or []) if str(x).strip()}
+
+    added_norm = [str(x).strip() for x in added_ids if str(x).strip()]
+    high_weight_added = [x for x in added_norm if x in high_weight] if high_weight else list(added_norm)
+    has_resolved_conflicts = bool([str(x).strip() for x in resolved_conflicts if str(x).strip()])
+    cond_new_high_weight = int(count_added or 0) > 0 and bool(high_weight_added)
+    trigger = bool(cond_new_high_weight or has_resolved_conflicts)
+
+    if not enabled:
+        out["confidence_adjustment"] = {
+            "enabled": False,
+            "applied": False,
+            "reason": "disabled",
+        }
+        return out
+    if require_new and not trigger:
+        out["confidence_adjustment"] = {
+            "enabled": True,
+            "applied": False,
+            "reason": "trigger_not_met",
+            "triggered_by": {"added_ids": added_norm, "resolved_conflicts": list(resolved_conflicts or [])},
+            "bounded_by": {"max_abs_delta": max_abs, "cap": float(cap)},
+        }
+        return out
+
+    positive = int(bool(scorecard_improved)) + int(bool(feasibility_improved)) + int(has_resolved_conflicts)
+    negative = int(bool(conflicts_increased))
+    if positive > negative:
+        direction = 1.0
+    elif negative > positive:
+        direction = -1.0
+    else:
+        direction = 1.0 if cond_new_high_weight and not conflicts_increased else 0.0
+
+    magnitude = max_abs if has_resolved_conflicts else (max_abs * 0.6)
+    delta = round(direction * magnitude, 6)
+    prev = _to_float(((out.get("confidence_update") or {}).get("new")))
+    if prev is None:
+        prev = float(master_confidence)
+    new_conf = max(0.05, min(float(cap), float(prev) + float(delta)))
+    applied_delta = round(float(new_conf) - float(prev), 6)
+
+    cu = out.get("confidence_update")
+    if not isinstance(cu, dict):
+        cu = {}
+    cu["new"] = float(new_conf)
+    cu["delta"] = round(float(new_conf) - float(_to_float(cu.get("prev")) if _to_float(cu.get("prev")) is not None else prev), 6)
+    cu["basis"] = "master_confidence+evaluator_adjustment"
+    out["confidence_update"] = cu
+    out["confidence_adjustment"] = {
+        "enabled": True,
+        "applied": bool(abs(applied_delta) > 0.0),
+        "delta": float(applied_delta),
+        "prev": float(prev),
+        "new": float(new_conf),
+        "triggered_by": {
+            "added_ids": added_norm,
+            "high_weight_added_ids": high_weight_added,
+            "resolved_conflicts": [str(x) for x in (resolved_conflicts or []) if str(x).strip()],
+        },
+        "reason": (
+            "positive_signal_from_new_evidence_or_resolved_conflicts"
+            if applied_delta >= 0
+            else "negative_signal_from_conflict_or_feasibility_drop"
+        ),
+        "bounded_by": {"max_abs_delta": max_abs, "cap": float(cap)},
+    }
+    return out
 
 
 class JudgeAgent(CaseAgent):

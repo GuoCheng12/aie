@@ -7,17 +7,33 @@ from __future__ import annotations
 import traceback
 from copy import deepcopy
 from pathlib import Path
-from typing import Any, Dict, List, Sequence, Tuple
+from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from src.agents.base import CaseAgent
 from src.core.artifacts import StepArtifactWriter
-from src.core.hashing import sha256_json
+from src.core.hashing import sha256_file, sha256_json
 from src.core.patching import PatchValidationError, apply_patch, validate_patch
-from src.core.types import AgentContext, AgentResult
+from src.core.types import (
+    AgentContext,
+    AgentResult,
+    SKIPPED_REASON_CODES,
+    SKIPPED_REASON_GATE_BLOCKED_REASONING,
+    SKIPPED_REASON_IDEMPOTENCY_HIT,
+    SKIPPED_REASON_NOT_APPLICABLE,
+)
 from src.orchestration.policies import gate_allows_reasoning
 
 
 FINAL_STATUSES = {"success", "partial", "stubbed"}
+READY_AGENT_NAME = "ready_agent"
+GATE_OWNER_PREFIXES = (
+    "/current_gate",
+    "/current_gate/",
+    "/action_rationale",
+    "/action_plan",
+    "/action_plan/",
+)
+EVIDENCE_TABLE_PATH = Path("data/evidence_table.parquet")
 
 
 class Orchestrator:
@@ -45,6 +61,7 @@ class Orchestrator:
         inputs_hash: str,
         idempotency_key: str,
         status: str,
+        status_reason_code: Optional[str],
         warnings: List[str],
         artifacts: List[Dict[str, Any]],
     ) -> Dict[str, Any]:
@@ -52,6 +69,7 @@ class Orchestrator:
             "agent_name": agent.name,
             "version": agent.version,
             "status": status,
+            "status_reason_code": status_reason_code,
             "started_at": self._now(),
             "ended_at": self._now(),
             "inputs_hash": inputs_hash,
@@ -66,6 +84,24 @@ class Orchestrator:
 
         return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
+    @staticmethod
+    def _path_has_prefix(path: str, prefix: str) -> bool:
+        return path == prefix or path.startswith(prefix)
+
+    def _assert_gate_owner(self, agent_name: str, patch_ops: Sequence[Dict[str, Any]]) -> None:
+        if agent_name == READY_AGENT_NAME:
+            return
+        for op in patch_ops:
+            path = str(op.get("path") or "")
+            if any(self._path_has_prefix(path, p) for p in GATE_OWNER_PREFIXES):
+                raise PatchValidationError(f"gate_owner_violation:{agent_name}:{path}")
+
+    @staticmethod
+    def _evidence_table_hash(path: Path) -> Optional[str]:
+        if not path.exists():
+            return None
+        return sha256_file(path)
+
     def _execute_agent(
         self,
         *,
@@ -73,16 +109,18 @@ class Orchestrator:
         case: Dict[str, Any],
         agent: CaseAgent,
         force_skip_reason: str = "",
-    ) -> Tuple[Dict[str, Any], Dict[str, Any]]:
+    ) -> Tuple[Dict[str, Any], Dict[str, Any], bool]:
         case_before = deepcopy(case)
         inputs = agent.build_inputs(case_before, self.ctx)
         inputs_hash = sha256_json(inputs)
+        run_config_hash = sha256_json(self.ctx.idempotency_scope())
         idempotency_key = sha256_json(
             {
                 "case_id": case_before.get("case_id"),
                 "agent_name": agent.name,
                 "agent_version": agent.version,
                 "inputs_hash": inputs_hash,
+                "run_config_hash": run_config_hash,
             }
         )
 
@@ -93,6 +131,7 @@ class Orchestrator:
             result = AgentResult(
                 patch=[],
                 status="skipped",
+                status_reason_code=force_skip_reason,
                 warnings=[force_skip_reason],
                 raw_outputs={"skip": {"reason": force_skip_reason}},
             )
@@ -100,13 +139,14 @@ class Orchestrator:
             result = AgentResult(
                 patch=[],
                 status="skipped",
-                warnings=["idempotency_hit"],
-                raw_outputs={"skip": {"reason": "idempotency_hit"}},
+                status_reason_code=SKIPPED_REASON_IDEMPOTENCY_HIT,
+                warnings=[SKIPPED_REASON_IDEMPOTENCY_HIT],
+                raw_outputs={"skip": {"reason": SKIPPED_REASON_IDEMPOTENCY_HIT}},
             )
         else:
             try:
                 result = agent.run(case_before, self.ctx, inputs)
-            except Exception as exc:  # keep loop alive; audit failure as run record
+            except Exception as exc:
                 result = AgentResult(
                     patch=[],
                     status=agent.status_on_exception(),
@@ -114,43 +154,98 @@ class Orchestrator:
                     raw_outputs={"exception": {"error": str(exc), "traceback": traceback.format_exc()}},
                 )
 
+        status_reason_code = result.status_reason_code
+        if result.status == "skipped":
+            if not status_reason_code:
+                status_reason_code = SKIPPED_REASON_NOT_APPLICABLE
+            if status_reason_code not in SKIPPED_REASON_CODES:
+                raise PatchValidationError(f"invalid_skipped_reason_code:{status_reason_code}")
+
         patch = list(result.patch or [])
         run_record = self._run_record(
             agent=agent,
             inputs_hash=inputs_hash,
             idempotency_key=idempotency_key,
             status=result.status,
+            status_reason_code=status_reason_code,
             warnings=list(result.warnings or []),
             artifacts=[{"kind": "step_artifacts", "path": str(step_dir)}],
         )
         patch.append({"op": "add", "path": "/agent_runs/-", "value": run_record})
 
-        validate_patch(
-            patch,
-            allowed_prefixes=agent.allowed_patch_prefixes,
-            append_only_prefixes=agent.append_only_prefixes,
-        )
-        case_after = apply_patch(case_before, patch)
-
-        artifact_paths = writer.write_case_bundle(
-            input_snapshot=inputs,
-            raw_outputs=result.raw_outputs or {},
-            patch=patch,
-            case_before=case_before,
-            case_after=case_after,
-        )
-
-        step_summary = {
-            "agent": agent.name,
-            "status": result.status,
-            "warnings": list(result.warnings or []),
-            "idempotency_key": idempotency_key,
-            "inputs_hash": inputs_hash,
-            "step_dir": str(step_dir),
-            "artifact_paths": artifact_paths,
-            "patch_ops": len(patch),
-        }
-        return case_after, step_summary
+        hard_fail = False
+        try:
+            self._assert_gate_owner(agent.name, patch)
+            validate_patch(
+                patch,
+                allowed_prefixes=agent.allowed_patch_prefixes,
+                append_only_prefixes=agent.append_only_prefixes,
+            )
+            case_after = apply_patch(case_before, patch)
+            artifact_paths = writer.write_case_bundle(
+                input_snapshot=inputs,
+                raw_outputs=result.raw_outputs or {},
+                patch=patch,
+                case_before=case_before,
+                case_after=case_after,
+            )
+            step_summary = {
+                "agent": agent.name,
+                "status": result.status,
+                "status_reason_code": status_reason_code,
+                "warnings": list(result.warnings or []),
+                "idempotency_key": idempotency_key,
+                "inputs_hash": inputs_hash,
+                "run_config_hash": run_config_hash,
+                "step_dir": str(step_dir),
+                "artifact_paths": artifact_paths,
+                "patch_ops": len(patch),
+            }
+            return case_after, step_summary, hard_fail
+        except PatchValidationError as exc:
+            hard_fail = True
+            fail_warnings = list(result.warnings or []) + [f"patch_validation_failed:{exc}"]
+            fail_record = self._run_record(
+                agent=agent,
+                inputs_hash=inputs_hash,
+                idempotency_key=idempotency_key,
+                status="failed",
+                status_reason_code=None,
+                warnings=fail_warnings,
+                artifacts=[{"kind": "step_artifacts", "path": str(step_dir)}],
+            )
+            fallback_patch = [{"op": "add", "path": "/agent_runs/-", "value": fail_record}]
+            validate_patch(
+                fallback_patch,
+                allowed_prefixes=agent.allowed_patch_prefixes,
+                append_only_prefixes=agent.append_only_prefixes,
+            )
+            case_after = apply_patch(case_before, fallback_patch)
+            raw_outputs = dict(result.raw_outputs or {})
+            raw_outputs["patch_validation_error"] = {
+                "error": str(exc),
+                "attempted_patch": patch,
+            }
+            artifact_paths = writer.write_case_bundle(
+                input_snapshot=inputs,
+                raw_outputs=raw_outputs,
+                patch=fallback_patch,
+                case_before=case_before,
+                case_after=case_after,
+            )
+            step_summary = {
+                "agent": agent.name,
+                "status": "failed",
+                "status_reason_code": None,
+                "warnings": fail_warnings,
+                "idempotency_key": idempotency_key,
+                "inputs_hash": inputs_hash,
+                "run_config_hash": run_config_hash,
+                "step_dir": str(step_dir),
+                "artifact_paths": artifact_paths,
+                "patch_ops": len(fallback_patch),
+            }
+            return case_after, step_summary, hard_fail
 
     def run(self, case: Dict[str, Any]) -> Tuple[Dict[str, Any], Dict[str, Any]]:
         cur = deepcopy(case)
@@ -165,18 +260,30 @@ class Orchestrator:
         cur.setdefault("current_gate", {})
         cur.setdefault("post_uq", {})
 
+        ev_before_exists = EVIDENCE_TABLE_PATH.exists()
+        ev_before_hash = self._evidence_table_hash(EVIDENCE_TABLE_PATH)
+
         summaries: List[Dict[str, Any]] = []
         for idx, agent in enumerate(self.agents, start=1):
             if agent.name == "reasoning_agent" and not gate_allows_reasoning(cur):
-                cur, step_summary = self._execute_agent(
+                cur, step_summary, hard_fail = self._execute_agent(
                     idx=idx,
                     case=cur,
                     agent=agent,
-                    force_skip_reason="gate_blocked_reasoning",
+                    force_skip_reason=SKIPPED_REASON_GATE_BLOCKED_REASONING,
                 )
             else:
-                cur, step_summary = self._execute_agent(idx=idx, case=cur, agent=agent)
+                cur, step_summary, hard_fail = self._execute_agent(idx=idx, case=cur, agent=agent)
             summaries.append(step_summary)
+            if hard_fail:
+                break
+
+        ev_after_exists = EVIDENCE_TABLE_PATH.exists()
+        ev_after_hash = self._evidence_table_hash(EVIDENCE_TABLE_PATH)
+        if ev_before_exists != ev_after_exists:
+            raise RuntimeError("evidence_table_no_touch_violation:file_presence_changed")
+        if ev_before_hash != ev_after_hash:
+            raise RuntimeError("evidence_table_no_touch_violation:content_hash_changed")
 
         summary = {
             "run_id": self.ctx.run_id,
@@ -184,6 +291,7 @@ class Orchestrator:
             "steps": summaries,
             "final_gate": cur.get("current_gate"),
             "agent_runs_total": len(cur.get("agent_runs", [])),
+            "evidence_table_hash_before": ev_before_hash,
+            "evidence_table_hash_after": ev_after_hash,
         }
         return cur, summary
-

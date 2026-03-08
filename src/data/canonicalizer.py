@@ -6,11 +6,21 @@ SMILES canonicalization and InChIKey generation using RDKit.
 
 import pandas as pd
 from rdkit import Chem
-from typing import Optional, Tuple
+from typing import Optional
 
 from src.utils.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+def normalize_inchikey(value: Optional[str]) -> Optional[str]:
+    """Normalize inchikey text; convert empty/whitespace values to None."""
+    if value is None or pd.isna(value):
+        return None
+    normalized = str(value).strip()
+    if normalized == "" or normalized.lower() == "nan":
+        return None
+    return normalized
 
 
 def canonicalize_smiles(smiles: str) -> Optional[str]:
@@ -53,7 +63,7 @@ def smiles_to_inchikey(smiles: str) -> Optional[str]:
         mol = Chem.MolFromSmiles(str(smiles))
         if mol is None:
             return None
-        return Chem.MolToInchiKey(mol)
+        return normalize_inchikey(Chem.MolToInchiKey(mol))
     except Exception as e:
         logger.debug(f"Failed to generate InChIKey for SMILES '{smiles}': {e}")
         return None
@@ -82,6 +92,7 @@ def add_canonical_smiles_and_inchikey(df: pd.DataFrame, smiles_col: str = "SMILE
 
     # Generate InChIKey
     df["inchikey"] = df[smiles_col].apply(smiles_to_inchikey)
+    df["inchikey"] = df["inchikey"].apply(normalize_inchikey)
 
     # Report results
     n_valid_smiles = df["canonical_smiles"].notna().sum()
@@ -121,7 +132,10 @@ def create_molecule_table(df: pd.DataFrame) -> pd.DataFrame:
             raise ValueError(f"Required column '{col}' not found in DataFrame")
 
     # Filter out rows with invalid InChIKey
-    valid_df = df[df["inchikey"].notna()].copy()
+    working = df.copy()
+    working["inchikey"] = working["inchikey"].apply(normalize_inchikey)
+
+    valid_df = working[working["inchikey"].notna()].copy()
     n_invalid = len(df) - len(valid_df)
 
     if n_invalid > 0:

@@ -2,8 +2,8 @@
   "inchikey": "WDBZXUQDOBGPPG-UHFFFAOYSA-F",
   "run_status": "failed",
   "fail_stage": "opt",
-  "error_msg": "Timeout after 1800s",
-  "timestamp": "2026-01-24T23:51:37.676360",
+  "error_msg": " https://github.com/pypa/setuptools/issues/new?template=distutils-deprecation.yml\n  warnings.warn(\n2026-02-03 09:56:19,860 | Start generating begin structure from SMILES\n2026-02-03 09:56:21,336 | Auto-detected charge from SMILES: -8\n2026-02-03 09:56:21,351 | Starting ground state optimization\n2026-02-03 15:44:03,456 | Calculation did not complete successfully.\n2026-02-03 15:44:03,456 | opt calculation did not complete successfully.\n2026-02-03 15:44:03,559 | Opt. Calculation failed. Exit code 1.\n",
+  "timestamp": "2026-02-03T15:44:04.183710",
   "atb_version": null,
-  "runtime_sec": 1800.68
+  "runtime_sec": 20881.1
 }

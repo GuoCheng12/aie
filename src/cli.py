@@ -12,6 +12,7 @@ Commands:
 """
 
 import sys
+import csv
 import json
 import argparse
 from pathlib import Path
@@ -74,6 +75,19 @@ def filter_record_fields(record: Dict[str, Any]) -> Dict[str, Any]:
             del filtered[blocked_key]
 
     return filtered
+
+
+def _run_ready_agent_on_case(case_path: Path) -> Dict[str, Any]:
+    from src.agents.ready_agent import review_case_and_patch, apply_ready_agent_patch
+
+    case_before = json.loads(case_path.read_text(encoding="utf-8"))
+    patch_ops = review_case_and_patch(case_before)
+    case_after = apply_ready_agent_patch(case_before, patch_ops)
+    case_path.write_text(json.dumps(case_after, indent=2, ensure_ascii=False), encoding="utf-8")
+    return {
+        "patch_ops": patch_ops,
+        "current_gate": case_after.get("current_gate"),
+    }
 
 
 def fetch_command(args):
@@ -736,6 +750,8 @@ def case_command(args):
         )
 
         case_path = Path(args.outdir) / f"{case['case_id']}.json"
+        ready_result = _run_ready_agent_on_case(case_path)
+        case = json.loads(case_path.read_text(encoding="utf-8"))
 
         # Summary output
         print(f"Case created: {case_path}")
@@ -764,6 +780,7 @@ def case_command(args):
         
         print(f"  ready_for_reasoning: {case['evidence_readiness']['current_gate']['ready_for_reasoning']}")
         print(f"  action_plan: {case['action_plan']}")
+        print(f"  ready_agent_gate: {ready_result['current_gate']}")
 
         # Print full JSON if requested
         if args.print_json:
@@ -797,6 +814,9 @@ def case_update_command(args):
         logger.info(f"Action: {args.action}")
 
         case = update_case_file(args.case, args.action)
+        case_path = Path(args.case)
+        ready_result = _run_ready_agent_on_case(case_path)
+        case = json.loads(case_path.read_text(encoding="utf-8"))
 
         # Summary output
         atb = case['evidence_readiness']['atb']
@@ -812,6 +832,7 @@ def case_update_command(args):
         print(f"  reason: {case['evidence_readiness']['current_gate']['reason']}")
         print(f"  action_plan: {case.get('action_plan', [])}")
         print(f"  history events: {len(case['history'])}")
+        print(f"  ready_agent_gate: {ready_result['current_gate']}")
 
         # Print full JSON if requested
         if args.print_json:
@@ -823,6 +844,283 @@ def case_update_command(args):
         sys.exit(1)
     except Exception as e:
         logger.error(f"Failed to update case: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
+
+
+def case_e0_command(args):
+    """Compatibility alias: case-e0 -> case-run (offline_pdf lane)."""
+    try:
+        if not Path(args.case).exists():
+            logger.error(f"Case file not found: {args.case}")
+            sys.exit(1)
+        logger.warning("DEPRECATED: case-e0 is an alias. Please use case-run.")
+        case_obj = json.loads(Path(args.case).read_text(encoding="utf-8"))
+        smiles = str((case_obj.get("query") or {}).get("input_smiles") or "").strip()
+        if not smiles:
+            raise ValueError("case-e0 alias requires query.input_smiles in --case file")
+        offline_pdf = None
+        if args.offline_pdf:
+            offline_pdf = args.offline_pdf[0]
+        ns = _build_case_run_namespace(
+            smiles=smiles,
+            code=(case_obj.get("query") or {}).get("code"),
+            offline_pdf=offline_pdf,
+            run_lane="offline_pdf",
+            artifacts_dir=args.artifacts_dir,
+            outdir=str(Path(args.case).parent),
+            base_url=args.llm_base_url,
+            model=args.llm_model,
+            llm_api_key_env=args.llm_api_key_env,
+            llm_max_output_tokens=args.llm_max_output_tokens,
+            llm_reasoning_effort=args.llm_reasoning_effort,
+            llm_temperature=getattr(args, "llm_temperature", 0.2),
+            mineru_bin=args.mineru_bin,
+            mineru_output_root=args.mineru_output_root,
+            mineru_backend=args.mineru_backend,
+            mineru_method=args.mineru_method,
+            mineru_lang=args.mineru_lang,
+            mineru_start_page=args.mineru_start_page,
+            mineru_end_page=args.mineru_end_page,
+            mineru_timeout_sec=args.mineru_timeout_sec,
+            force=bool(args.force),
+        )
+        summary = _run_case_run(ns)
+        print(json.dumps(summary, indent=2))
+    except ValueError as e:
+        logger.error(f"Invalid input: {e}")
+        sys.exit(1)
+    except Exception as e:
+        logger.error(f"Failed to run case-e0: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
+
+
+def _load_smiles_from_test_csv(test_csv_path: Path, code: str, smiles_col: str = "SMILES") -> Dict[str, str]:
+    if not test_csv_path.exists():
+        raise FileNotFoundError(f"test csv not found: {test_csv_path}")
+
+    with test_csv_path.open("r", encoding="utf-8", newline="") as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            if str(row.get("code", "")).strip() == str(code).strip():
+                smiles = str(row.get(smiles_col, "")).strip()
+                if not smiles:
+                    raise ValueError(f"row found but empty {smiles_col} for code={code}")
+                return row
+    raise ValueError(f"code not found in {test_csv_path}: {code}")
+
+
+def _build_case_run_namespace(**overrides) -> argparse.Namespace:
+    defaults = {
+        "test_csv": "data/test.csv",
+        "row_index": None,
+        "code": None,
+        "smiles": None,
+        "offline_pdf": None,
+        "run_lane": "atb_cache_only",
+        "output_layout": "case_centric",
+        "retain_runs": 10,
+        "output_timestamp_format": "utc_compact",
+        "write_legacy_run_view": True,
+        "emit_stage_snapshots": False,
+        "stage_snapshots_dir": "cases/stage_snapshots",
+        "artifacts_dir": "artifacts",
+        "llm_response_dir": "artifacts/llm_responses",
+        "outdir": "cases/multi_agent",
+        "base_url": "http://35.220.164.252:3888/v1",
+        "model": "gpt-5.2",
+        "llm_api_key_env": "OPENAI_API_KEY",
+        "llm_max_output_tokens": 1500,
+        "llm_reasoning_effort": "medium",
+        "llm_temperature": 0.2,
+        "llm_use_json_schema": False,
+        "mineru_bin": "third_party/MinerU/.venv/bin/mineru",
+        "mineru_output_root": "third_party/MinerU/output",
+        "mineru_backend": "hybrid-auto-engine",
+        "mineru_method": None,
+        "mineru_lang": None,
+        "mineru_start_page": None,
+        "mineru_end_page": None,
+        "mineru_timeout_sec": 1200,
+        "force": False,
+        "neighbor_topk": 10,
+        "iterative": False,
+        "round_runner_mode": "dryrun_then_commit",
+        "max_rounds": 4,
+        "round_start_profile": "R0",
+        "pre_r2_failure_recovery_mode": "force_r2",
+        "evaluator_use_llm": False,
+        "evaluator_model": None,
+        "evaluator_reasoning_effort": None,
+        "evaluator_confidence_adjustment_enabled": False,
+        "evaluator_confidence_adjustment_max_abs_delta": 0.05,
+    }
+    defaults.update(overrides)
+    return argparse.Namespace(**defaults)
+
+
+def _run_case_run(namespace: argparse.Namespace) -> Dict[str, Any]:
+    from src.orchestration.run_one import run_one
+
+    return run_one(namespace)
+
+
+def case_e2e_command(args):
+    """Compatibility alias: case-e2e -> case-run (offline_pdf lane)."""
+    try:
+        logger.warning("DEPRECATED: case-e2e is an alias. Please use case-run.")
+        ns = _build_case_run_namespace(
+            test_csv=args.test_csv,
+            code=args.code,
+            smiles=args.smiles,
+            offline_pdf=args.pdf,
+            run_lane="offline_pdf",
+            artifacts_dir=args.artifacts_dir,
+            outdir=args.outdir,
+            base_url=args.llm_base_url,
+            model=args.llm_model,
+            llm_api_key_env=args.llm_api_key_env,
+            llm_max_output_tokens=args.llm_max_output_tokens,
+            llm_reasoning_effort=args.llm_reasoning_effort,
+            llm_temperature=getattr(args, "llm_temperature", 0.2),
+            llm_use_json_schema=bool(getattr(args, "llm_use_json_schema", False)),
+            mineru_bin=args.mineru_bin,
+            mineru_output_root=args.mineru_output_root,
+            mineru_backend=args.mineru_backend,
+            mineru_method=args.mineru_method,
+            mineru_lang=args.mineru_lang,
+            mineru_start_page=args.mineru_start_page,
+            mineru_end_page=args.mineru_end_page,
+            mineru_timeout_sec=args.mineru_timeout_sec,
+            force=bool(args.force),
+        )
+        summary = _run_case_run(ns)
+        print(json.dumps(summary, indent=2, ensure_ascii=False))
+
+    except ValueError as e:
+        logger.error(f"Invalid input: {e}")
+        sys.exit(1)
+    except Exception as e:
+        logger.error(f"Failed to run case-e2e: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
+
+
+def case_e2e_atb_command(args):
+    """Compatibility alias: case-e2e-atb -> case-run (atb_cache_only lane)."""
+    try:
+        logger.warning("DEPRECATED: case-e2e-atb is an alias. Please use case-run.")
+        ns = _build_case_run_namespace(
+            test_csv=args.test_csv,
+            code=args.code,
+            smiles=args.smiles,
+            run_lane="atb_cache_only",
+            emit_stage_snapshots=True,
+            stage_snapshots_dir=args.snapshots_dir,
+            outdir=args.outdir,
+        )
+        summary = _run_case_run(ns)
+        print(json.dumps(summary, indent=2, ensure_ascii=False))
+
+    except ValueError as e:
+        logger.error(f"Invalid input: {e}")
+        sys.exit(1)
+    except Exception as e:
+        logger.error(f"Failed to run case-e2e-atb: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
+
+
+def case_run_command(args):
+    """Official release command for multi-agent case execution."""
+    try:
+        ns = _build_case_run_namespace(
+            test_csv=args.test_csv,
+            row_index=args.row_index,
+            code=args.code,
+            smiles=args.smiles,
+            offline_pdf=args.offline_pdf,
+            run_lane=args.run_lane,
+            output_layout=str(getattr(args, "output_layout", "case_centric")),
+            retain_runs=int(getattr(args, "retain_runs", 10)),
+            output_timestamp_format=str(getattr(args, "output_timestamp_format", "utc_compact")),
+            write_legacy_run_view=bool(getattr(args, "write_legacy_run_view", True)),
+            emit_stage_snapshots=bool(args.emit_stage_snapshots),
+            stage_snapshots_dir=args.stage_snapshots_dir,
+            artifacts_dir=args.artifacts_dir,
+            llm_response_dir=getattr(args, "llm_response_dir", "artifacts/llm_responses"),
+            outdir=args.outdir,
+            base_url=args.base_url,
+            model=args.model,
+            llm_api_key_env=args.llm_api_key_env,
+            llm_max_output_tokens=args.llm_max_output_tokens,
+            llm_reasoning_effort=args.llm_reasoning_effort,
+            mineru_bin=args.mineru_bin,
+            mineru_output_root=args.mineru_output_root,
+            mineru_backend=args.mineru_backend,
+            mineru_method=args.mineru_method,
+            mineru_lang=args.mineru_lang,
+            mineru_start_page=args.mineru_start_page,
+            mineru_end_page=args.mineru_end_page,
+            mineru_timeout_sec=args.mineru_timeout_sec,
+            force=bool(args.force),
+            neighbor_topk=int(getattr(args, "neighbor_topk", 10)),
+            iterative=bool(getattr(args, "iterative", False)),
+            round_runner_mode=str(getattr(args, "round_runner_mode", "dryrun_then_commit")),
+            max_rounds=int(getattr(args, "max_rounds", 4)),
+            round_start_profile=str(getattr(args, "round_start_profile", "R0")),
+            pre_r2_failure_recovery_mode=str(getattr(args, "pre_r2_failure_recovery_mode", "force_r2")),
+            evaluator_use_llm=bool(getattr(args, "evaluator_use_llm", False)),
+            evaluator_model=getattr(args, "evaluator_model", None),
+            evaluator_reasoning_effort=getattr(args, "evaluator_reasoning_effort", None),
+            evaluator_confidence_adjustment_enabled=bool(
+                getattr(args, "evaluator_confidence_adjustment_enabled", False)
+            ),
+            evaluator_confidence_adjustment_max_abs_delta=float(
+                getattr(args, "evaluator_confidence_adjustment_max_abs_delta", 0.05)
+            ),
+        )
+        summary = _run_case_run(ns)
+        print(json.dumps(summary, indent=2, ensure_ascii=False))
+    except Exception as e:
+        logger.error(f"Failed to run case-run: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
+
+
+def ready_agent_command(args):
+    """Run READY_AGENT on an existing case and rewrite only gate/rationale/plan."""
+    try:
+        from src.agents.ready_agent import review_case_and_patch, apply_ready_agent_patch
+
+        case_path = Path(args.case)
+        if not case_path.exists():
+            raise FileNotFoundError(f"case not found: {case_path}")
+
+        case_before = json.loads(case_path.read_text(encoding="utf-8"))
+        patch_ops = review_case_and_patch(case_before)
+
+        out = {
+            "ok": True,
+            "case_path": str(case_path),
+            "dry_run": bool(args.dry_run),
+            "patch_ops": patch_ops,
+        }
+
+        if not args.dry_run:
+            case_after = apply_ready_agent_patch(case_before, patch_ops)
+            case_path.write_text(json.dumps(case_after, indent=2, ensure_ascii=False), encoding="utf-8")
+            out["current_gate"] = case_after.get("current_gate")
+
+        print(json.dumps(out, indent=2, ensure_ascii=False))
+    except Exception as e:
+        logger.error(f"Failed to run ready-agent: {e}")
         import traceback
         traceback.print_exc()
         sys.exit(1)
@@ -958,6 +1256,247 @@ Examples:
     case_update_parser.add_argument("--print", action="store_true", dest="print_json",
                                     help="Print full case JSON to stdout")
     case_update_parser.set_defaults(func=case_update_command)
+
+    # case-run command (official release runtime)
+    case_run_parser = subparsers.add_parser(
+        "case-run",
+        help="Official release runtime: run multi-agent case loop (default lane: atb_cache_only)",
+    )
+    case_run_parser.add_argument("--test-csv", type=str, default="data/test.csv")
+    case_run_parser.add_argument("--row-index", type=int, default=None)
+    case_run_parser.add_argument("--code", type=str, default=None)
+    case_run_parser.add_argument("--smiles", type=str, default=None)
+    case_run_parser.add_argument("--offline-pdf", type=str, default=None)
+    case_run_parser.add_argument(
+        "--run-lane",
+        type=str,
+        default="atb_cache_only",
+        choices=["atb_cache_only", "offline_pdf", "full"],
+    )
+    case_run_parser.add_argument(
+        "--output-layout",
+        type=str,
+        default="case_centric",
+        choices=["case_centric", "run_centric"],
+    )
+    case_run_parser.add_argument("--retain-runs", type=int, default=10)
+    case_run_parser.add_argument(
+        "--output-timestamp-format",
+        type=str,
+        default="utc_compact",
+        choices=["utc_compact"],
+    )
+    case_run_parser.add_argument(
+        "--write-legacy-run-view",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
+    case_run_parser.add_argument("--emit-stage-snapshots", action="store_true")
+    case_run_parser.add_argument("--stage-snapshots-dir", type=str, default="cases/stage_snapshots")
+    case_run_parser.add_argument("--artifacts-dir", type=str, default="artifacts")
+    case_run_parser.add_argument("--llm-response-dir", type=str, default="artifacts/llm_responses")
+    case_run_parser.add_argument("--outdir", type=str, default="cases/multi_agent")
+    case_run_parser.add_argument("--base-url", type=str, default="http://35.220.164.252:3888/v1")
+    case_run_parser.add_argument("--model", type=str, default="gpt-5.2")
+    case_run_parser.add_argument("--llm-api-key-env", type=str, default="OPENAI_API_KEY")
+    case_run_parser.add_argument("--llm-max-output-tokens", type=int, default=1500)
+    case_run_parser.add_argument("--llm-reasoning-effort", type=str, default="medium")
+    case_run_parser.add_argument("--llm-temperature", type=float, default=0.2)
+    case_run_parser.add_argument("--llm-use-json-schema", action="store_true")
+    case_run_parser.add_argument("--mineru-bin", type=str, default="third_party/MinerU/.venv/bin/mineru")
+    case_run_parser.add_argument("--mineru-output-root", type=str, default="third_party/MinerU/output")
+    case_run_parser.add_argument("--mineru-backend", type=str, default="hybrid-auto-engine")
+    case_run_parser.add_argument("--mineru-method", type=str, default=None)
+    case_run_parser.add_argument("--mineru-lang", type=str, default=None)
+    case_run_parser.add_argument("--mineru-start-page", type=int, default=None)
+    case_run_parser.add_argument("--mineru-end-page", type=int, default=None)
+    case_run_parser.add_argument("--mineru-timeout-sec", type=int, default=1200)
+    case_run_parser.add_argument("--force", action="store_true")
+    case_run_parser.add_argument("--neighbor-topk", type=int, default=10)
+    case_run_parser.add_argument("--iterative", action="store_true", help="Enable iterative rounds (R0..R3) after setup agents.")
+    case_run_parser.add_argument(
+        "--round-runner-mode",
+        type=str,
+        default="dryrun_then_commit",
+        choices=["dryrun_then_commit", "commit_all_rounds"],
+    )
+    case_run_parser.add_argument("--max-rounds", type=int, default=4)
+    case_run_parser.add_argument("--round-start-profile", type=str, default="R0")
+    case_run_parser.add_argument(
+        "--pre-r2-failure-recovery-mode",
+        type=str,
+        default="force_r2",
+        choices=["force_r2", "degraded_retry"],
+    )
+    case_run_parser.add_argument("--evaluator-use-llm", action="store_true")
+    case_run_parser.add_argument("--evaluator-model", type=str, default=None)
+    case_run_parser.add_argument("--evaluator-reasoning-effort", type=str, default=None)
+    case_run_parser.add_argument(
+        "--evaluator-confidence-adjustment-enabled",
+        action=argparse.BooleanOptionalAction,
+        default=False,
+    )
+    case_run_parser.add_argument("--evaluator-confidence-adjustment-max-abs-delta", type=float, default=0.05)
+    case_run_parser.set_defaults(func=case_run_command)
+
+    # case-e0 command (deprecated alias -> case-run)
+    case_e0_parser = subparsers.add_parser(
+        "case-e0",
+        help="DEPRECATED alias to case-run (offline_pdf lane)",
+    )
+    case_e0_parser.add_argument("--case", type=str, required=True, help="Path to case JSON file")
+    case_e0_parser.add_argument("--artifacts-dir", type=str, default="artifacts",
+                                help="Artifacts root directory (default: artifacts)")
+    case_e0_parser.add_argument(
+        "--artifact-mode",
+        type=str,
+        default="final_case_only",
+        choices=["full", "final_case_only"],
+        help="Artifact persistence mode (default: final_case_only). 'final_case_only' skips run_id artifact JSON files.",
+    )
+    case_e0_parser.add_argument("--mode", type=str, default=None, help="Override mode (default from case)")
+    case_e0_parser.add_argument("--offline-pdf", action="append", default=None,
+                                help="Override offline PDF paths (repeatable)")
+    case_e0_parser.add_argument("--force", action="store_true", help="Ignore idempotency key and rerun")
+    case_e0_parser.add_argument(
+        "--extractor-mode",
+        type=str,
+        default="sidecar_only",
+        choices=["sidecar_only", "mineru_llm"],
+        help="Extractor path (default: sidecar_only)",
+    )
+    case_e0_parser.add_argument("--extractor-name", type=str, default="mineru_offline_adapter")
+    case_e0_parser.add_argument("--extractor-version", type=str, default="0.1.0")
+    case_e0_parser.add_argument("--extractor-config-json", type=str, default="",
+                                help="Extractor config JSON object")
+    case_e0_parser.add_argument("--normalizer-config-json", type=str, default="",
+                                help="Normalizer config JSON object")
+    case_e0_parser.add_argument("--mapping-version", type=str, default="e0_v2")
+    case_e0_parser.add_argument("--pdf-page-selection-json", type=str, default="",
+                                help="PDF page selection JSON object")
+    case_e0_parser.add_argument("--mineru-bin", type=str, default="third_party/MinerU/.venv/bin/mineru")
+    case_e0_parser.add_argument("--mineru-output-root", type=str, default="third_party/MinerU/output")
+    case_e0_parser.add_argument("--mineru-backend", type=str, default="hybrid-auto-engine")
+    case_e0_parser.add_argument("--mineru-method", type=str, default=None)
+    case_e0_parser.add_argument("--mineru-lang", type=str, default=None)
+    case_e0_parser.add_argument("--mineru-start-page", type=int, default=None)
+    case_e0_parser.add_argument("--mineru-end-page", type=int, default=None)
+    case_e0_parser.add_argument("--mineru-timeout-sec", type=int, default=1200)
+    case_e0_parser.add_argument("--llm-base-url", type=str, default="http://35.220.164.252:3888/v1")
+    case_e0_parser.add_argument("--llm-model", type=str, default="deepseek-v3.2")
+    case_e0_parser.add_argument("--llm-api-key-env", type=str, default="OPENAI_API_KEY")
+    case_e0_parser.add_argument("--llm-max-output-tokens", type=int, default=1500)
+    case_e0_parser.add_argument("--llm-reasoning-effort", type=str, default=None)
+    case_e0_parser.add_argument("--llm-prompt-version", type=str, default="mineru_llm_prompt_v1")
+    case_e0_parser.add_argument("--llm-schema-version", type=str, default="mineru_llm_candidates_v1")
+    case_e0_parser.add_argument(
+        "--writeback-evidence-table",
+        action="store_true",
+        help="Forbidden in E0; kept as hard-fail guard",
+    )
+    case_e0_parser.add_argument(
+        "--evidence-table-path",
+        type=str,
+        default="data/evidence_table.parquet",
+        help="Evidence table path for guard checks (default: data/evidence_table.parquet)",
+    )
+    case_e0_parser.set_defaults(func=case_e0_command)
+
+    # case-e2e command (deprecated alias -> case-run)
+    case_e2e_parser = subparsers.add_parser(
+        "case-e2e",
+        help="DEPRECATED alias to case-run (offline_pdf lane)",
+    )
+    case_e2e_parser.add_argument("--code", type=str, default=None, help="Molecule code to resolve from test.csv (e.g., DBA-AM)")
+    case_e2e_parser.add_argument("--smiles", type=str, default=None, help="Direct SMILES input (bypass test.csv lookup)")
+    case_e2e_parser.add_argument("--test-csv", type=str, default="data/test.csv", help="Test CSV for code lookup")
+    case_e2e_parser.add_argument("--smiles-col", type=str, default="SMILES", help="SMILES column name in test CSV")
+    case_e2e_parser.add_argument("--pdf", type=str, required=True, help="Offline PDF path for emission extraction")
+    case_e2e_parser.add_argument("--k", type=int, default=10, help="Top-k neighbors for case creation")
+    case_e2e_parser.add_argument("--outdir", type=str, default="cases/test_inputs", help="Case output directory")
+    case_e2e_parser.add_argument("--artifacts-dir", type=str, default="artifacts/e2e", help="Artifacts output root")
+    case_e2e_parser.add_argument(
+        "--artifact-mode",
+        type=str,
+        default="final_case_only",
+        choices=["full", "final_case_only"],
+        help="Artifact persistence mode (default: final_case_only). 'final_case_only' keeps only the final case file + stable run log.",
+    )
+    case_e2e_parser.add_argument("--mode", type=str, default="offline_pdf", help="E0 mode override")
+    case_e2e_parser.add_argument("--force", action="store_true", help="Ignore E0 idempotency key and rerun")
+    case_e2e_parser.add_argument(
+        "--extractor-mode",
+        type=str,
+        default="mineru_llm",
+        choices=["sidecar_only", "mineru_llm"],
+        help="E0 extractor mode (default: mineru_llm)",
+    )
+    case_e2e_parser.add_argument("--extractor-name", type=str, default="mineru_offline_adapter")
+    case_e2e_parser.add_argument("--extractor-version", type=str, default="0.1.0")
+    case_e2e_parser.add_argument("--extractor-config-json", type=str, default="", help="Extractor config JSON object")
+    case_e2e_parser.add_argument("--normalizer-config-json", type=str, default="", help="Normalizer config JSON object")
+    case_e2e_parser.add_argument("--mapping-version", type=str, default="e0_v2")
+    case_e2e_parser.add_argument("--pdf-page-selection-json", type=str, default="", help="PDF page selection JSON object")
+    case_e2e_parser.add_argument("--mineru-bin", type=str, default="third_party/MinerU/.venv/bin/mineru")
+    case_e2e_parser.add_argument("--mineru-output-root", type=str, default="third_party/MinerU/output")
+    case_e2e_parser.add_argument("--mineru-backend", type=str, default="hybrid-auto-engine")
+    case_e2e_parser.add_argument("--mineru-method", type=str, default=None)
+    case_e2e_parser.add_argument("--mineru-lang", type=str, default=None)
+    case_e2e_parser.add_argument("--mineru-start-page", type=int, default=None)
+    case_e2e_parser.add_argument("--mineru-end-page", type=int, default=None)
+    case_e2e_parser.add_argument("--mineru-timeout-sec", type=int, default=1200)
+    case_e2e_parser.add_argument("--llm-base-url", type=str, default="http://35.220.164.252:3888/v1")
+    case_e2e_parser.add_argument("--llm-model", type=str, default="deepseek-v3.2")
+    case_e2e_parser.add_argument("--llm-api-key-env", type=str, default="OPENAI_API_KEY")
+    case_e2e_parser.add_argument("--llm-max-output-tokens", type=int, default=1500)
+    case_e2e_parser.add_argument("--llm-reasoning-effort", type=str, default=None)
+    case_e2e_parser.add_argument("--llm-prompt-version", type=str, default="mineru_llm_prompt_v1")
+    case_e2e_parser.add_argument("--llm-schema-version", type=str, default="mineru_llm_candidates_v1")
+    case_e2e_parser.add_argument(
+        "--writeback-evidence-table",
+        action="store_true",
+        help="Forbidden in E0; kept as hard-fail guard",
+    )
+    case_e2e_parser.add_argument(
+        "--evidence-table-path",
+        type=str,
+        default="data/evidence_table.parquet",
+        help="Evidence table path for guard checks (default: data/evidence_table.parquet)",
+    )
+    case_e2e_parser.set_defaults(func=case_e2e_command)
+
+    # case-e2e-atb command (deprecated alias -> case-run)
+    case_e2e_atb_parser = subparsers.add_parser(
+        "case-e2e-atb",
+        help="DEPRECATED alias to case-run (atb_cache_only lane)",
+    )
+    case_e2e_atb_parser.add_argument("--code", type=str, default=None, help="Molecule code to resolve from test.csv (e.g., DBA-AM)")
+    case_e2e_atb_parser.add_argument("--smiles", type=str, default=None, help="Direct SMILES input (bypass test.csv lookup)")
+    case_e2e_atb_parser.add_argument("--test-csv", type=str, default="data/test.csv", help="Test CSV for code lookup")
+    case_e2e_atb_parser.add_argument("--smiles-col", type=str, default="SMILES", help="SMILES column name in test CSV")
+    case_e2e_atb_parser.add_argument("--k", type=int, default=10, help="Top-k neighbors for case creation")
+    case_e2e_atb_parser.add_argument("--outdir", type=str, default="cases/test_inputs", help="Case output directory")
+    case_e2e_atb_parser.add_argument(
+        "--snapshots-dir",
+        type=str,
+        default="cases/stage_snapshots",
+        help="Directory to store 3 snapshots (data/chem/ready)",
+    )
+    case_e2e_atb_parser.add_argument(
+        "--require-atb-success",
+        action="store_true",
+        help="Fail if chem-stage cache_status is not success",
+    )
+    case_e2e_atb_parser.set_defaults(func=case_e2e_atb_command)
+
+    # ready-agent command (gate/rationale/plan reviewer)
+    ready_parser = subparsers.add_parser(
+        "ready-agent",
+        help="Run READY_AGENT over a case (writes only current_gate/action_rationale/action_plan)",
+    )
+    ready_parser.add_argument("--case", type=str, required=True, help="Path to case JSON file")
+    ready_parser.add_argument("--dry-run", action="store_true", help="Print patch only; do not rewrite case")
+    ready_parser.set_defaults(func=ready_agent_command)
 
     args = parser.parse_args()
 

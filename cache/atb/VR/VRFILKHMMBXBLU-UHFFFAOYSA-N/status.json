@@ -1,9 +1,9 @@
 {
   "inchikey": "VRFILKHMMBXBLU-UHFFFAOYSA-N",
-  "run_status": "failed",
-  "fail_stage": "excit",
-  "error_msg": "Timeout after 1800s",
-  "timestamp": "2026-01-24T11:51:17.182873",
-  "atb_version": null,
-  "runtime_sec": 1800.78
+  "run_status": "success",
+  "fail_stage": null,
+  "error_msg": null,
+  "timestamp": "2026-02-03T03:18:06.133563",
+  "atb_version": "AIE-aTB-v0",
+  "runtime_sec": 1228.17
 }

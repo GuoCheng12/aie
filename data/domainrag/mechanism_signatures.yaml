@@ -1,0 +1,126 @@
+# data/domainrag/mechanism_signatures.yaml
+#
+# Offline domainRAG: Mechanism signature templates.
+# Each mechanism has fields needed to identify/disambiguate it.
+#
+# Structure:
+#   - required_atb_fields: Key aTB features for this mechanism
+#   - required_experiment_fields: Experimental data needed
+#   - disambiguation_actions: Steps to distinguish from other mechanisms
+#   - structure_triggers: Structural patterns that suggest this mechanism
+
+ICT:
+  description: "Intramolecular Charge Transfer"
+  required_atb_fields:
+    - delta_gap
+    - delta_dihedral
+  required_experiment_fields:
+    - emission_sol
+    - tested_solvent
+  disambiguation_actions:
+    - check_solvent_polarity_shift
+    - compare_solution_vs_solid_emission
+    - verify_donor_acceptor_motif
+  structure_triggers:
+    - donor-acceptor architecture
+    - strong electron-withdrawing/donating groups
+
+TICT:
+  description: "Twisted Intramolecular Charge Transfer"
+  required_atb_fields:
+    - delta_dihedral
+    - delta_gap
+    - delta_volume
+  required_experiment_fields:
+    - emission_sol
+    - qy_sol
+    - tested_solvent
+  disambiguation_actions:
+    - check_large_dihedral_change
+    - verify_solvent_polarity_quenching
+    - compare_rigid_vs_flexible_analogs
+  structure_triggers:
+    - rotatable donor-acceptor bond
+    - sterically hindered rotation
+
+ESIPT:
+  description: "Excited-State Intramolecular Proton Transfer"
+  required_atb_fields:
+    - delta_volume
+    - excitation_energy
+  required_experiment_fields:
+    - emission_sol
+    - absorption
+  disambiguation_actions:
+    - check_large_stokes_shift
+    - verify_hydrogen_bonding_motif
+    - check_dual_emission
+  structure_triggers:
+    - intramolecular hydrogen bond
+    - hydroxyl/amine near carbonyl
+
+RIR:
+  description: "Restriction of Intramolecular Rotation"
+  required_atb_fields:
+    - delta_dihedral
+    - delta_volume
+  required_experiment_fields:
+    - qy_sol
+    - qy_solid
+  disambiguation_actions:
+    - compare_dihedral_change
+    - check_qy_enhancement_solid_vs_solution
+    - verify_rotatable_groups
+  structure_triggers:
+    - multiple phenyl rings
+    - propeller-like structure
+
+neutral_aromatic:
+  description: "Neutral aromatic fluorophore (no clear AIE mechanism)"
+  required_atb_fields:
+    - excitation_energy
+  required_experiment_fields:
+    - emission_sol
+    - qy_sol
+  disambiguation_actions:
+    - check_solution_qy
+    - compare_with_similar_structures
+  structure_triggers:
+    - planar aromatic core
+    - no strong donor/acceptor
+
+other:
+  description: "Other or mixed mechanisms"
+  required_atb_fields:
+    - delta_volume
+    - delta_gap
+    - delta_dihedral
+    - excitation_energy
+  required_experiment_fields:
+    - emission_sol
+    - emission_solid
+    - qy_sol
+    - qy_solid
+  disambiguation_actions:
+    - collect_full_evidence
+    - manual_review
+    - literature_search
+  structure_triggers: []
+
+unknown:
+  description: "Unknown mechanism (insufficient data)"
+  required_atb_fields:
+    - delta_volume
+    - delta_gap
+    - delta_dihedral
+    - excitation_energy
+  required_experiment_fields:
+    - emission_sol
+    - emission_solid
+    - qy_sol
+    - qy_solid
+  disambiguation_actions:
+    - compute_target_atb
+    - collect_experimental_data
+    - literature_search
+  structure_triggers: []

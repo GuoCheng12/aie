@@ -77,6 +77,21 @@ Plan for this patch:
   - `CRITIQUE_POINTS`, `CONFLICTS`, `VOI_RANKED_ACTIONS`, `CONFIDENCE_DELTA_SUGGESTION`, `NEXT_ROUND_PROFILE_SUGGESTION`.
 - preserve orchestrator behavior (rule evaluator remains base; LLM layer only augments ranking/notes).
 
+### Hotfix plan (current task): DeepSeek runtime compatibility in multi-agent LLM client
+
+Problem observed in recent multi-agent runs:
+- `deepseek-v3.2` works in the MinerU extractor path, but fails in the shared multi-agent runtime.
+- Root cause: the shared runtime client only uses `client.responses.create(...)`, while the gateway rejects `deepseek-v3.2` on the Responses API and returns empty output after retries.
+
+Plan for this patch:
+- update the shared LLM client (`src/tools/llm_client.py`) to support `chat.completions` fallback, matching the proven MinerU extractor strategy.
+- preserve existing behavior for GPT/Responses-compatible models; only fall back when Responses fails or when the model is known to prefer chat completions.
+- apply the fix centrally so both Master and Evaluator benefit without orchestrator changes.
+- add focused tests covering:
+  - Responses unsupported-model error -> chat.completions fallback succeeds
+  - text mode fallback returns natural-language payload
+  - JSON mode fallback returns parsed JSON payload
+
 ### Hotfix plan (current task): R2 anti-stagnation + label-token robustness
 
 Problem observed from recent iterative runs:
@@ -161,6 +176,27 @@ The following are platform rules for the release path (not example-only behavior
 - Output default: final case + run summary; optional `--emit-stage-snapshots`.
 - `case-e0`, `case-e2e`, `case-e2e-atb` remain one-version compatibility aliases and must forward to `case-run`.
 
+### Output layout refactor (current lock)
+
+This cycle upgrades runtime outputs from scattered run-id roots to a case-centric layout.
+
+- Primary layout (`--output-layout case_centric`, default):
+  - `<artifacts_dir>/cases/<case_id>/latest/`
+  - `<artifacts_dir>/cases/<case_id>/runs/<YYYYMMDDTHHMMSSZ>__<run_id8>/`
+  - `<artifacts_dir>/cases/<case_id>/history_index.json`
+  - `<artifacts_dir>/cases/<case_id>/latest.json`
+- `run_id` stays as audit key, but human navigation is now case-first.
+- `latest/quick_view.json` is the one-screen summary for daily inspection.
+- Retention policy: keep latest N runs per case (`--retain-runs`, default `10`), prune older `runs/*` entries and refresh history index atomically.
+- Compatibility (one version): optional legacy pointer writes remain enabled by default (`--write-legacy-run-view true`).
+
+New CLI knobs:
+
+- `--output-layout {case_centric,run_centric}`
+- `--retain-runs <int>`
+- `--output-timestamp-format utc_compact`
+- `--write-legacy-run-view / --no-write-legacy-run-view`
+
 ### Planned runtime default update (2026-02-24)
 
 - Add a dedicated LLM trace output root for release runtime:
@@ -195,7 +231,54 @@ The following are platform rules for the release path (not example-only behavior
 - Failure recovery is three-stage:
   1) first call,
   2) retry once with larger token budget and stronger “JSON-only” reminder,
-  3) JSON-repair pass (no new facts/claims), then normal validator.
+3) JSON-repair pass (no new facts/claims), then normal validator.
+
+### Current task: cache-derived aTB evidence enrichment for master reasoning
+
+Objective for this cycle:
+- improve mechanism discrimination using only the current aTB cache, without adding new quantum workflows,
+- strengthen positive structured evidence before designing any new external computation lanes,
+- keep orchestrator semantics unchanged (patch/whitelist/idempotency/replay/no-touch evidence_table).
+
+Scope locked for this batch:
+1. Expand `evidence_readiness.atb.features_summary` with additional cache-derived fields that already exist in `features.json`:
+   - `s0_charge_dipole`, `s1_charge_dipole`, `delta_dipole`
+   - `delta_bonds`, `delta_angles`
+   - `exciting_path_mean_volume`
+   - `s0_rays_asymmetry_parameter`, `s1_rays_asymmetry_parameter`
+   - `s0_rotational_constant_a/b/c`, `s1_rotational_constant_a/b/c`
+2. Add compact derived reasoning profiles (pack-only, no new business writeback):
+   - `risk_scores.atb_ct_proxy_profile`
+   - `risk_scores.atb_structural_relaxation_profile`
+   - `risk_scores.atb_shape_rigidity_profile`
+3. Inject the new profiles into `R1+` reasoning packs and compact evidence registry entries.
+4. Update master prompt guidance so aTB interpretation uses:
+   - CT proxy evidence (`delta_dipole` + `delta_gap`)
+   - structural relaxation evidence (`delta_dihedral` + `delta_bonds` + `delta_angles` + `delta_volume`)
+   instead of relying on `delta_dihedral` alone.
+
+Implementation plan:
+- `src/chem/atb_cache.py`
+  - widen cache summary extraction to include the stable additional fields listed above.
+- `src/reasoning/atb_ct_proxy_profile.py`
+  - new compact target-only CT proxy profile from existing aTB summary.
+- `src/reasoning/atb_structural_relaxation_profile.py`
+  - new compact target-only structural relaxation profile.
+- `src/reasoning/atb_shape_rigidity_profile.py`
+  - new compact target-only rigidity/shape proxy profile.
+- `src/reasoning/master_reasoner.py`
+  - add these profiles to `build_reasoning_pack()`,
+  - add new evidence IDs with short previews,
+  - update prompt wording to explicitly use the new profiles.
+- `src/reasoning/evidence_profiles.py`
+  - ensure `R1+` includes the new cache-derived profiles.
+- tests
+  - add focused unit coverage for each new profile and for pack/evidence-registry integration.
+
+Validation target for this batch:
+- a single-SMILES `case-run` should complete with enriched aTB-derived evidence visible in the reasoning pack / evidence registry,
+- no orchestrator contract regressions,
+- no evidence_table writes.
 
 ### Offline PDF / web_search switch
 
@@ -220,11 +303,11 @@ The following are platform rules for the release path (not example-only behavior
 - **Input**: `case.json` + `reasoning_config`
 - **Internal projection**: build `reasoning_pack` (`master_pack_v1`) as the only model-facing context
   - include target aTB `features_summary` baseline by profile (`R0/R1`) and keep neighbor evidence token-friendly.
-  - `R1` must add `risk_scores.atb_trends_self` (self-relative trend evidence from target aTB only).
+  - `R1` must add `risk_scores.atb_trend_profile` (self-only target aTB trend profile) and may keep `atb_trends_self` for compatibility.
   - for `R2+`, include compact `neighbor_atb_stats` (distribution summaries), not full neighbor feature payloads.
   - round increment contract (locked):
     - `R0`: gate + minimal priors only.
-    - `R1`: `R0 + atb_trends_self`.
+    - `R1`: `R0 + atb_trend_profile` (self-only trend buckets/directions from target aTB).
     - `R2`: `R1 + neighbor_atb_stats_by_label` (if available in lane).
     - `R3`: `R2 + external lane statuses`.
 - **Evidence weighting policy** (locked):
@@ -246,9 +329,9 @@ The following are platform rules for the release path (not example-only behavior
 - **Prompt bundle**: `master_prompt_bundle_v1` with `{system, instructions, user_payload, schema}`
   - model-facing `user_payload` uses compact `evidence_registry` (`E1..En`) for citations.
   - master must cite `evidence_id` only; validator resolves IDs to canonical case paths server-side.
-  - for aTB argumentation, master must prioritize `atb_trends_self` evidence IDs (`E_ATB_TREND_*`) over raw absolute-value threshold narration.
+  - for aTB argumentation, master must prioritize self-only trend evidence IDs (`E31..E34`, plus legacy `E_ATB_TREND_*` when present) over raw absolute-value narration.
 - **R2 discriminative increment (locked)**:
-  - `R1` introduces self-trend evidence (`atb_trends_self`) and keeps it independent from neighbor distributions.
+  - `R1` introduces self-trend evidence (`atb_trend_profile`) and keeps it independent from neighbor distributions.
   - `neighbor_atb_stats` is computed from neighbor `features_summary` where `cache_status=="success"` and required deltas are present.
   - stats include only compact signals (`median`, `IQR`, `percentile`, `robust-z`, reliability), no full distributions.
   - `delta_dihedral` is emitted as both raw and absolute views:
@@ -260,6 +343,11 @@ The following are platform rules for the release path (not example-only behavior
     - `E23` (label-stratified comparison, only when >=2 labels and each label `n>=2`),
     - `E24` (reliability note).
   - evidence registry adds stable self-trend entries in `R1+`:
+    - `E31` (`delta_dihedral` bucket + direction from self-only trend profile),
+    - `E32` (`delta_gap` bucket + direction),
+    - `E33` (`delta_volume` bucket + direction),
+    - `E34` (`overall_motion_proxy` + reliability from self-only trend profile),
+  - legacy self-trend IDs remain supported for compatibility:
     - `E_ATB_TREND_1` (`delta_dihedral` bucket + absolute magnitude),
     - `E_ATB_TREND_2` (`delta_gap` direction + bucket),
     - `E_ATB_TREND_3` (`delta_volume` direction + bucket),
@@ -1030,3 +1118,75 @@ evidence_readiness:
   literature:
     status: "verified"
 ```
+
+## 2026-03 Addendum: Testset Mechanism Benchmark (v0, evaluation-only)
+
+This addendum introduces a reproducible testset benchmark pipeline without changing
+runtime reasoning strategy or schema.
+
+### Scope
+
+- Input: `data/test.csv`
+- Ground truth column: `mechanism_id`
+- Runtime path: release `run_one`/`case-run` equivalent
+- Default lane: `atb_cache_only`
+- Default mode: single-pass (`iterative=false`)
+- No evidence table writeback; keep existing no-touch guardrails.
+
+### Prediction read path
+
+Evaluator reads predicted mechanism label from case JSON:
+
+1. Primary: `/master_reasoning/mechanism_claim/primary_hypothesis/mechanism_label`
+2. Fallback: `/reasoning/master_reasoning/mechanism_claim/primary_hypothesis/mechanism_label`
+
+### Deterministic run contract
+
+Benchmark runner records fixed model parameters in report:
+
+- `model`
+- `base_url`
+- `reasoning_effort`
+- `temperature` (default `0.0`)
+- `llm_use_json_schema` (default `false`)
+- `seed_supported=false`, `seed=null` (current client has no seed API)
+
+### Label normalization for evaluation only
+
+A dedicated `src/eval/label_normalizer.py` aligns GT/pred labels for scoring only.
+It does not mutate runtime outputs.
+
+Canonical labels:
+- `TICT`, `ICT`, `ESIPT`, `neutral aromatic`, `other`, `unknown`
+
+Locked mappings:
+- `tict-like` -> `TICT`
+- `ict-like` -> `ICT`
+- `clusterluminescence` -> `unknown`
+- `ESIPT+ICT/TICT` -> `unknown`
+
+### Status codes per sample
+
+- `ok`: run succeeded, GT present, prediction present
+- `failed_run`: runtime exception
+- `missing_pred`: run succeeded, prediction missing
+- `missing_gt`: GT missing/empty
+
+### Metrics (v0)
+
+Computed on `status=ok` subset:
+- `top1_accuracy`
+- `macro_f1`
+- `per_class_precision_recall_f1`
+- `confusion_matrix`
+
+Computed on full set:
+- `coverage = (run succeeded and prediction extracted) / total_rows`
+- `unknown_rate = predicted_unknown / covered_rows`
+
+### Output artifacts
+
+- `artifacts/eval/<timestamp>/predictions.csv`
+- `artifacts/eval/<timestamp>/evaluation_report.json`
+- `artifacts/eval/<timestamp>/evaluation_report.md`
+- Optional: `failed_cases_index.json` (path index only, no large-file copy)

@@ -1,0 +1,11 @@
+{
+  "timestamp": "2026-02-10T14:18:27.809817",
+  "input": "data/rdkit_features.parquet",
+  "output": "data/anchor_neighbors_ecfp.parquet",
+  "k": 10,
+  "total_molecules_input": 432,
+  "valid_molecules": 432,
+  "skipped_invalid_inchikey_count": 0,
+  "neighbor_records": 4320,
+  "anchor_query_unique_inchikey": 432
+}

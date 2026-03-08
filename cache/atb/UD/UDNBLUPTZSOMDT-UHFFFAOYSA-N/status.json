@@ -1,9 +1,9 @@
 {
   "inchikey": "UDNBLUPTZSOMDT-UHFFFAOYSA-N",
   "run_status": "failed",
-  "fail_stage": "excit",
-  "error_msg": "Timeout after 1800s",
-  "timestamp": "2026-01-23T07:34:32.873643",
+  "fail_stage": "opt",
+  "error_msg": "calculation\n2026-02-05 11:13:34,818 | Structural features calculated from ASE for opt  \n2026-02-05 11:13:35,009 | Analyzing excit calculation\n2026-02-05 11:13:35,027 | Structural features calculated from ASE for excit  \n2026-02-05 11:32:31,823 | Starting NEB calculation with 4 intermediate images\n2026-02-05 11:32:31,959 | Running NEB optimization...\n2026-02-06 02:32:52,830 | NEB optimization did not converge within the maximum steps\n2026-02-06 02:32:52,834 | NEB calculation failed. Exit code 3.\n",
+  "timestamp": "2026-02-06T02:32:53.398348",
   "atb_version": null,
-  "runtime_sec": 1800.7
+  "runtime_sec": 56872.75
 }
