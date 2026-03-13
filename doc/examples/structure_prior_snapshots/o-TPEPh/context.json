@@ -1,0 +1,14 @@
+{
+  "code": "o-TPEPh",
+  "expected_label": "neutral aromatic",
+  "smiles": "c1(/C(c2ccccc2c3ccccc3)=C(c4ccccc4)\\c5ccccc5)ccccc1",
+  "source_split": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/data/split_list/1_level.csv",
+  "source_row_index": 8,
+  "reference_view": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/data/reference_indices/split_levels_v2/views/leave_level_1",
+  "reference_topk": {
+    "structure_retrieval_topk": 10,
+    "ecfp_neighbor_topk": 50
+  },
+  "canonical_smiles": "c1ccc(C(=C(c2ccccc2)c2ccccc2-c2ccccc2)c2ccccc2)cc1",
+  "inchikey": "JQFZOEUTRRZDCL-UHFFFAOYSA-N"
+}

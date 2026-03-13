@@ -1,0 +1,23 @@
+{
+  "version": "structure_prior_v1",
+  "descriptor_snapshot": {
+    "n_rotatable_bonds": 5,
+    "n_hbd": 0,
+    "n_hba": 0,
+    "n_rings": 5,
+    "n_aromatic_rings": 5,
+    "tpsa": 0.0,
+    "logp": 8.361000000000006
+  },
+  "donor_acceptor_topology": "weak",
+  "intramolecular_hbond_candidates": "none",
+  "aromatic_core_density": "high",
+  "flexibility_proxy": "mid",
+  "conjugation_proxy": "high",
+  "overall_structure_prior": "Conjugation is high; aromatic-core density is high; flexibility is mid; donor/acceptor topology is weak; reliability is high.",
+  "reliability": "high",
+  "notes": [
+    "Donor/acceptor topology is weak under the current topology heuristic.",
+    "Aromatic-core density is high, flexibility is mid, and conjugation is high."
+  ]
+}

@@ -1,0 +1,27 @@
+{
+  "version": "structure_fact_sheet_v1",
+  "donor_acceptor_topology": "weak",
+  "intramolecular_hbond_geometry": "none",
+  "proton_transfer_topology_candidate": "none",
+  "tautomerizable_subgraph_strength": "low",
+  "donor_acceptor_fragment_balance": "low",
+  "donor_acceptor_path_multiplicity": "low",
+  "donor_acceptor_separation_regime": "unknown",
+  "aromatic_rigidity_signature": "high",
+  "fused_aromatic_core_strength": "none",
+  "aromatic_core_connectivity": "extended",
+  "global_flexibility_vs_core_rigidity": "rigid_core_with_mobile_periphery",
+  "planarity_proxy": "low",
+  "planarity_break_count": 5,
+  "conjugation_compactness": "high",
+  "conjugation_continuity": "segmented",
+  "heteroatom_cluster_pattern": "sparse",
+  "proton_transfer_local_geometry": "none",
+  "reliability": "high",
+  "notes": [
+    "Detected 0 donor site(s) and 0 acceptor site(s) with unknown donor-acceptor separation.",
+    "Intramolecular H-bond geometry is none; tautomerizable subgraph strength is low.",
+    "Aromatic scaffold is extended with high rigidity and low planarity proxy.",
+    "Donor/acceptor topology is weak under the current topology heuristic."
+  ]
+}

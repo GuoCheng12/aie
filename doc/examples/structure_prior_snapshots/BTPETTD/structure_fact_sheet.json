@@ -1,0 +1,27 @@
+{
+  "version": "structure_fact_sheet_v1",
+  "donor_acceptor_topology": "mixed",
+  "intramolecular_hbond_geometry": "none",
+  "proton_transfer_topology_candidate": "none",
+  "tautomerizable_subgraph_strength": "low",
+  "donor_acceptor_fragment_balance": "mid",
+  "donor_acceptor_path_multiplicity": "low",
+  "donor_acceptor_separation_regime": "unknown",
+  "aromatic_rigidity_signature": "high",
+  "fused_aromatic_core_strength": "high",
+  "aromatic_core_connectivity": "fused",
+  "global_flexibility_vs_core_rigidity": "mixed",
+  "planarity_proxy": "low",
+  "planarity_break_count": 10,
+  "conjugation_compactness": "high",
+  "conjugation_continuity": "segmented",
+  "heteroatom_cluster_pattern": "clustered",
+  "proton_transfer_local_geometry": "none",
+  "reliability": "high",
+  "notes": [
+    "Detected 0 donor site(s) and 2 acceptor site(s) with unknown donor-acceptor separation.",
+    "Intramolecular H-bond geometry is none; tautomerizable subgraph strength is low.",
+    "Aromatic scaffold is fused with high rigidity and low planarity proxy.",
+    "Matched structural motif families: hetero_acceptor_ring."
+  ]
+}
