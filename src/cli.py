@@ -343,22 +343,15 @@ def compute_ecfp_fingerprint(smiles: str) -> Optional[np.ndarray]:
     """
     try:
         from rdkit import Chem
-        from rdkit.Chem import AllChem
+        from rdkit.Chem import rdFingerprintGenerator
 
         mol = Chem.MolFromSmiles(smiles)
         if mol is None:
             return None
 
-        # Try new API first (rdFingerprintGenerator)
-        try:
-            from rdkit.Chem import rdFingerprintGenerator
-            generator = rdFingerprintGenerator.GetMorganGenerator(radius=2, fpSize=2048)
-            fp = generator.GetFingerprintAsNumPy(mol)
-            return fp.astype(np.int8)
-        except (ImportError, AttributeError):
-            # Fallback to old API
-            fp = AllChem.GetMorganFingerprintAsBitVect(mol, radius=2, nBits=2048)
-            return np.array(list(fp), dtype=np.int8)
+        generator = rdFingerprintGenerator.GetMorganGenerator(radius=2, fpSize=2048)
+        fp = generator.GetFingerprintAsNumPy(mol)
+        return fp.astype(np.int8)
     except Exception:
         return None
 
@@ -947,6 +940,8 @@ def _build_case_run_namespace(**overrides) -> argparse.Namespace:
         "mineru_timeout_sec": 1200,
         "force": False,
         "neighbor_topk": 10,
+        "reference_index_root": "data/reference_indices/split_levels_v2/views",
+        "reference_view": "all_levels_full",
         "iterative": False,
         "round_runner_mode": "dryrun_then_commit",
         "max_rounds": 4,
@@ -1070,6 +1065,10 @@ def case_run_command(args):
             mineru_timeout_sec=args.mineru_timeout_sec,
             force=bool(args.force),
             neighbor_topk=int(getattr(args, "neighbor_topk", 10)),
+            reference_index_root=str(
+                getattr(args, "reference_index_root", "data/reference_indices/split_levels_v2/views")
+            ),
+            reference_view=str(getattr(args, "reference_view", "all_levels_full")),
             iterative=bool(getattr(args, "iterative", False)),
             round_runner_mode=str(getattr(args, "round_runner_mode", "dryrun_then_commit")),
             max_rounds=int(getattr(args, "max_rounds", 4)),
@@ -1121,6 +1120,21 @@ def ready_agent_command(args):
         print(json.dumps(out, indent=2, ensure_ascii=False))
     except Exception as e:
         logger.error(f"Failed to run ready-agent: {e}")
+        import traceback
+        traceback.print_exc()
+        sys.exit(1)
+
+
+def eval_mechanism_benchmark_command(args):
+    """Compare multi-agent vs zero-shot mechanism-label accuracy on test.csv."""
+    try:
+        from src.eval.evaluate_mechanism_benchmark import run_benchmark
+
+        report = run_benchmark(args)
+        if bool(getattr(args, "print_report", False)):
+            print(json.dumps(report, indent=2, ensure_ascii=False))
+    except Exception as e:
+        logger.error(f"Failed to run eval-mechanism-benchmark: {e}")
         import traceback
         traceback.print_exc()
         sys.exit(1)
@@ -1313,6 +1327,17 @@ Examples:
     case_run_parser.add_argument("--mineru-timeout-sec", type=int, default=1200)
     case_run_parser.add_argument("--force", action="store_true")
     case_run_parser.add_argument("--neighbor-topk", type=int, default=10)
+    case_run_parser.add_argument(
+        "--reference-index-root",
+        type=str,
+        default="data/reference_indices/split_levels_v2/views",
+    )
+    case_run_parser.add_argument(
+        "--reference-view",
+        type=str,
+        default="all_levels_full",
+        choices=["auto", "all_levels_full", "leave_level_1", "leave_level_2", "leave_level_3"],
+    )
     case_run_parser.add_argument("--iterative", action="store_true", help="Enable iterative rounds (R0..R3) after setup agents.")
     case_run_parser.add_argument(
         "--round-runner-mode",
@@ -1497,6 +1522,64 @@ Examples:
     ready_parser.add_argument("--case", type=str, required=True, help="Path to case JSON file")
     ready_parser.add_argument("--dry-run", action="store_true", help="Print patch only; do not rewrite case")
     ready_parser.set_defaults(func=ready_agent_command)
+
+    eval_benchmark_parser = subparsers.add_parser(
+        "eval-mechanism-benchmark",
+        help="Compare multi-agent and zero-shot mechanism-label accuracy on data/test.csv",
+    )
+    eval_benchmark_parser.add_argument("--test-csv", type=str, default="data/test.csv")
+    eval_benchmark_parser.add_argument(
+        "--protocol",
+        type=str,
+        default="compare",
+        choices=["multi_agent", "zero_shot", "compare"],
+    )
+    eval_benchmark_parser.add_argument("--model", type=str, default="gpt-5.2")
+    eval_benchmark_parser.add_argument("--base-url", type=str, default="http://35.220.164.252:3888/v1")
+    eval_benchmark_parser.add_argument("--reasoning-effort", type=str, default="medium")
+    eval_benchmark_parser.add_argument("--temperature", type=float, default=0.0)
+    eval_benchmark_parser.add_argument("--llm-api-key-env", type=str, default="OPENAI_API_KEY")
+    eval_benchmark_parser.add_argument("--llm-max-output-tokens", type=int, default=1500)
+    eval_benchmark_parser.add_argument("--outdir", type=str, default="artifacts/eval_compare")
+    eval_benchmark_parser.add_argument("--eval-id", type=str, default=None)
+    eval_benchmark_parser.add_argument("--start-row", type=int, default=0)
+    eval_benchmark_parser.add_argument("--max-rows", type=int, default=None)
+    eval_benchmark_parser.add_argument("--force", action="store_true")
+    eval_benchmark_parser.add_argument("--show-progress", action=argparse.BooleanOptionalAction, default=True)
+    eval_benchmark_parser.add_argument(
+        "--run-lane",
+        type=str,
+        default="atb_cache_only",
+        choices=["atb_cache_only", "offline_pdf", "full"],
+    )
+    eval_benchmark_parser.add_argument("--iterative", action=argparse.BooleanOptionalAction, default=False)
+    eval_benchmark_parser.add_argument("--max-rounds", type=int, default=4)
+    eval_benchmark_parser.add_argument("--round-start-profile", type=str, default="R0")
+    eval_benchmark_parser.add_argument("--neighbor-topk", type=int, default=10)
+    eval_benchmark_parser.add_argument("--evaluator-use-llm", action=argparse.BooleanOptionalAction, default=False)
+    eval_benchmark_parser.add_argument("--evaluator-model", type=str, default=None)
+    eval_benchmark_parser.add_argument("--evaluator-reasoning-effort", type=str, default=None)
+    eval_benchmark_parser.add_argument("--llm-use-json-schema", action="store_true")
+    eval_benchmark_parser.add_argument(
+        "--output-layout",
+        type=str,
+        default="case_centric",
+        choices=["case_centric", "run_centric"],
+    )
+    eval_benchmark_parser.add_argument("--retain-runs", type=int, default=10)
+    eval_benchmark_parser.add_argument(
+        "--write-legacy-run-view",
+        action=argparse.BooleanOptionalAction,
+        default=True,
+    )
+    eval_benchmark_parser.add_argument(
+        "--round-runner-mode",
+        type=str,
+        default="dryrun_then_commit",
+        choices=["dryrun_then_commit", "commit_all_rounds"],
+    )
+    eval_benchmark_parser.add_argument("--print-report", action=argparse.BooleanOptionalAction, default=False)
+    eval_benchmark_parser.set_defaults(func=eval_mechanism_benchmark_command)
 
     args = parser.parse_args()
 

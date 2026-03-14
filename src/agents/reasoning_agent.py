@@ -18,7 +18,11 @@ from src.reasoning.master_reasoner import (
     build_reasoning_pack,
     run_master_reasoner_once,
 )
-from src.reasoning.reasoning_config import build_allowed_mechanism_labels, build_reasoning_policy
+from src.reasoning.reasoning_config import (
+    build_allowed_mechanism_labels,
+    build_reasoning_policy,
+    resolve_allow_other_label,
+)
 from src.tools.llm_client import LLMClientError, ResponsesLLMClient
 from src.tools.llm_trace_store import (
     build_reasoning_five_signals,
@@ -67,6 +71,12 @@ class ReasoningAgent(CaseAgent):
 
     def build_inputs(self, case: Dict[str, Any], ctx: AgentContext) -> Dict[str, Any]:
         policy = build_reasoning_policy()
+        runtime = case.get("runtime") if isinstance(case.get("runtime"), dict) else {}
+        allow_other_label = resolve_allow_other_label(
+            runtime=runtime,
+            reference_index_root=str((runtime or {}).get("reference_index_root") or ""),
+        )
+        policy["allow_other_label"] = bool(allow_other_label)
         reasoning_config = {
             "run_lane": ctx.run_lane,
             "model": ctx.model,
@@ -74,7 +84,7 @@ class ReasoningAgent(CaseAgent):
             "temperature": float(ctx.llm_temperature),
             "use_json_schema": bool(ctx.llm_use_json_schema),
             "master_output_mode": "tagged_repair",
-            "allowed_mechanism_labels": build_allowed_mechanism_labels(),
+            "allowed_mechanism_labels": build_allowed_mechanism_labels(include_other=allow_other_label),
             "master": {
                 "model": ctx.model,
                 "reasoning_effort": ctx.llm_reasoning_effort or "medium",

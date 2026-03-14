@@ -27,6 +27,13 @@ TRAIN_BUSINESS_COLUMNS = [
     "doi",
 ]
 
+# Split-level provenance columns retained when present.
+PROVENANCE_COLUMNS = [
+    "difficulty_level",
+    "source_split_file",
+    "source_row_index",
+]
+
 # Required to construct a valid facts table.
 REQUIRED_COLUMNS = ["id", "SMILES"]
 
@@ -90,14 +97,20 @@ def enforce_train_schema(df: pd.DataFrame) -> pd.DataFrame:
 
     out = df.copy()
 
-    # Fill missing optional columns with nulls, then keep only train business columns.
+    # Fill missing optional columns with nulls, then keep train business columns.
     for col in TRAIN_BUSINESS_COLUMNS:
         if col not in out.columns:
             out[col] = np.nan
-    out = out[TRAIN_BUSINESS_COLUMNS].copy()
+    selected_cols = list(TRAIN_BUSINESS_COLUMNS)
+    for col in PROVENANCE_COLUMNS:
+        if col in out.columns:
+            selected_cols.append(col)
+    out = out[selected_cols].copy()
 
     # Normalize string-like columns.
-    for col in ["code", "SMILES", "reference", "mechanism_id", "doi"]:
+    for col in ["code", "SMILES", "reference", "mechanism_id", "doi", "source_split_file"]:
+        if col not in out.columns:
+            continue
         out[col] = _normalize_string_column(out[col])
 
     # id must be numeric and non-null.
@@ -111,6 +124,12 @@ def enforce_train_schema(df: pd.DataFrame) -> pd.DataFrame:
     # Numeric coercion for train numeric fields.
     for col in NUMERIC_COLUMNS:
         out[col] = pd.to_numeric(out[col], errors="coerce")
+
+    # Preserve split-level provenance numerics when present.
+    if "difficulty_level" in out.columns:
+        out["difficulty_level"] = pd.to_numeric(out["difficulty_level"], errors="coerce").astype("Int64")
+    if "source_row_index" in out.columns:
+        out["source_row_index"] = pd.to_numeric(out["source_row_index"], errors="coerce").astype("Int64")
 
     # Keep features_id as nullable integer when possible.
     out["features_id"] = out["features_id"].astype("Int64")

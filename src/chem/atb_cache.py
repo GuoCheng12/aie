@@ -6,10 +6,12 @@ Used by cache-to-parquet build and SMILES-first case files (single source of tru
 """
 
 import json
+import math
 from pathlib import Path
 from typing import Any, Dict, List, Optional, Tuple
 
 from src.cases.case_schema import KEY_ATB_FIELDS, AtbCacheStatus
+from src.chem.atb_aop_compact import extract_aop_compact
 
 
 DEFAULT_CACHE_DIR = "cache/atb"
@@ -40,7 +42,87 @@ ATB_FEATURE_FIELDS = [
     "s0_charge_dipole",
     "s1_charge_dipole",
     "delta_dipole",
+    "charge_redis_total_abs",
+    "charge_redis_max_abs_atom",
+    "charge_redis_top3_abs_share",
+    "charge_redis_heteroatom_abs_share",
+    "charge_redis_n_atoms_ge_0p01",
+    "charge_redis_n_atoms_ge_0p02",
+    "s0_perm_dipole_tot_debye",
+    "s1_perm_dipole_tot_debye",
+    "delta_perm_dipole_tot_debye",
+    "s1_transition_electric_dip_au",
+    "s1_transition_magnetic_dip_norm_au",
+    "s1_rotatory_strength_cgs",
+    "s1_oscillator_strength_f",
+    "s1_excitation_wavelength_nm",
+    "aop_compact_reliability_score",
 ]
+
+_AOP_RELIABILITY_SCORE = {"low": 0.0, "medium": 1.0, "high": 2.0}
+
+
+def _to_float(value: Any) -> Optional[float]:
+    try:
+        out = float(value)
+    except (TypeError, ValueError):
+        return None
+    if out != out:
+        return None
+    return out
+
+
+def _summarize_charge_redistribution(value: Any) -> Dict[str, float]:
+    """
+    Compress atomwise charge variation into compact scalar summaries.
+
+    Expected raw shape:
+        {"element": [...], "charge_variation": [...]}
+
+    Returns an empty dict for missing/malformed inputs.
+    """
+    if not isinstance(value, dict):
+        return {}
+    elements = value.get("element")
+    variations = value.get("charge_variation")
+    if not isinstance(elements, list) or not isinstance(variations, list):
+        return {}
+    if not elements or not variations or len(elements) != len(variations):
+        return {}
+
+    rows: List[Tuple[str, float]] = []
+    for element, delta_q in zip(elements, variations):
+        val = _to_float(delta_q)
+        if val is None:
+            continue
+        rows.append((str(element or "").strip(), abs(val)))
+    if not rows:
+        return {}
+
+    total_abs = sum(val for _, val in rows)
+    if total_abs <= 0.0:
+        return {
+            "charge_redis_total_abs": 0.0,
+            "charge_redis_max_abs_atom": 0.0,
+            "charge_redis_top3_abs_share": 0.0,
+            "charge_redis_heteroatom_abs_share": 0.0,
+            "charge_redis_n_atoms_ge_0p01": 0.0,
+            "charge_redis_n_atoms_ge_0p02": 0.0,
+        }
+
+    sorted_abs = sorted((val for _, val in rows), reverse=True)
+    top3_abs = sum(sorted_abs[:3])
+    hetero_abs = sum(val for element, val in rows if element.upper() not in {"C", "H"})
+    n_atoms_ge_0p01 = sum(1 for _, val in rows if val >= 0.01)
+    n_atoms_ge_0p02 = sum(1 for _, val in rows if val >= 0.02)
+    return {
+        "charge_redis_total_abs": float(total_abs),
+        "charge_redis_max_abs_atom": float(sorted_abs[0]),
+        "charge_redis_top3_abs_share": float(top3_abs / total_abs),
+        "charge_redis_heteroatom_abs_share": float(hetero_abs / total_abs),
+        "charge_redis_n_atoms_ge_0p01": float(n_atoms_ge_0p01),
+        "charge_redis_n_atoms_ge_0p02": float(n_atoms_ge_0p02),
+    }
 
 
 def _read_json(path: Path) -> Optional[Dict[str, Any]]:
@@ -52,6 +134,69 @@ def _read_json(path: Path) -> Optional[Dict[str, Any]]:
             return json.load(f)
     except Exception:
         return None
+
+
+def _load_or_build_aop_compact(cache_path: Path) -> Optional[Dict[str, Any]]:
+    compact_path = cache_path / "aop_compact.json"
+    payload = _read_json(compact_path)
+    if isinstance(payload, dict):
+        return payload
+
+    opt_path = cache_path / "opt" / "opt_run.aop"
+    excit_path = cache_path / "excit" / "excit_run.aop"
+    if not opt_path.exists() and not excit_path.exists():
+        return None
+
+    try:
+        payload = extract_aop_compact(cache_path)
+    except Exception:
+        return None
+
+    try:
+        with open(compact_path, "w", encoding="utf-8") as f:
+            json.dump(payload, f, ensure_ascii=False, indent=2)
+    except Exception:
+        # Lazy writeback should never block the main read path.
+        pass
+    return payload if isinstance(payload, dict) else None
+
+
+def _extract_aop_compact_scalars(aop_compact: Optional[Dict[str, Any]]) -> Dict[str, float]:
+    if not isinstance(aop_compact, dict):
+        return {}
+
+    s0 = aop_compact.get("s0_permanent_dipole_debye") or {}
+    s1 = aop_compact.get("s1_permanent_dipole_debye") or {}
+    trans_e = aop_compact.get("s1_transition_electric_dipole_au") or {}
+    trans_m = aop_compact.get("s1_transition_magnetic_dipole_au") or {}
+    s1_exc = aop_compact.get("s1_excitation") or {}
+
+    mx = _to_float(trans_m.get("x"))
+    my = _to_float(trans_m.get("y"))
+    mz = _to_float(trans_m.get("z"))
+    mag_norm: Optional[float] = None
+    if mx is not None and my is not None and mz is not None:
+        mag_norm = math.sqrt((mx * mx) + (my * my) + (mz * mz))
+
+    values = {
+        "s0_perm_dipole_tot_debye": _to_float(s0.get("tot")),
+        "s1_perm_dipole_tot_debye": _to_float(s1.get("tot")),
+        "delta_perm_dipole_tot_debye": _to_float(aop_compact.get("delta_permanent_dipole_tot_debye")),
+        "s1_transition_electric_dip_au": _to_float(trans_e.get("dip")),
+        "s1_transition_magnetic_dip_norm_au": mag_norm,
+        "s1_rotatory_strength_cgs": _to_float(aop_compact.get("s1_rotatory_strength_cgs")),
+        "s1_oscillator_strength_f": _to_float(s1_exc.get("oscillator_strength_f")),
+        "s1_excitation_wavelength_nm": _to_float(s1_exc.get("wavelength_nm")),
+    }
+    out: Dict[str, float] = {}
+    for key, val in values.items():
+        if val is not None:
+            out[key] = float(val)
+
+    reliability = str(aop_compact.get("reliability") or "").strip().lower()
+    if reliability in _AOP_RELIABILITY_SCORE:
+        out["aop_compact_reliability_score"] = float(_AOP_RELIABILITY_SCORE[reliability])
+    return out
 
 
 def get_cache_paths(inchikey: str, cache_dir: str = DEFAULT_CACHE_DIR) -> Dict[str, Path]:
@@ -66,7 +211,11 @@ def get_cache_paths(inchikey: str, cache_dir: str = DEFAULT_CACHE_DIR) -> Dict[s
     }
 
 
-def extract_features_summary(features: Dict[str, Any]) -> Tuple[Optional[Dict[str, Any]], List[str]]:
+def extract_features_summary(
+    features: Dict[str, Any],
+    *,
+    aop_compact: Optional[Dict[str, Any]] = None,
+) -> Tuple[Optional[Dict[str, Any]], List[str]]:
     """
     Build a lightweight features_summary for case files.
 
@@ -75,10 +224,16 @@ def extract_features_summary(features: Dict[str, Any]) -> Tuple[Optional[Dict[st
     """
     summary: Dict[str, Any] = {}
     missing: List[str] = []
+    charge_redis_summary = _summarize_charge_redistribution(features.get("delta_dipole"))
+    summary.update(charge_redis_summary)
+    summary.update(_extract_aop_compact_scalars(aop_compact))
 
     for key in KEY_ATB_FIELDS:
         val = features.get(key)
         if val is None:
+            missing.append(key)
+            continue
+        if key == "delta_dipole" and isinstance(val, dict):
             missing.append(key)
             continue
         try:
@@ -109,6 +264,8 @@ def extract_features_summary(features: Dict[str, Any]) -> Tuple[Optional[Dict[st
     for key in optional_fields:
         val = features.get(key)
         if val is not None:
+            if key == "delta_dipole" and isinstance(val, dict):
+                continue
             try:
                 summary[key] = float(val)
             except (TypeError, ValueError):
@@ -126,12 +283,27 @@ def extract_features_summary(features: Dict[str, Any]) -> Tuple[Optional[Dict[st
     return (summary if summary else None), missing
 
 
-def extract_numeric_features(features: Dict[str, Any]) -> Dict[str, Optional[float]]:
+def extract_numeric_features(
+    features: Dict[str, Any],
+    *,
+    aop_compact: Optional[Dict[str, Any]] = None,
+) -> Dict[str, Optional[float]]:
     """Extract stable numeric fields for atb_features.parquet."""
     row: Dict[str, Optional[float]] = {}
+    charge_redis_summary = _summarize_charge_redistribution(features.get("delta_dipole"))
+    aop_scalars = _extract_aop_compact_scalars(aop_compact)
     for key in ATB_FEATURE_FIELDS:
+        if key in charge_redis_summary:
+            row[key] = charge_redis_summary[key]
+            continue
+        if key in aop_scalars:
+            row[key] = aop_scalars[key]
+            continue
         val = features.get(key)
         if val is None:
+            row[key] = None
+            continue
+        if key == "delta_dipole" and isinstance(val, dict):
             row[key] = None
             continue
         try:
@@ -207,11 +379,12 @@ def get_atb_cache_record(
     paths = get_cache_paths(inchikey, cache_dir=cache_dir)
     status = _read_json(paths["status_path"])
     features = _read_json(paths["features_path"])
+    aop_compact = _load_or_build_aop_compact(paths["cache_dir"])
 
     has_features_json = features is not None
     features_summary, missing_fields = (None, [])
     if features is not None:
-        features_summary, missing_fields = extract_features_summary(features)
+        features_summary, missing_fields = extract_features_summary(features, aop_compact=aop_compact)
 
     run_status = status.get("run_status") if status else None
     cache_status = compute_cache_status(run_status, has_features_json, missing_fields)
@@ -226,6 +399,7 @@ def get_atb_cache_record(
         "status": status,
         "features": features,
         "features_summary": features_summary,
+        "aop_compact": aop_compact,
     }
 
 

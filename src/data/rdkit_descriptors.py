@@ -7,7 +7,7 @@ Compute RDKit molecular descriptors (ECFP fingerprints and basic descriptors).
 import pandas as pd
 import numpy as np
 from rdkit import Chem
-from rdkit.Chem import AllChem, Descriptors, Crippen, Lipinski
+from rdkit.Chem import Descriptors, Crippen, Lipinski, rdFingerprintGenerator
 from typing import Optional, Dict
 
 from src.utils.logging import get_logger
@@ -35,14 +35,8 @@ def compute_ecfp(smiles: str, radius: int = 2, n_bits: int = 2048) -> Optional[n
         if mol is None:
             return None
 
-        # Use newer MorganGenerator API if available (RDKit 2023.9+)
-        try:
-            from rdkit.Chem import rdFingerprintGenerator
-            fpgen = rdFingerprintGenerator.GetMorganGenerator(radius=radius, fpSize=n_bits)
-            fp = fpgen.GetFingerprint(mol)
-        except (ImportError, AttributeError):
-            # Fallback to old API for older RDKit versions
-            fp = AllChem.GetMorganFingerprintAsBitVect(mol, radius, nBits=n_bits)
+        fpgen = rdFingerprintGenerator.GetMorganGenerator(radius=radius, fpSize=n_bits)
+        fp = fpgen.GetFingerprint(mol)
 
         return np.array(fp, dtype=np.int8)
     except Exception as e:
@@ -145,9 +139,18 @@ def compute_rdkit_features(
     descriptors_df = pd.DataFrame(descriptor_dicts)
 
     # Combine results
-    features_df = pd.DataFrame({"inchikey": df["inchikey"]})
+    features_df = pd.DataFrame({"inchikey": df["inchikey"], "canonical_smiles": df[smiles_col]})
     features_df = pd.concat([features_df, descriptors_df], axis=1)
     features_df["ecfp_2048"] = ecfp_list
+
+    for col in (
+        "difficulty_levels",
+        "primary_difficulty_level",
+        "source_split_files",
+        "source_row_indices",
+    ):
+        if col in df.columns:
+            features_df[col] = df[col]
 
     # Report results
     n_valid_ecfp = sum(fp is not None for fp in ecfp_list)

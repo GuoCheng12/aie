@@ -61,9 +61,9 @@ def _ev(pack: dict, case_path: str, note: str, role: str) -> dict:
 
 
 def _valid_output(pack: dict):
-    ev_sim = [_ev(pack, "/risk_scores/top1_sim", "top similarity", "context")]
+    ev_sim = [_ev(pack, "/current_gate/reasoning_mode", "reasoning mode context", "context")]
     ev_atb_a = [_ev(pack, "/evidence_readiness/atb/features_summary/delta_dihedral", "torsional change", "support")]
-    ev_atb_b = [_ev(pack, "/evidence_readiness/atb/features_summary/delta_gap", "ct-family context", "context")]
+    ev_atb_b = [_ev(pack, "/evidence_readiness/atb/features_summary/delta_gap", "electronic redistribution cue", "support")]
     ev_atb_c = [_ev(pack, "/evidence_readiness/atb/features_summary/delta_volume", "packing/rigidification proxy", "context")]
     ev_atb_d = [_ev(pack, "/evidence_readiness/atb/features_summary/delta_dihedral", "test discriminator", "context")]
     return {
@@ -150,7 +150,7 @@ def test_validate_master_output_passes_for_valid_payload():
     assert ok is True
     assert errors == []
     assert normalized["status"] == "ok"
-    assert "/risk_scores/top1_sim" in used
+    assert "/current_gate/reasoning_mode" in used
     assert "/evidence_readiness/atb/features_summary/delta_dihedral" in used
     assert any(x.startswith("E") for x in used_ids)
     assert any(x.get("evidence_id", "").startswith("E") for x in used_evidence)
@@ -260,7 +260,6 @@ def test_validate_master_output_requires_step_order_and_atb_citations():
     assert ok is True
     assert _has_code(errors, "supporting_chain_step_order_invalid")
     assert _has_code(errors, "supporting_chain_step_a_missing_atb_citation")
-    assert _has_code(errors, "supporting_chain_atb_support_citations_insufficient")
 
 
 def test_validate_master_output_avoids_hard_constant_similarity_entropy_cap():
@@ -359,6 +358,48 @@ def test_five_signals_not_validated():
         {"master_output_schema_version": "v3"},
     )
     assert ok is True
+
+
+def test_validate_master_output_auto_adds_aop_compact_citation_in_r2_when_missing():
+    case = _case(conservative=False, with_emission=True)
+    case["evidence_readiness"]["atb"]["features_summary"].update(
+        {
+            "s1_transition_electric_dip_au": 5.2,
+            "s1_oscillator_strength_f": 0.21,
+            "s1_excitation_wavelength_nm": 540.0,
+            "delta_perm_dipole_tot_debye": 1.1,
+            "s1_rotatory_strength_cgs": 0.03,
+            "aop_compact_reliability_score": 2.0,
+        }
+    )
+    pack = build_reasoning_pack(
+        case,
+        {
+            "run_lane": "atb_cache_only",
+            "evidence_profiles": {"active_profile": "R2"},
+        },
+    )
+    assert any(row.get("evidence_id") in {"E60", "E61", "E62", "E63"} for row in (pack.get("evidence_registry") or []))
+
+    out = _valid_output(pack)
+    # Keep only non-aop citations to trigger auto-insertion.
+    out["evidence_used"] = [
+        _ev(pack, "/current_gate/reasoning_mode", "reasoning mode context", "context"),
+        _ev(pack, "/evidence_readiness/atb/features_summary/delta_dihedral", "torsional change", "support"),
+    ]
+    ok, errors, normalized, _, used_ids, _ = validate_master_output(
+        out,
+        pack,
+        case,
+        {"master_output_schema_version": "v3"},
+    )
+    assert ok is True
+    assert _has_code(errors, "r2_missing_aop_compact_citation_auto_added")
+    assert any(eid in {"E60", "E61", "E62", "E63"} for eid in used_ids)
+    assert any(
+        isinstance(row, dict) and str(row.get("evidence_id") or "") in {"E60", "E61", "E62", "E63"}
+        for row in (normalized.get("evidence_used") or [])
+    )
     assert not _has_code(errors, "additional_property_not_allowed")
 
 

@@ -42,9 +42,20 @@ from src.orchestration.round_runner import (
     run_iterative_rounds,
 )
 from src.orchestration.run_status import atomic_write_json, emit_progress_event, now_iso8601
+from src.reasoning.reasoning_config import resolve_allow_other_label
 from src.tools.llm_trace_store import resolve_rounds_trace_dir, resolve_run_trace_dir
 
 SUPPORTED_RUN_LANES = {"atb_cache_only", "offline_pdf", "full"}
+REFERENCE_VIEW_AUTO = "auto"
+REFERENCE_VIEW_ALL = "all_levels_full"
+REFERENCE_VIEWS = {
+    REFERENCE_VIEW_AUTO,
+    REFERENCE_VIEW_ALL,
+    "leave_level_1",
+    "leave_level_2",
+    "leave_level_3",
+}
+DEFAULT_REFERENCE_INDEX_ROOT = "data/reference_indices/split_levels_v2/views"
 
 
 def _now() -> str:
@@ -56,6 +67,16 @@ def _now() -> str:
 def _read_test_rows(path: Path) -> list[Dict[str, Any]]:
     with Path(path).open("r", encoding="utf-8", newline="") as f:
         return list(csv.DictReader(f))
+
+
+def _to_float(value: Any) -> Optional[float]:
+    try:
+        out = float(value)
+    except Exception:
+        return None
+    if out != out:
+        return None
+    return out
 
 
 def _row_by_index(rows: list[Dict[str, Any]], row_index: int) -> Dict[str, Any]:
@@ -93,6 +114,50 @@ def _resolve_input_row(args: argparse.Namespace) -> Dict[str, Any]:
     return _row_by_index(rows, int(row_index))
 
 
+def _parse_difficulty_level(row: Dict[str, Any]) -> Optional[int]:
+    for key in ("difficulty_level", "level", "difficulty"):
+        value = row.get(key)
+        if value is None or str(value).strip() == "":
+            continue
+        try:
+            parsed = int(float(str(value)))
+        except Exception:
+            continue
+        if parsed in {1, 2, 3}:
+            return parsed
+    source_split_file = str(row.get("source_split_file") or "").strip()
+    if source_split_file:
+        for level in (1, 2, 3):
+            if source_split_file.startswith(f"{level}_level"):
+                return level
+    return None
+
+
+def _resolve_reference_view(args: argparse.Namespace, row: Dict[str, Any]) -> tuple[str, Optional[int]]:
+    configured = str(getattr(args, "reference_view", REFERENCE_VIEW_ALL) or REFERENCE_VIEW_ALL)
+    if configured not in REFERENCE_VIEWS:
+        raise ValueError(f"unsupported_reference_view:{configured}")
+    difficulty_level = _parse_difficulty_level(row)
+    if configured != REFERENCE_VIEW_AUTO:
+        return configured, difficulty_level
+    if getattr(args, "smiles", None):
+        return REFERENCE_VIEW_ALL, difficulty_level
+    if difficulty_level in {1, 2, 3}:
+        return f"leave_level_{difficulty_level}", difficulty_level
+    return REFERENCE_VIEW_ALL, difficulty_level
+
+
+def _resolve_reference_data_dir(args: argparse.Namespace, row: Dict[str, Any]) -> tuple[Path, str, Optional[int]]:
+    reference_view, difficulty_level = _resolve_reference_view(args, row)
+    reference_root = Path(
+        str(getattr(args, "reference_index_root", DEFAULT_REFERENCE_INDEX_ROOT) or DEFAULT_REFERENCE_INDEX_ROOT)
+    )
+    view_dir = reference_root / reference_view
+    if view_dir.exists():
+        return view_dir, reference_view, difficulty_level
+    return Path("data"), "legacy_data", difficulty_level
+
+
 def _emission_mode_for_lane(run_lane: str, has_offline_pdf: bool) -> str:
     if run_lane == "offline_pdf":
         return "offline_pdf"
@@ -101,7 +166,18 @@ def _emission_mode_for_lane(run_lane: str, has_offline_pdf: bool) -> str:
     return "offline_pdf" if has_offline_pdf else "web_search"
 
 
-def _build_initial_case(row: Dict[str, Any], offline_pdf: Optional[str], run_lane: str) -> Dict[str, Any]:
+def _build_initial_case(
+    row: Dict[str, Any],
+    offline_pdf: Optional[str],
+    run_lane: str,
+    *,
+    source_ref: Optional[str],
+    source_locator: Optional[str],
+    reference_index_root: str,
+    reference_view: str,
+    difficulty_level: Optional[int],
+    allow_other_label: bool,
+) -> Dict[str, Any]:
     smiles = str(row.get("SMILES") or "").strip()
     if not smiles:
         raise ValueError("selected_row_missing_smiles")
@@ -118,11 +194,46 @@ def _build_initial_case(row: Dict[str, Any], offline_pdf: Optional[str], run_lan
             }
         )
     mode = _emission_mode_for_lane(run_lane, has_offline_pdf=bool(pdf_items))
+    emission_aggr = _to_float(row.get("emission_aggr"))
+    emission_solid = _to_float(row.get("emission_solid"))
+    target_fields: Dict[str, Any] = {}
+    target_fields_provenance: Dict[str, Any] = {}
+    if emission_aggr is not None:
+        target_fields["emission_aggr_nm"] = emission_aggr
+        target_fields_provenance["emission_aggr_nm"] = {
+            "source_type": "dataset_row",
+            "source_ref": source_ref,
+            "source_locator": source_locator,
+            "confidence": 1.0,
+            "identity_match": "exact",
+            "identity_match_confidence": 1.0,
+            "condition": "aggregation",
+            "condition_bucket": "aggregation",
+        }
+    if emission_solid is not None:
+        target_fields["emission_solid_or_film_nm"] = emission_solid
+        target_fields_provenance["emission_solid_or_film_nm"] = {
+            "source_type": "dataset_row",
+            "source_ref": source_ref,
+            "source_locator": source_locator,
+            "confidence": 1.0,
+            "identity_match": "exact",
+            "identity_match_confidence": 1.0,
+            "condition": "solid_or_film",
+            "condition_bucket": "solid_or_film",
+        }
 
     return {
         "case_id": case_id,
         "case_version": "1.1.0-multi-agent",
-        "runtime": {"run_lane": run_lane},
+        "runtime": {
+            "run_lane": run_lane,
+            "reference_index_root": reference_index_root,
+            "reference_view": reference_view,
+            "difficulty_level": difficulty_level,
+            "allow_other_label": bool(allow_other_label),
+            "label_pool_name": "default_with_other" if allow_other_label else "main_no_other",
+        },
         "query": {
             "input_smiles": smiles,
             "canonical_smiles": None,
@@ -147,8 +258,8 @@ def _build_initial_case(row: Dict[str, Any], offline_pdf: Optional[str], run_lan
             "literature": {"status": "not_started", "sources": [], "last_update": _now(), "notes": None},
             "experiment": {"status": "not_requested", "requested_fields": [], "received_fields": [], "last_update": _now(), "notes": None},
         },
-        "target_fields": {},
-        "target_fields_provenance": {},
+        "target_fields": target_fields,
+        "target_fields_provenance": target_fields_provenance,
         "evidence_candidates_staging": [],
         "current_gate": {
             "state": "needs_manual",
@@ -328,7 +439,38 @@ def run_one(args: argparse.Namespace) -> Dict[str, Any]:
         raise ValueError(f"unsupported_run_lane:{run_lane}")
 
     row = _resolve_input_row(args)
-    initial_case = _build_initial_case(row, args.offline_pdf, run_lane)
+    reference_data_dir, reference_view, difficulty_level = _resolve_reference_data_dir(args, row)
+    reference_index_root = str(
+        Path(str(getattr(args, "reference_index_root", DEFAULT_REFERENCE_INDEX_ROOT) or DEFAULT_REFERENCE_INDEX_ROOT))
+    )
+    source_ref = str(Path(args.test_csv).resolve()) if getattr(args, "test_csv", None) else None
+    locator_bits = []
+    if getattr(args, "row_index", None) is not None:
+        locator_bits.append(f"row_index={int(args.row_index)}")
+    row_code = str(row.get("code") or "").strip()
+    if row_code:
+        locator_bits.append(f"code={row_code}")
+    source_locator = "; ".join(locator_bits) if locator_bits else None
+    allow_other_label = resolve_allow_other_label(
+        runtime={
+            "reference_index_root": reference_index_root,
+            "reference_view": reference_view,
+            "difficulty_level": difficulty_level,
+        },
+        reference_index_root=reference_index_root,
+        source_ref=source_ref,
+    )
+    initial_case = _build_initial_case(
+        row,
+        args.offline_pdf,
+        run_lane,
+        source_ref=source_ref,
+        source_locator=source_locator,
+        reference_index_root=reference_index_root,
+        reference_view=reference_view,
+        difficulty_level=difficulty_level,
+        allow_other_label=allow_other_label,
+    )
 
     case_id = str(initial_case["case_id"])
     run_id = uuid.uuid4().hex
@@ -384,6 +526,10 @@ def run_one(args: argparse.Namespace) -> Dict[str, Any]:
         mineru_end_page=args.mineru_end_page,
         mineru_timeout_sec=int(args.mineru_timeout_sec),
         force=bool(args.force),
+        status_path=status_path,
+        progress_round_index=0,
+        progress_max_rounds=int(getattr(args, "max_rounds", 1) if bool(getattr(args, "iterative", False)) else 1),
+        progress_active_profile="setup" if bool(getattr(args, "iterative", False)) else "single",
     )
 
     def _write_status(
@@ -443,8 +589,11 @@ def run_one(args: argparse.Namespace) -> Dict[str, Any]:
     if iterative_mode:
         t_setup = perf_counter()
         setup_kwargs: Dict[str, Any] = {}
-        if "neighbor_topk" in inspect.signature(build_setup_agents).parameters:
+        setup_sig = inspect.signature(build_setup_agents).parameters
+        if "neighbor_topk" in setup_sig:
             setup_kwargs["neighbor_topk"] = int(getattr(args, "neighbor_topk", 10))
+        if "data_dir" in setup_sig:
+            setup_kwargs["data_dir"] = str(reference_data_dir)
         setup_orchestrator = Orchestrator(
             agents=build_setup_agents(**setup_kwargs),
             ctx=ctx,
@@ -510,10 +659,13 @@ def run_one(args: argparse.Namespace) -> Dict[str, Any]:
         }
     else:
         t_orch = perf_counter()
-        orchestrator = Orchestrator(
-            agents=build_default_agents(neighbor_topk=int(getattr(args, "neighbor_topk", 10))),
-            ctx=ctx,
-        )
+        default_kwargs: Dict[str, Any] = {}
+        default_sig = inspect.signature(build_default_agents).parameters
+        if "neighbor_topk" in default_sig:
+            default_kwargs["neighbor_topk"] = int(getattr(args, "neighbor_topk", 10))
+        if "data_dir" in default_sig:
+            default_kwargs["data_dir"] = str(reference_data_dir)
+        orchestrator = Orchestrator(agents=build_default_agents(**default_kwargs), ctx=ctx)
         final_case, run_summary = orchestrator.run(initial_case)
         save_case(case_path, final_case)
         emit_progress_event(
@@ -567,6 +719,10 @@ def run_one(args: argparse.Namespace) -> Dict[str, Any]:
             "smiles": getattr(args, "smiles", None),
             "resolved_row": row,
             "offline_pdf": args.offline_pdf,
+            "reference_index_root": reference_index_root,
+            "reference_view": reference_view,
+            "reference_data_dir": str(reference_data_dir),
+            "difficulty_level": difficulty_level,
         },
         "final_gate": final_case.get("current_gate"),
         "target_fields": final_case.get("target_fields"),
@@ -715,6 +871,8 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--mineru-timeout-sec", type=int, default=1200)
     parser.add_argument("--force", action="store_true")
     parser.add_argument("--neighbor-topk", type=int, default=10)
+    parser.add_argument("--reference-index-root", type=str, default=DEFAULT_REFERENCE_INDEX_ROOT)
+    parser.add_argument("--reference-view", type=str, default=REFERENCE_VIEW_ALL, choices=sorted(REFERENCE_VIEWS))
     parser.add_argument("--iterative", action="store_true", help="Run iterative closure rounds after setup (Data/Chem/Ready).")
     parser.add_argument(
         "--round-runner-mode",

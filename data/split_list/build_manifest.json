@@ -1,0 +1,62 @@
+{
+  "generated_at": "2026-03-12T18:24:46Z",
+  "source_dir": "data/split_list_legacy_v1",
+  "output_dir": "data/split_list",
+  "other_benchmark_path": "data/other_benchmark.csv",
+  "legacy_source_files": [
+    "1_level.csv",
+    "2_level.csv",
+    "3_level.csv",
+    "4_level.csv"
+  ],
+  "level_remap": {
+    "1": 1,
+    "2": 2,
+    "3": 2,
+    "4": 3
+  },
+  "rows_per_level": {
+    "1": 275,
+    "2": 156,
+    "3": 44
+  },
+  "labels_per_level": {
+    "1": {
+      "ESIPT": 43,
+      "ESIPT+ICT/TICT": 3,
+      "ICT": 130,
+      "TICT": 35,
+      "clusterluminescence": 8,
+      "neutral aromatic": 56
+    },
+    "2": {
+      "ESIPT": 28,
+      "ICT": 62,
+      "TICT": 42,
+      "neutral aromatic": 24
+    },
+    "3": {
+      "ESIPT": 6,
+      "ICT": 18,
+      "TICT": 19,
+      "clusterluminescence": 1
+    }
+  },
+  "other_benchmark_rows": 216,
+  "other_rows_per_original_level": {
+    "1": 116,
+    "2": 56,
+    "3": 21,
+    "4": 23
+  },
+  "manual_exclusions": [
+    {
+      "generated_at": "2026-03-13T00:00:00Z",
+      "scope": "1_level.csv",
+      "smiles": "C1(/C(C2=CC=CC=C2)=C(C3=CC=C(C4=CC=CC5=C4C=CC=C5)C=C3)\\C6=CC=CC=C6)=CC=CC=C1",
+      "code": "TPENp",
+      "mechanism_id": "ESIPT",
+      "reason": "user_requested_exclusion"
+    }
+  ]
+}

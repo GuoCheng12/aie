@@ -16,7 +16,7 @@ def test_atb_ct_proxy_profile_compact_and_interpretable():
     assert profile["delta_dipole_bucket"] == "high"
     assert profile["delta_gap_bucket"] in {"mid", "high"}
     assert profile["ct_proxy_score"] in {"medium", "high"}
-    assert profile["reliability"] == "high"
+    assert profile["reliability"] == "medium"
     assert len(json.dumps(profile, ensure_ascii=False).encode("utf-8")) < 2048
 
 

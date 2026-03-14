@@ -27,6 +27,93 @@ Orchestrator refactor: IN PROGRESS (moving from CLI-centered flows to patch-scop
 
 ---
 
+## 2026-03-10 — Hotfix: `E60..E63` now only appear in aTB-enabled rounds
+
+- Fixed registry gating in `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/src/reasoning/master_reasoner.py`:
+  - compact `.aop` evidence IDs (`E60`, `E61`, `E62`, `E63`) are now emitted only when `include_target_atb_signals=True`,
+  - this aligns them with target aTB evidence rounds (`R1+`) and prevents early exposure in `R0`.
+- Updated registry compaction priority for non-comparative rounds so compact `.aop` evidence (`E60..E63`) can survive trimming in `R1+`.
+- Added regression coverage in `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/tests/test_reasoning_pack_builder.py`:
+  - `R0` does not include `E60..E63`,
+  - `R1` includes `E60..E63` when compact fields exist.
+- Validation (aie env):
+  - `pytest -q tests/test_reasoning_pack_builder.py tests/test_master_output_validation.py tests/test_master_single_axis_insufficiency.py`
+  - `pytest -q tests/test_atb_aop_compact_parser.py tests/test_atb_aop_compact_reliability.py tests/test_atb_cache_with_aop_compact.py tests/test_atb_features_table_includes_aop_compact.py tests/test_chem_agent_atb.py`
+  - result: all passed.
+
+## 2026-03-10 — aTB `.aop` compact extractor (`aop_compact_v1`) integrated
+
+- Added compact `.aop` parser module:
+  - `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/src/chem/atb_aop_compact.py`
+  - final-block extraction for:
+    - S0/S1 permanent dipole totals (Debye),
+    - S0->S1 transition electric dipole magnitude,
+    - S0->S1 transition magnetic dipole vector,
+    - S0->S1 rotatory strength,
+    - S1 excitation tuple (`energy_ev`, `wavelength_nm`, `wavenumber_cm1`, `oscillator_strength_f`).
+- Added lazy cache artifact generation:
+  - `cache/atb/<prefix>/<inchikey>/aop_compact.json`
+  - reliability label (`low|medium|high`) with fail-marker downgrade when `Stop : Fail to convergence on Geom Opt!` appears in opt/excit outputs.
+- Wired compact fields into cache/parquet pipelines:
+  - `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/src/chem/atb_cache.py`
+  - `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/src/chem/build_atb_tables_from_cache.py`
+  - new numeric columns now exposed to `features_summary` + `atb_features.parquet`:
+    - `s0_perm_dipole_tot_debye`, `s1_perm_dipole_tot_debye`, `delta_perm_dipole_tot_debye`,
+    - `s1_transition_electric_dip_au`, `s1_transition_magnetic_dip_norm_au`,
+    - `s1_rotatory_strength_cgs`, `s1_oscillator_strength_f`, `s1_excitation_wavelength_nm`,
+    - `aop_compact_reliability_score`.
+- Added batch precompute helper:
+  - `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/src/chem/build_aop_compact_cache.py`
+  - scans cache and writes/refreshed `aop_compact.json` files.
+- Extended reasoning evidence registry (compact only, no raw `.aop` text):
+  - `E60` S1 transition electric dipole cue,
+  - `E61` S1 oscillator + excitation wavelength cue,
+  - `E62` S0/S1 permanent dipole delta cue,
+  - `E63` S1 rotatory-strength cue.
+- Docs updated:
+  - `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/doc/process.md`
+  - `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/doc/schemas.md`
+- Added focused tests:
+  - `tests/test_atb_aop_compact_parser.py`
+  - `tests/test_atb_aop_compact_reliability.py`
+  - `tests/test_atb_cache_with_aop_compact.py`
+  - `tests/test_atb_features_table_includes_aop_compact.py`
+- Validation (aie env):
+  - `pytest -q tests/test_atb_aop_compact_parser.py tests/test_atb_aop_compact_reliability.py tests/test_atb_cache_with_aop_compact.py tests/test_atb_features_table_includes_aop_compact.py tests/test_atb_charge_redis_summary.py tests/test_reasoning_pack_builder.py tests/test_chem_agent_atb.py`
+  - `pytest -q tests/test_master_single_axis_insufficiency.py tests/test_master_dual_axis_support.py tests/test_master_conflict_penalty.py tests/test_master_output_validation.py`
+  - result: all passed.
+
+## 2026-03-08 — `delta_dipole` atomwise charge-redistribution compression implemented
+
+- Confirmed current cache/demo reality:
+  - many `features.json` rows store `delta_dipole` as a dict with `element[]` + `charge_variation[]`,
+  - this is not a true dipole-moment scalar and was being dropped from `features_summary`, so reasoning often fell back to gap-only behavior.
+- Implemented compact charge-redistribution summaries in `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/src/chem/atb_cache.py`:
+  - `charge_redis_total_abs`
+  - `charge_redis_max_abs_atom`
+  - `charge_redis_top3_abs_share`
+  - `charge_redis_heteroatom_abs_share`
+  - `charge_redis_n_atoms_ge_0p01`
+  - `charge_redis_n_atoms_ge_0p02`
+- Upgraded `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/src/reasoning/charge_redistribution_profile.py` to `charge_redistribution_v2`:
+  - preferred source = atomwise charge-variation summary,
+  - fallback = scalar `delta_dipole`,
+  - weakest fallback = gap-only,
+  - profile wording is explicit that this is an electronic redistribution cue, not a true dipole moment.
+- Kept `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/src/reasoning/atb_ct_proxy_profile.py` as a compatibility alias only.
+- Updated `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/src/reasoning/master_reasoner.py` so:
+  - `E35/E36` now expose only compact redistribution summaries,
+  - reasoning pack sanitizes raw dict-format `delta_dipole` out of `features_summary`,
+  - prompt wording no longer frames `delta_dipole` as a true dipole or raw scalar verdict.
+- Updated docs:
+  - `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/doc/process.md`
+  - `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/doc/schemas.md`
+- Focused validation run in `aie` env:
+  - `pytest -q tests/test_atb_charge_redis_summary.py tests/test_charge_redistribution_profile.py tests/test_reasoning_pack_builder.py tests/test_atb_cache_derived_profiles.py tests/test_reasoning_pack_r1_includes_atb_trends_self.py tests/test_master_prompt_generic_axes.py tests/test_chem_agent_atb.py`
+  - result: `17 passed`
+
+---
+
 ## 2026-03-06 — DeepSeek multi-agent runtime compatibility fixed (chat.completions path)
 
 - Root cause confirmed from failed multi-agent runs using `deepseek-v3.2`:
@@ -45,6 +132,24 @@ Orchestrator refactor: IN PROGRESS (moving from CLI-centered flows to patch-scop
 - Validation run in `aie` env:
   - `pytest -q tests/test_llm_client.py tests/test_llm_evaluator.py tests/test_master_reasoner_llm_stability.py`
   - result: `15 passed`
+
+## 2026-03-08 — Generic evidence-axis refactor plan locked
+
+- Locked the next reasoning refactor around a generic evidence-axis model instead of the current CT-privileged phrasing.
+- Main design change:
+  - `atb_ct_proxy_profile` becomes a deprecated compatibility alias only.
+  - new primary semantics are expressed as:
+    - `charge_redistribution_profile`
+    - `structural_relaxation_profile`
+    - `shape_rigidity_profile`
+    - `structure_prior_profile`
+    - comparative transferability (`neighbor_atb_stats_by_label`)
+- Locked no-aTB benchmark fallback:
+  - under `atb_cache_only`, rows with missing target aTB should still produce conservative structure-prior-based predictions rather than `missing_pred`.
+- Locked compatibility constraints:
+  - keep `master_output_schema_v3`,
+  - keep `E35/E36` and legacy `step_name=ct_family` for one version,
+  - remove CT-family privilege from prompt/narrative wording immediately.
 
 ---
 
@@ -4527,3 +4632,1070 @@ python -m unittest -v tests.test_graph_retrieval_v1_p3
 - Validation/tests run in `aie`:
   - `pytest -q tests/test_atb_cache_derived_profiles.py tests/test_chem_agent_atb.py tests/test_reasoning_pack_builder.py tests/test_reasoning_pack_r1_includes_atb_trends_self.py tests/test_master_output_validation.py`
   - result: `28 passed`
+
+---
+
+## 2026-03-08 — Mechanism benchmark compare: multi-agent vs zero-shot
+
+- Added a compare benchmark path to evaluate the same model on `data/test.csv` under:
+  - `multi_agent` (release `case-run` / `run_one`)
+  - `zero_shot` (SMILES + canonical labels only)
+- Locked the fairness rule for zero-shot:
+  - no aTB
+  - no neighbors
+  - no novelty/entropy
+  - no candidate mechanisms
+  - no literature/PDF/experiment context
+  - no mechanism definitions
+  - no examples
+- Locked the headline metric to **strict top1 accuracy over all rows**:
+  - `failed_run`
+  - `missing_pred`
+  - parse failures
+  all count as wrong.
+- Added compare CLI:
+  - `python -m src.cli eval-mechanism-benchmark`
+- Added compare outputs:
+  - `multi_agent/predictions.csv`
+  - `zero_shot/predictions.csv`
+  - `zero_shot/traces/row_XXXX.json`
+  - `comparison/predictions_merged.csv`
+  - `comparison/evaluation_report.json`
+  - `comparison/evaluation_report.md`
+- Strengthened multi-agent benchmark recording so `missing_pred` rows carry the underlying case error when available instead of an empty error field.
+
+---
+
+## 2026-03-09 — Neutral multi-axis governance patch
+
+- Neutralized `structure_prior_profile` wording so `overall_structure_prior` and `notes` now describe topology, aromaticity, flexibility, H-bond context, and reliability only; removed direction-bearing phrases such as `redistribution-prone`.
+- Removed remaining axis-to-mechanism wording from master prompt and trace helper text. Evidence axes are now described as:
+  - `electronic redistribution`
+  - `structural relaxation`
+  - `shape/rigidity`
+  - `structure prior`
+  - `comparative transferability`
+  without directly mapping any axis to a mechanism family.
+- Replaced redistribution-specific validator logic with uniform multi-axis governance in `src/reasoning/master_reasoner.py`:
+  - single-axis insufficiency penalty,
+  - dual-axis support escape hatch,
+  - conflict-driven confidence reduction,
+  - comparative-only support warning and confidence penalty.
+- Added round-level guard in `src/orchestration/round_runner.py`: if `R2/R3` contributes only comparative evidence (`E21-E24`), that round may adjust confidence/template but cannot flip the primary label by itself.
+- Added audit metadata for these new governance rules:
+  - `axis_support_summary`
+  - `axis_count`
+  - `single_axis_penalty_applied`
+  - `active_conflict_count`
+  - `conflict_penalty_applied`
+  - `comparative_only_adjust_applied`
+- Added focused tests for:
+  - neutral structure-prior text,
+  - single-axis insufficiency,
+  - dual-axis support,
+  - conflict penalty,
+  - comparative-only adjustment,
+  - no-aTB fallback staying conservative.
+- Focused pytest after the patch:
+  - `33 passed`
+
+---
+
+## 2026-03-09 — R2 comparative registry retention fix
+
+- Investigated the missing comparative evidence bug on case `42481dc70d544aeab45a3118f479bede` and confirmed it was an engineering issue in evidence-registry compaction, not an LLM selection issue:
+  - `neighbor_atb_stats_by_label` was already present in the `R2` pack,
+  - but `E21-E24` were appended late and then dropped when the compacted `registry_max_items=20` path was triggered.
+- Replaced append-order-dependent trimming in `src/reasoning/master_reasoner.py` with deterministic compact-registry prioritization.
+- New compact priority keeps `E21-E24` ahead of lower-priority background/detail rows when `R2/R3` registry compaction is active.
+- Verified on the affected case by rebuilding the `R2` reasoning pack:
+  - compact registry now contains `E21`, `E22`, `E23`, `E24`
+  - resulting compact list is:
+    - `E21 E22 E23 E24 E31 E32 E33 E34 E35 E36 E37 E38 E39 E40 E41 E42 E44 E2 E4 E6`
+- Added focused regression coverage for the compacted path in `tests/test_master_pack_profile_r2_includes_neighbor_stats.py`.
+- Focused pytest after the fix:
+  - `9 passed`
+
+---
+
+## 2026-03-09 — StructureAgent structure-first prior layer
+
+- Added a new `StructureAgent` and placed it before `DataAgent` in the default registry so `R0` can start from structure-only candidate priors instead of coarse ECFP-only context.
+- Introduced four structure-first outputs under `risk_scores`:
+  - `structure_prior_profile`
+  - `structure_motif_profile`
+  - `structure_retrieval_profile`
+  - `structure_candidate_distribution`
+- Implemented a mixed structure stack for the new agent:
+  - Feature Morgan count fingerprints
+  - Morgan count fingerprints
+  - Murcko scaffold extraction and scaffold-level retrieval
+  - generic motif detection (`donor/acceptor`, intramolecular H-bond candidates, tautomerizable motifs, aromatic/conjugation and flexibility summaries)
+  - calibrated structure classifier with retrieval fallback when no trained bundle is present
+- Added new structure evidence IDs `E50-E56` and wired them into the reasoning pack so `R0` can cite:
+  - motif summaries
+  - scaffold / feature retrieval priors
+  - calibrated structure candidate distributions
+- Updated reasoning-pack compaction so `R0` keeps the full `E50-E56` block instead of dropping `E55/E56` when the registry is trimmed.
+- Kept the structure layer generic:
+  - no mechanism names inside motif/profile notes
+  - structure evidence is treated as candidate-generation context, not a direct verdict
+- Added focused tests for:
+  - Feature Morgan generation
+  - scaffold retrieval
+  - motif detection
+  - classifier load/predict path
+  - StructureAgent patch scope
+  - `R0` pack presence of `E50-E56`
+  - prompt wording for structure-first candidate generation
+- Focused pytest after this patch:
+  - `14 passed`
+
+---
+
+## 2026-03-09 — StructureAgent supervised training visibility + top-5 propagation
+
+- Reworked `src/structure/structure_classifier.py` so the structure classifier now trains in an explicit supervised epoch loop instead of an opaque one-shot fit.
+- The new trainer is still lightweight and interpretable:
+  - sparse dictionary features are unchanged,
+  - the base learner remains linear log-loss classification,
+  - a `MaxAbsScaler` is now applied before training/inference to stabilize optimization on mixed sparse-count and descriptor features,
+  - class imbalance is still handled with balanced class weights.
+- Training is now auditable at the artifact level:
+  - each epoch records `train_loss`, `valid_loss`, `train_accuracy`, and `valid_accuracy`,
+  - the full history is written to `train_history.json`,
+  - the CLI prints epoch-by-epoch progress lines during training.
+- The previous unstable SGD proof-of-concept (oscillating loss / invalid probabilities) was replaced with:
+  - shuffled mini-batch `partial_fit`,
+  - deterministic train/validation split,
+  - best-epoch checkpoint selection by validation loss,
+  - post-fit calibration on held-out validation data.
+- Candidate propagation was widened:
+  - `structure_candidate_distribution` now keeps `top_candidates` (default top-5),
+  - `top3` is preserved as a compatibility alias,
+  - `master_reasoner` and `E56` now prefer `top_candidates` when present.
+- Smoke training on real data now shows stable supervised learning instead of divergent loss:
+  - `epoch 1`: `train_loss=1.505714`, `valid_loss=1.562231`
+  - `epoch 5`: `train_loss=1.139093`, `valid_loss=1.357574`
+  - held-out validation accuracy reached `0.551724` in the smoke run
+- Focused pytest after this patch:
+  - `9 passed`
+
+---
+
+## 2026-03-09 — StructureAgent training progress bar
+
+- Updated `src/structure/train_structure_classifier.py` so supervised training now renders a `tqdm` epoch progress bar instead of printing one line per epoch.
+- The progress bar now shows, at each epoch:
+  - `train_loss`
+  - `train_acc`
+  - `valid_loss`
+  - `valid_acc`
+- Added a training callback hook in `src/structure/structure_classifier.py` so the CLI can stream epoch metrics while keeping the training function reusable for tests and programmatic calls.
+- Verified on a smoke run:
+  - the progress bar advances per epoch,
+  - postfix metrics update live,
+  - final JSON summary is still written after training completes.
+- Focused pytest after this patch:
+  - `9 passed`
+
+---
+
+## 2026-03-09 — Runtime StructureAgent reverted to retrieval-only top-5 priors
+
+- Removed the trained structure classifier from the runtime `StructureAgent` decision path. Runtime now always builds `structure_candidate_distribution` from retrieval fallback only.
+- Kept the rest of the structure layer unchanged:
+  - `structure_prior_profile`
+  - `structure_motif_profile`
+  - `structure_retrieval_profile`
+  - `structure_candidate_distribution`
+- Preserved wider candidate propagation:
+  - `top_candidates` remains the primary structure-candidate list,
+  - runtime still defaults to `candidate_topk = 5`,
+  - `E56` continues to point to `/risk_scores/structure_candidate_distribution/top_candidates`.
+- Updated reasoning label-pool resolution so candidate label extraction now prefers `candidate_mechanisms_topk` over `candidate_mechanisms_top3`, keeping the top-5 structure candidates visible throughout reasoning.
+- Added regression assertions that runtime structure priors are explicitly marked as `retrieval_fallback_only` and that top-5 candidate context remains available in `R0`.
+- Focused pytest after this patch:
+  - `pytest -q tests/test_structure_agent.py tests/test_structure_agent_r0_pack.py tests/test_reasoning_pack_builder.py`
+  - `7 passed`
+
+---
+
+## 2026-03-09 — Split-level reference indices plan (`split_levels_v1`)
+
+- Locked a new reference-data direction: future structure priors and ECFP neighbor spaces will no longer be built from `data/train.csv` alone.
+- New authoritative reference source for indices/features will be:
+  - `data/split_list/1_level.csv`
+  - `data/split_list/2_level.csv`
+  - `data/split_list/3_level.csv`
+  - `data/split_list/4_level.csv`
+- The merged source will be materialized as:
+  - `data/reference_indices/split_levels_v1/sources/all_levels_reference.parquet`
+  - with provenance fields:
+    - `difficulty_level`
+    - `source_split_file`
+    - `source_row_index`
+- New versioned reference views are planned under:
+  - `data/reference_indices/split_levels_v1/views/all_levels_full`
+  - `data/reference_indices/split_levels_v1/views/leave_level_1`
+  - `data/reference_indices/split_levels_v1/views/leave_level_2`
+  - `data/reference_indices/split_levels_v1/views/leave_level_3`
+  - `data/reference_indices/split_levels_v1/views/leave_level_4`
+- Each view is intended to contain a full runtime-ready bundle:
+  - `private_clean.parquet`
+  - `molecule_table.parquet`
+  - `rdkit_features.parquet`
+  - `mechanism_label_map.parquet`
+  - `anchor_neighbors_ecfp.parquet`
+  - `structure_reference_pool.parquet`
+  - `run_manifest.json`
+- Leakage-safe rule is now explicit:
+  - split-list benchmark rows must never use `all_levels_full`
+  - rows from `N_level.csv` must use `leave_level_N`
+  - ad-hoc external `case-run --smiles ...` can default to `all_levels_full`
+- Exact self-exclusion remains as a second guard even inside the new views:
+  - `inchikey`
+  - `canonical_smiles`
+- Runtime direction is also locked:
+  - `StructureAgent` and `DataAgent` should read the same selected reference view
+  - `R0` structure priors and `R1+` ECFP/neighbor context should therefore come from the same feature space
+- Planned runtime controls:
+  - `--reference-index-root`
+  - `--reference-view`
+  - `reference_view=auto` for split-list row execution
+
+---
+
+## 2026-03-10 — Split-level reference indices implemented (`split_levels_v1`)
+
+- Implemented source merge builder:
+  - `src/data/build_split_reference_source.py`
+  - merges `split_list/1~4_level.csv` into:
+    - `data/reference_indices/split_levels_v1/sources/all_levels_reference.parquet`
+  - writes provenance:
+    - `difficulty_level`
+    - `source_split_file`
+    - `source_row_index`
+  - writes `sources/build_manifest.json`.
+
+- Implemented view materializer:
+  - `src/data/build_split_reference_views.py`
+  - builds:
+    - `all_levels_full`
+    - `leave_level_1`
+    - `leave_level_2`
+    - `leave_level_3`
+    - `leave_level_4`
+  - each view now materializes:
+    - `private_clean.parquet`
+    - `molecule_table.parquet`
+    - `rdkit_features.parquet`
+    - `mechanism_label_map.parquet`
+    - `anchor_neighbors_ecfp.parquet`
+    - `structure_reference_pool.parquet`
+    - `run_manifest.json`.
+
+- Added structure reference pool builder:
+  - `src/structure/build_structure_reference_pool.py`
+  - precomputes structure retrieval pool for `StructureAgent`.
+
+- Refactored pipeline/provenance retention:
+  - `src/data/pipeline.py` now supports `input_parquet` (not only CSV).
+  - `src/data/standardizer.py` preserves split provenance columns when present.
+  - `src/data/canonicalizer.py` now aggregates molecule-level provenance:
+    - `difficulty_levels`
+    - `primary_difficulty_level`
+    - `source_split_files`
+    - `source_row_indices`.
+  - `src/data/rdkit_descriptors.py` now carries canonical/provenance columns into `rdkit_features.parquet`.
+
+- Refactored label/neighbor artifacts:
+  - `src/uq/mechanism_label_map.py` adds optional `source_view` and `difficulty_levels`.
+  - `src/features/anchor_ecfp.py` keeps canonical-smiles self-exclusion as an extra guard in neighbor build.
+  - runtime neighbor search (`src/cases/create_case_from_smiles.py`) now excludes both same `inchikey` and same `canonical_smiles`.
+
+- Runtime reference-view wiring completed:
+  - `src/orchestration/run_one.py` adds:
+    - `--reference-index-root`
+    - `--reference-view`
+    - `auto -> leave_level_N` selection for split rows.
+  - `src/cli.py` forwards those flags through `case-run`.
+  - `src/orchestration/registry.py` now passes selected `data_dir` to both `StructureAgent` and `DataCaseAgent`.
+  - `StructureAgent`/`build_reference_rows` now prefer `<view>/structure_reference_pool.parquet` and only fallback to legacy dynamic assembly if missing.
+
+- Compatibility behavior:
+  - if selected `<reference_index_root>/<reference_view>` does not exist, runtime falls back to legacy `data/` and records `reference_view=legacy_data`.
+
+- Focused validation run:
+  - `pytest -q tests/test_build_split_reference_source.py tests/test_reference_views_build.py tests/test_reference_view_auto_selection.py tests/test_structure_agent_reference_view.py tests/test_data_agent_reference_view.py tests/test_runtime_neighbor_self_exclusion.py tests/test_cli_case_run.py tests/test_orchestration_run_one.py`
+  - `10 passed`.
+  - Additional regressions:
+    - `pytest -q tests/test_data_agent.py tests/test_structure_agent.py tests/test_orchestration_run_one_status.py`
+    - `pytest -q tests/test_mechanism_entropy_pre_atb.py tests/test_anchor_ecfp.py`
+  - all passed.
+
+---
+
+## 2026-03-10 — LLM temperature compatibility hotfix
+
+- Context:
+  - Some model/gateway combinations reject requests when `temperature` is present and return:
+    - `Unsupported parameter: 'temperature' is not supported with this model.`
+  - This caused `failed_llm` in reasoning runs even though prompt/schema were valid.
+
+- Implementation:
+  - Updated `src/tools/llm_client.py`:
+    - added `_is_temperature_unsupported_error(...)`.
+    - in `responses_text` / `responses_json`:
+      - when first call fails with temperature-unsupported and request has `temperature`,
+      - retry once with identical request minus `temperature`.
+    - in chat fallback (`_try_chat_text` / `_try_chat_json`):
+      - same one-time retry without `temperature`.
+    - updated `_should_try_chat_fallback(...)` to recognize temperature-unsupported gateway failures.
+
+- Tests:
+  - Updated `tests/test_llm_client.py` with:
+    - `test_responses_text_retries_without_temperature_when_unsupported`
+    - `test_responses_json_retries_without_temperature_when_unsupported`
+  - Validation:
+    - `conda run -n aie pytest -q tests/test_llm_client.py`
+    - `9 passed`.
+
+- Impact:
+  - Existing models that support temperature keep current behavior.
+  - Models that reject temperature now auto-retry once and continue without manual CLI changes.
+
+## 2026-03-10 — LLM generic invalid-request fallback to chat
+
+- Observed residual failures on some relay runs where Responses API returned:
+  - `invalid_request_error`
+  - `There was an issue with your request. Please check your inputs and try again`
+  even after temperature-removal retry.
+- Updated `src/tools/llm_client.py` fallback policy:
+  - `_should_try_chat_fallback(...)` now also triggers on the generic invalid-request signatures above.
+  - This allows `responses_text` / `responses_json` to transparently fall back to `chat.completions` for the same prompt payload.
+- Added tests in `tests/test_llm_client.py`:
+  - `test_responses_text_falls_back_to_chat_on_generic_invalid_request`
+  - `test_responses_json_falls_back_to_chat_on_generic_invalid_request`
+- Validation:
+  - `conda run -n aie pytest -q tests/test_llm_client.py`
+  - `11 passed`.
+
+## 2026-03-10 — Added standalone LLM gateway diagnostic script
+
+- Added `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/src/tools/diagnose_llm_gateway.py` to quickly isolate relay/gateway failure modes.
+- Script probes each model with four checks:
+  - `chat.completions`
+  - `responses` (no temperature)
+  - `responses` (with temperature)
+  - runtime wrapper path (`ResponsesLLMClient.responses_text`)
+- Output is a single JSON report with:
+  - per-probe success/failure and latency,
+  - normalized error classification,
+  - `root_cause_hint` per model (quota/billing, auth, model route, invalid request, temperature compatibility, network).
+- Added focused unit coverage:
+  - `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/tests/test_diagnose_llm_gateway.py`
+- Validation:
+  - `conda run -n aie pytest -q tests/test_diagnose_llm_gateway.py tests/test_llm_client.py`
+  - `14 passed`.
+
+## 2026-03-10 — Diagnostics robustness patch (internal-error classification + outdir auto-create)
+
+- Refined relay diagnostics in `src/tools/diagnose_llm_gateway.py`:
+  - messages containing `unable to complete inference due to an internal error` are now classified as `model_internal_error` (instead of generic `invalid_request`).
+  - root-cause summary now surfaces `model_internal_error` explicitly.
+- Fixed script write-path robustness:
+  - `--out` now auto-creates parent directories before writing JSON, avoiding `FileNotFoundError`.
+- Added focused tests in `tests/test_diagnose_llm_gateway.py`:
+  - internal-inference classification,
+  - output parent-dir auto-creation in `main(...)`.
+- Validation:
+  - `conda run -n aie pytest -q tests/test_diagnose_llm_gateway.py`
+  - `5 passed`.
+
+## 2026-03-10 — Iterative evidence alignment hotfix (effective gain + E60..E63 usage)
+
+- Fixed `count_effective_added=0` false fallback in evaluator:
+  - updated `src/agents/judge_agent.py` so `count_effective_added` no longer falls back to `count_added` when value is explicitly `0`.
+  - atb-only stop checks now use `count_effective_added` (not raw `count_added`) in R1/R2/R3.
+
+- Reduced invalid evidence-ID drift in R1 prompt:
+  - updated `src/reasoning/master_reasoner.py` prompt builder to print round-available ID groups from current `evidence_registry` (trend / enrichment / structure / comparative / AOP compact).
+  - removed fixed stale guidance that referenced unavailable IDs (`E35/E36/E37` style static wording).
+  - added explicit instruction to cite only IDs present in the current round registry.
+
+- Ensured compact `.aop` evidence participates in R2/R3 reasoning outputs:
+  - updated `validate_master_output(...)` in `src/reasoning/master_reasoner.py`:
+    - when `E60..E63` are present in registry but uncited, auto-add one compact citation to `evidence_used` with warning code:
+      - `r2_missing_aop_compact_citation_auto_added`.
+  - this keeps auditability while avoiding silent omission of new compact transition cues.
+
+- Registry compaction alignment:
+  - updated `_compact_registry(...)` in `src/reasoning/master_reasoner.py` to use unified compact priority for non-comparative rounds as well, so target aTB enrichment/AOP cues survive pack-size trimming more consistently.
+
+- Tests added/updated:
+  - `tests/test_eval_report_feasibility_contract.py`
+    - `test_eval_report_respects_zero_effective_added_without_fallback`
+  - `tests/test_master_output_validation.py`
+    - `test_validate_master_output_auto_adds_aop_compact_citation_in_r2_when_missing`
+  - `tests/test_master_prompt_generic_axes.py`
+    - `test_master_prompt_uses_round_available_evidence_ids_instead_of_fixed_r1_ids`
+  - adjusted expectation in:
+    - `tests/test_round_runner_stagnation_stop.py`
+      - `test_round_runner_r2_low_reliability_new_ids_do_not_count_as_effective_gain`
+
+- Validation commands:
+  - `conda run -n aie pytest -q tests/test_eval_report_feasibility_contract.py tests/test_master_output_validation.py tests/test_master_prompt_generic_axes.py tests/test_round_runner_stagnation_stop.py`
+  - `conda run -n aie pytest -q tests/test_reasoning_pack_builder.py tests/test_round_runner_stop_when_no_new_evidence_atb_only.py tests/test_round_runner_comparative_only_adjust.py`
+  - all passed.
+
+## 2026-03-11 — Restored agent-level progress visibility during case execution
+
+- Problem:
+  - `case-run` still emitted round-level progress, but the pre-round setup phase (`StructureAgent`, `DataAgent`, `ChemAgent`, `ReadyAgent`) was silent.
+  - In practice this made a run look stalled until `setup` finished, so users could no longer tell which stage a case was currently in.
+
+- Implementation:
+  - `src/core/types.py`
+    - added optional orchestration progress fields on `AgentContext`:
+      - `status_path`
+      - `progress_round_index`
+      - `progress_max_rounds`
+      - `progress_active_profile`
+  - `src/orchestration/run_one.py`
+    - now populates those fields when creating the runtime context.
+    - iterative setup uses `active_profile=setup`; non-iterative default flow uses `active_profile=single`.
+  - `src/orchestration/orchestrator.py`
+    - now emits progress before and after each agent:
+      - stage format: `agent:<agent_name>`
+      - examples: `agent:structure_agent`, `agent:data_agent`, `agent:chem_agent`, `agent:ready_agent`
+    - mirrors the same stage into `run_status.json` when `ctx.status_path` is present.
+    - preserves final round-runner/run-end behavior; only setup/default visibility changed.
+
+- Result:
+  - running a case now shows immediate stage transitions during setup/default orchestration instead of only:
+    - `run_start`
+    - `setup completed`
+    - round-level events
+
+- Tests:
+  - added `tests/test_orchestrator_progress_feedback.py`
+    - verifies stdout contains `agent:fake_agent` running/success progress events
+    - verifies `run_status.json` stage is updated to the current agent
+  - validation:
+    - `conda run -n aie pytest -q tests/test_orchestrator_progress_feedback.py tests/test_orchestration_run_one_status.py tests/test_round_runner_status_feedback.py`
+    - `5 passed`
+
+## 2026-03-11 — Level benchmark runner now supports split reference views + tqdm accuracy display
+
+- Problem:
+  - `src/eval/evaluate_testset.py` could evaluate arbitrary CSVs, but it still used the older plain progress line and did not forward the new split-reference selection args into `run_one`.
+  - For `split_list/1_level.csv` runs this meant:
+    - no `tqdm` progress bar,
+    - no explicit running accuracy in the progress UI,
+    - no way to safely force `leave_level_1` from the evaluation entrypoint.
+
+- Implementation:
+  - `src/eval/evaluate_testset.py`
+    - added optional `tqdm`-based progress reporting with compact postfix fields:
+      - current sample index,
+      - current round,
+      - running accuracy,
+      - truncated SMILES.
+    - keeps runtime agent/round logs muted so evaluation output stays progress-only.
+    - forwards:
+      - `reference_index_root`
+      - `reference_view`
+      into `run_one` runtime args.
+    - records both fields into the evaluation report config for auditability.
+    - changed the displayed running accuracy to strict processed-row accuracy:
+      - `ok + correct` counts as correct,
+      - `failed_run` / `missing_pred` count as wrong,
+      - `missing_gt` is skipped from the running denominator.
+  - `tests/test_eval_pipeline_smoke.py`
+    - now verifies the evaluation runner forwards `reference_index_root` and `reference_view` to runtime.
+
+- Validation:
+  - `conda run -n aie pytest -q tests/test_eval_pipeline_smoke.py tests/test_eval_prediction_extractor.py tests/test_eval_mechanism_benchmark_smoke.py`
+  - `5 passed`
+
+- Follow-up noise fix:
+  - evaluation mode was still leaking runtime JSON progress events from deeper modules such as `orchestrator` / `run_status`.
+  - updated `_mute_runtime_progress_events()` in `src/eval/evaluate_testset.py` to also monkeypatch:
+    - `src.orchestration.orchestrator.emit_progress_event`
+    - `src.orchestration.run_status.emit_progress_event`
+    - `src.orchestration.run_status.emit_error_summary`
+  - result: evaluation stdout now stays progress-bar-only.
+  - `tests/test_eval_pipeline_smoke.py` now emits a synthetic runtime progress event and verifies it is fully suppressed during evaluation.
+
+- Accuracy view split for ambiguous `other` label:
+  - added two evaluation accuracy metrics:
+    - `top1_accuracy_including_other`
+    - `top1_accuracy_excluding_other_gt`
+  - kept `top1_accuracy` as a backward-compatible alias of the including-`other` metric.
+  - running evaluation progress now shows:
+    - `acc_all`
+    - `acc_no_other`
+  - same dual strict metrics were added to `src/eval/evaluate_mechanism_benchmark.py`:
+    - `strict_top1_accuracy_including_other`
+    - `strict_top1_accuracy_excluding_other_gt`
+  - rationale:
+    - `other` remains in the fully strict metric,
+    - but an auxiliary no-`other` view is now available for reading class-specific performance without the catch-all class dominating interpretation.
+
+- Validation:
+  - `conda run -n aie pytest -q tests/test_eval_pipeline_smoke.py tests/test_eval_prediction_extractor.py tests/test_eval_mechanism_benchmark_smoke.py tests/test_strict_accuracy_metric.py`
+  - `6 passed`
+
+## 2026-03-12 — Balanced-loop candidate negotiation: R0 candidate round, sidecar scorecard, residual-only `other`
+
+- Problem:
+  - iterative reasoning had drifted toward a single-label correction loop:
+    - `R0` structure priors could anchor the later rounds too strongly,
+    - `other` was functioning as an easy residual sink,
+    - later rounds added evidence but did not preserve a candidate-level negotiation trace.
+
+- Implementation:
+  - `src/reasoning/master_reasoner.py`
+    - added candidate-level helpers:
+      - `_axis_role_summary(...)`
+      - `_merge_axis_role_summary(...)`
+      - `_candidate_pool_from_context(...)`
+      - `build_candidate_scorecard(...)`
+    - prompt updates:
+      - `R0` is now explicitly a candidate-generation round,
+      - `R0` must keep multiple candidates open,
+      - `other` is forbidden as the `R0` top primary.
+    - validation/post-process updates:
+      - `R0` now always stays provisional:
+        - `status -> insufficient_evidence`
+        - `template_used -> mixture` when needed
+        - confidence capped by `reasoning_config.policy.r0_candidate_confidence_cap` (default `0.30`)
+        - missing competing hypotheses are auto-filled from current candidate context.
+      - `other` is now residual-only:
+        - in `R0/R1`, or without enough non-comparative support, it is converted to `unknown`
+        - warning code:
+          - `other_without_positive_residual_support`
+      - meta/audit fields now include polarity-aware support summaries:
+        - `axis_support_polarity_summary`
+        - `positive_axis_count`
+        - `weakening_axis_count`
+        - `other_residual_support_applied`
+        - `r0_prior_only_penalty_applied`
+    - `_candidate_set_text(...)` now keeps `other` at the end of retrieval-prior candidate lists instead of letting it dominate the first position.
+
+  - `src/orchestration/round_runner.py`
+    - each round now builds a `candidate_scorecard` sidecar using:
+      - current candidate pool from structure/mechanism context,
+      - current master output,
+      - previous round scorecard,
+      - newly added evidence IDs.
+    - `round_state.json` now records:
+      - `candidate_scorecard[]`
+        - `label`
+        - `prior_rank`
+        - `prior_confidence`
+        - `current_rank`
+        - `current_confidence`
+        - `support_axes`
+        - `weakening_axes`
+        - `unresolved_axes`
+        - `new_support_evidence_ids`
+        - `new_weakening_evidence_ids`
+        - `net_direction`
+        - `commentary`
+
+  - `src/agents/judge_agent.py`
+    - `build_eval_report(...)` now accepts and writes `candidate_scorecard` so evaluator sidecars see the same candidate negotiation state as `round_state.json`.
+
+  - `src/structure/motif_detector.py`
+    - strengthened neutral structure facts without adding mechanism verdicts:
+      - `intramolecular_hbond_geometry`
+      - `proton_transfer_topology_candidate`
+      - `tautomerizable_subgraph_strength`
+      - `aromatic_rigidity_signature`
+      - `fused_aromatic_core_strength`
+      - `planarity_proxy`
+      - `donor_acceptor_separation_regime`
+      - `conjugation_compactness`
+    - notes remain phenomenon-level only and continue to avoid mechanism names.
+
+- Tests added/updated:
+  - new:
+    - `tests/test_balanced_loop_candidate_scorecard.py`
+      - `test_validate_master_output_keeps_r0_as_candidate_round`
+      - `test_candidate_scorecard_tracks_candidate_motion_and_sidecars`
+  - updated:
+    - `tests/test_master_output_validation.py`
+      - valid fixture now includes two support axes, matching the polarity-aware governance rules.
+
+- Validation:
+  - `conda run -n aie pytest -q tests/test_balanced_loop_candidate_scorecard.py tests/test_master_prompt_structure_r0.py tests/test_motif_detector.py tests/test_master_output_validation.py tests/test_eval_report_feasibility_contract.py tests/test_round_runner_comparative_only_adjust.py tests/test_round_runner_stop_when_no_new_evidence_atb_only.py tests/test_round_runner_stagnation_stop.py`
+  - `34 passed`
+
+## 2026-03-12 — Late-round `other` residual support relaxation
+
+- Relaxed the balanced-loop `other` governance in `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/src/reasoning/master_reasoner.py`.
+  - Early-round behavior stays the same:
+    - `R0` still cannot emit `other` as the primary label.
+    - `R1` still demotes provisional `other` to `unknown`.
+  - Late-round behavior is now less aggressive:
+    - in `R2/R3`, `other` is preserved when there is at least one non-comparative primary support axis,
+    - target-side evidence is actually cited (`E31..E39` or `E60..E63`),
+    - and at least two standard candidates remain in the negotiated competing set.
+- Updated the residual-support limit text to reflect the new rule:
+  - `other` now requires late-round residual support anchored by target-side evidence,
+  - rather than the previous stricter “two positive primary axes” behavior.
+- Added regression coverage in `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/tests/test_balanced_loop_candidate_scorecard.py`:
+  - late-round `other` with target-side support now survives normalization,
+  - `R1` still demotes `other` to `unknown`.
+- Validation run:
+  - `conda run -n aie pytest -q tests/test_balanced_loop_candidate_scorecard.py tests/test_master_output_validation.py`
+  - result: `24 passed`.
+- Reason for the patch:
+  - genuine `other` cases were being converted to `unknown` even after the LLM had converged to a late-round residual interpretation.
+
+## 2026-03-12 — CSV emission observations promoted to R1 target-side evidence
+
+- Implemented dataset-row emission seeding in `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/src/orchestration/run_one.py`.
+  - `_build_initial_case(...)` now reads:
+    - `emission_aggr`
+    - `emission_solid`
+  - writes them into:
+    - `/target_fields/emission_aggr_nm`
+    - `/target_fields/emission_solid_or_film_nm`
+  - and writes provenance into:
+    - `/target_fields_provenance/emission_aggr_nm`
+    - `/target_fields_provenance/emission_solid_or_film_nm`
+  - provenance uses `source_type=dataset_row`, exact identity metadata, and explicit condition buckets:
+    - `aggregation`
+    - `solid_or_film`
+
+- Added compact target-observation summarization in `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/src/reasoning/emission_observation_profile.py`.
+  - new profile:
+    - `version = emission_observation_v1`
+    - `coverage = none|aggr_only|solid_only|both`
+    - `shift_nm`
+    - `shift_direction = red_shift|blue_shift|flat|unknown`
+    - `shift_magnitude_bucket = unknown|small|moderate|large`
+    - `reliability = low|medium|high`
+  - profile remains mechanism-agnostic and only reports observational facts.
+
+- Promoted emission into the reasoning pack starting at `R1`.
+  - `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/src/reasoning/evidence_profiles.py`
+    - added `include_emission_observation_profile`
+    - defaults:
+      - `R0 = False`
+      - `R1/R2/R3 = True`
+  - `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/src/reasoning/master_reasoner.py`
+    - `build_reasoning_pack(...)` now computes `risk_scores.emission_observation_profile` for `R1+` when target emission exists.
+    - added evidence IDs:
+      - `E70`: aggregate-state emission observation
+      - `E71`: solid/film emission observation
+      - `E72`: compact emission shift summary
+      - `E73`: emission observation reliability/provenance summary
+
+- Changed prompt ordering so `R1` now uses target observations before target aTB.
+  - `build_master_prompt_bundle(...)` now exposes `Target observation IDs available this round`.
+  - `R1` contract now explicitly says:
+    - interpret target observations before target aTB when both are available
+    - if `E70..E73` exist, cite at least one of them
+  - `R2` contract now keeps target observations as the target-side anchor that comparative evidence must not override.
+
+- Added validation and axis wiring so emission participates in candidate negotiation instead of staying in gate/limits only.
+  - `target_observation` is now a primary evidence axis mapped from `E70..E73`.
+  - `validate_master_output(...)` now raises:
+    - `r1_missing_emission_observation_citation`
+    when `R1` had usable emission evidence but the model ignored it.
+  - emission IDs are included in unresolved/conflict governance and in late-round target-side support checks for residual `other`.
+
+- Tests added/updated:
+  - new:
+    - `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/tests/test_emission_observation_profile.py`
+  - updated:
+    - `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/tests/test_reasoning_pack_builder.py`
+    - `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/tests/test_master_prompt_generic_axes.py`
+    - `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/tests/test_balanced_loop_candidate_scorecard.py`
+    - `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/tests/test_orchestration_run_one.py`
+
+- Validation run:
+  - `conda run -n aie pytest -q tests/test_emission_observation_profile.py tests/test_reasoning_pack_builder.py tests/test_master_prompt_generic_axes.py tests/test_balanced_loop_candidate_scorecard.py tests/test_orchestration_run_one.py`
+  - result: `21 passed`
+
+## 2026-03-12 — Emission provenance/gating hotfix after balanced smoke failure
+
+- Investigated the failed balanced smoke run at:
+  - `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/artifacts/eval/gpt5_2_level1_balanced_smoke/20260311T181658Z`
+- Root causes identified:
+  1. `master_reasoner` pack-size shrink path rebuilt `evidence_registry` without the new `emission_observation_profile` argument, producing:
+     - `_build_evidence_registry() missing 1 required keyword-only argument: 'emission_observation_profile'`
+  2. dataset-row emission provenance used `identity_confidence`, while `ReadyAgent` validated `identity_match_confidence`, causing false gate failures such as:
+     - `emission_solid_or_film_nm:missing_identity_match_metadata`
+
+- Implemented fixes:
+  - `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/src/reasoning/master_reasoner.py`
+    - pass `emission_observation_profile` in the shrink/rebuild `_build_evidence_registry(...)` call as well as the main call path.
+  - `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/src/orchestration/run_one.py`
+    - write `identity_match_confidence` in dataset-row emission provenance.
+  - `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/src/agents/ready_agent.py`
+    - accept legacy `identity_confidence` as a compatibility fallback when `identity_match_confidence` is absent.
+
+- Regression coverage:
+  - reused and extended the emission / reasoning / orchestration tests so the dataset-row emission path and R1 emission wiring stay aligned with `ReadyAgent`.
+
+- Validation run:
+  - `conda run -n aie pytest -q tests/test_emission_observation_profile.py tests/test_reasoning_pack_builder.py tests/test_master_prompt_generic_axes.py tests/test_balanced_loop_candidate_scorecard.py tests/test_orchestration_run_one.py tests/test_ready_agent.py`
+  - result: `26 passed`
+
+## 2026-03-12 — Residual `other` relaxed; weak late-round standard wins no longer absorb residual cases by default
+
+- Investigated two rerun `GT=other` smoke cases that were ending at `neutral aromatic` despite only weak single-axis support.
+- Root issue:
+  - `other` had become stricter than standard labels.
+  - A late-round standard label could still win on one axis (`target_observation` or `structural_relaxation`) while `other` remained active but over-constrained.
+
+- Implemented changes in `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/src/reasoning/master_reasoner.py`:
+  - relaxed late-round residual gating:
+    - `R0/R1` still cannot end at `other`;
+    - `R2/R3` now allow `other` when target-side evidence exists and either:
+      - at least one primary support axis is present, or
+      - repeated weakening/conflict against standard candidates is already visible.
+  - added a paired late-round standard-label guard:
+    - if a standard label wins on only one primary axis while `other` remains a comparable residual competitor under target-side evidence,
+    - normalization now converts that weak late-round standard win into `other` instead of letting it absorb the case by default.
+  - tightened candidate-scorecard role attribution so `new_support_evidence_ids` / `new_weakening_evidence_ids` only reflect role-aligned evidence, not broad context spillover.
+  - updated `R2/R3` prompt wording so residual outcomes remain available when standard-label support stays single-axis and unresolved.
+
+- Added / updated regression coverage:
+  - `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/tests/test_balanced_loop_candidate_scorecard.py`
+  - `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/tests/test_master_output_validation.py`
+
+- Validation runs:
+  - `conda run -n aie pytest -q tests/test_balanced_loop_candidate_scorecard.py tests/test_master_output_validation.py`
+  - `conda run -n aie pytest -q tests/test_round_runner_comparative_only_adjust.py tests/test_round_runner_stagnation_stop.py`
+  - result: `28 passed` + `5 passed`
+
+## 2026-03-12 — Residual `other` changed from post-hoc fallback to explicit late-round admissibility
+
+- Implemented the planned residual-outcome refactor so normalization no longer chains:
+  - `standard label -> other -> unknown`
+- Core changes in `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/src/reasoning/master_reasoner.py`:
+  - added `evaluate_standard_label_closure(...)` as the standard-label closure decision:
+    - `closed` = enough positive non-comparative axes, including a target-side axis;
+    - `provisional` = only one positive primary axis;
+    - `unsupported` = no positive primary axis.
+  - added `evaluate_residual_other_admissibility(...)` as the residual `other` gate for `R2/R3`:
+    - requires target-side evidence to have been used;
+    - requires standard candidates to still be in play;
+    - rejects comparative-only residual conclusions.
+  - replaced the old chained demotion logic with a single-pass decision:
+    - closed standard labels stay standard;
+    - provisional standard labels switch to `other` only when residual admissibility is satisfied;
+    - otherwise they remain provisional standard labels at low confidence;
+    - raw `other` only survives in `R2/R3` when residual admissibility is satisfied, else it becomes `unknown`.
+  - when normalization changes the structured label, `natural_language_mechanism` now gets a prepended normalization note.
+  - emitted explicit meta fields:
+    - `llm_primary_label`
+    - `normalized_primary_label`
+    - `standard_label_closure`
+    - `residual_other_admissible`
+    - `normalization_reason_codes`
+
+- Sidecar / evaluator alignment fixes:
+  - `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/src/orchestration/round_runner.py`
+    - `master_report`, `candidate_scorecard`, `eval_report`, and `round_state` now derive from normalized output when present, not raw parsed LLM output.
+    - added `normalization_summary` to round sidecars.
+  - `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/src/agents/judge_agent.py`
+    - `eval_report` now carries `normalization_summary` so the evaluator sidecar matches the final structured label.
+
+- Config updates in `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/src/reasoning/reasoning_config.py`:
+  - `standard_label_min_positive_axes`
+  - `standard_label_requires_target_axis`
+  - `residual_other_min_standard_candidates`
+  - `residual_other_min_conflicts`
+  - `late_round_provisional_standard_confidence_cap`
+
+- Regression coverage updated in:
+  - `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/tests/test_balanced_loop_candidate_scorecard.py`
+  - `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/tests/test_master_output_validation.py`
+
+- Validation run:
+  - `conda run -n aie pytest -q tests/test_balanced_loop_candidate_scorecard.py tests/test_master_output_validation.py tests/test_round_runner_comparative_only_adjust.py tests/test_round_runner_stagnation_stop.py tests/test_eval_report_feasibility_contract.py`
+  - result: `38 passed`
+
+## 2026-03-12: split `other` / `unknown` / `novelty` semantics without changing schema v3
+
+- Semantics refactor completed in `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/src/reasoning/master_reasoner.py`:
+  - kept `other` as a late-round residual category outcome only;
+  - redefined `unknown` as the epistemic fallback when neither canonical closure nor residual admissibility is achieved;
+  - added `novelty_candidate` as a sidecar/meta-only signal instead of another mechanism label.
+- Replaced the previous chained normalization (`standard -> other -> unknown`) with a one-pass resolver:
+  - `closed_known`: standard label stays closed;
+  - `provisional_known`: standard label stays provisional and low-confidence;
+  - `residual_supported`: raw `other` stays `other` when late-round residual admissibility holds;
+  - `insufficient_evidence`: unresolved cases fall back to `unknown`.
+- Added new normalized audit/meta fields:
+  - `decision_state`
+  - `canonical_pool_closed`
+  - `residual_other_admissible`
+  - `novelty_candidate`
+  - `novelty_basis`
+  - while retaining:
+    - `llm_primary_label`
+    - `normalized_primary_label`
+    - `normalization_reason_codes`
+- Propagated the same normalization summary into sidecars:
+  - `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/src/orchestration/round_runner.py`
+  - `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/src/agents/judge_agent.py`
+  - `master_round_report.json`, `round_state.json`, and `eval_report.json` now all carry:
+    - `decision_state`
+    - `canonical_pool_closed`
+    - `residual_other_admissible`
+    - `novelty_candidate`
+    - `novelty_basis`
+- Config additions in `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/src/reasoning/reasoning_config.py`:
+  - `novelty_candidate_entropy_threshold`
+  - `novelty_candidate_struct_threshold`
+- Regression updates:
+  - `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/tests/test_balanced_loop_candidate_scorecard.py`
+    - provisional standard labels no longer auto-convert to `other`;
+    - late-round admissible `other` remains `other`;
+    - unsupported standard labels normalize to `unknown`;
+    - novelty meta is emitted;
+    - sidecar normalization summaries include the new fields.
+- Validation run:
+  - `conda run -n aie pytest -q tests/test_balanced_loop_candidate_scorecard.py tests/test_master_output_validation.py tests/test_round_runner_comparative_only_adjust.py tests/test_round_runner_stagnation_stop.py tests/test_eval_report_feasibility_contract.py`
+  - result: `39 passed`
+
+## 2026-03-12: move final `other / unknown / standard` ownership to evaluator final adjudication
+
+- Final label ownership moved from master-side normalization to evaluator-side final adjudication:
+  - `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/src/agents/judge_agent.py`
+  - `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/src/orchestration/round_runner.py`
+  - `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/src/agents/llm_evaluator.py`
+- Master still computes:
+  - evidence validation
+  - confidence penalties
+  - candidate scorecard
+  - closure / residual / novelty hints
+  but no longer owns late-round final label rewriting.
+- Added deterministic final adjudication context/builders in `judge_agent.py`:
+  - `build_final_adjudication_context(...)`
+  - `build_final_label_adjudication(...)`
+  - `apply_final_label_adjudication(...)`
+- Added optional evaluator LLM final adjudication in `llm_evaluator.py`:
+  - `run_final_adjudication(...)`
+  - tagged output contract:
+    - `ADJUDICATED_LABEL`
+    - `DECISION_STATE`
+    - `CONFIDENCE_ADJUSTMENT_DELTA`
+    - `NOVELTY_CANDIDATE`
+    - `NOVELTY_BASIS`
+    - `REASON_CODES`
+    - `WHY_NOT_OTHER`
+    - `WHY_NOT_UNKNOWN`
+    - `WHY_NOT_TOP_STANDARD`
+- Terminal rounds now:
+  - keep raw master candidate ordering in `candidate_scorecard`
+  - write final evaluator-side decision into `final_label_adjudication`
+  - patch `case.master_reasoning.mechanism_claim.primary_hypothesis.mechanism_label` from adjudicated output
+  - prepend an `Adjudication note:` to `natural_language_mechanism` when evaluator changes the final label
+- Sidecar split is now explicit:
+  - raw candidate ordering:
+    - `master_candidate_scorecard`
+  - final label decision:
+    - `final_label_adjudication`
+  - this is now written to:
+    - `round_state.json`
+    - `eval_report.json`
+    - `case.master_reasoning.__meta`
+- Master-side normalization hints now remain hints:
+  - raw late-round `other` is no longer immediately rewritten to `unknown`
+  - unsupported standard labels stay raw in master output, but carry `decision_state=insufficient_evidence`
+  - final `other / unknown / provisional standard` ownership is deferred to adjudication
+- Regression updates:
+  - `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/tests/test_balanced_loop_candidate_scorecard.py`
+  - `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/tests/test_master_output_validation.py`
+  - `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/tests/test_llm_evaluator.py`
+  - `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/tests/test_round_runner_stagnation_stop.py`
+- Validation runs:
+  - `conda run -n aie pytest -q tests/test_balanced_loop_candidate_scorecard.py tests/test_master_output_validation.py tests/test_round_runner_stagnation_stop.py tests/test_eval_report_feasibility_contract.py tests/test_llm_evaluator.py`
+  - result: `46 passed`
+  - `conda run -n aie pytest -q tests/test_round_runner_comparative_only_adjust.py tests/test_round_runner_stagnation_stop.py tests/test_eval_report_feasibility_contract.py tests/test_orchestration_run_one.py`
+  - result: `13 passed`
+
+## 2026-03-13: reshape split benchmarks to 3 levels and move `other` out of the main feature space
+
+- Added `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/src/data/rebuild_split_levels.py` to make the split rewrite reproducible:
+  - reads the legacy four-level source CSVs,
+  - rewrites the active split benchmark to three levels,
+  - exports every removed `other` row into `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/data/other_benchmark.csv`,
+  - writes `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/data/split_list/build_manifest.json`.
+- Preserved the previous four-level inputs under:
+  - `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/data/split_list_legacy_v1/`
+- Active split benchmark is now:
+  - `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/data/split_list/1_level.csv`
+  - `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/data/split_list/2_level.csv`
+  - `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/data/split_list/3_level.csv`
+  - `4_level.csv` was removed from the active benchmark directory.
+- New split semantics:
+  - new `1_level.csv` = old level 1 without `other`
+  - new `2_level.csv` = old levels 2+3 merged without `other`
+  - new `3_level.csv` = old level 4 without `other`
+- Added provenance columns directly to the reshaped split CSVs:
+  - `difficulty_level`
+  - `original_level`
+  - `source_split_file`
+  - `source_row_index`
+- New row counts after rebuild:
+  - `1_level.csv`: `276`
+  - `2_level.csv`: `156`
+  - `3_level.csv`: `44`
+  - `other_benchmark.csv`: `216`
+- Tightened the reference-source contract so `other` cannot leak back into the main feature space:
+  - `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/src/data/build_split_reference_source.py`
+    - now defaults to the 3-level split
+    - raises `split_file_contains_other_label` if `other` appears
+  - `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/src/data/build_split_reference_views.py`
+    - now materializes only:
+      - `all_levels_full`
+      - `leave_level_1`
+      - `leave_level_2`
+      - `leave_level_3`
+- Runtime / CLI defaults now point at the new feature-space root:
+  - `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/data/reference_indices/split_levels_v2/views`
+- Materialized the new three-level reference-space artifacts:
+  - `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/data/reference_indices/split_levels_v2/sources/all_levels_reference.parquet`
+  - `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/data/reference_indices/split_levels_v2/views/all_levels_full`
+  - `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/data/reference_indices/split_levels_v2/views/leave_level_1`
+  - `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/data/reference_indices/split_levels_v2/views/leave_level_2`
+  - `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/data/reference_indices/split_levels_v2/views/leave_level_3`
+- Verified the rebuilt source and all views contain zero `other` rows.
+- Focused regression suite:
+  - `conda run -n aie pytest -q tests/test_rebuild_split_levels.py tests/test_build_split_reference_source.py tests/test_reference_views_build.py tests/test_reference_view_auto_selection.py tests/test_eval_pipeline_smoke.py tests/test_orchestration_run_one.py tests/test_data_agent_reference_view.py`
+  - result: `11 passed`
+
+## 2026-03-13: disable `other` in the active split-level-v2 label pool and keep `unknown` as the only unresolved fallback
+
+- Implemented dynamic no-`other` label-pool propagation for the active split benchmark:
+  - `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/src/reasoning/reasoning_config.py`
+  - `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/src/orchestration/run_one.py`
+  - `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/src/orchestration/round_runner.py`
+  - `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/src/agents/reasoning_agent.py`
+- Main mechanism:
+  - split-level-v2 runs now set `runtime.allow_other_label=false`
+  - `allowed_mechanism_labels` are built without `other`
+  - runtime audit fields now include:
+    - `runtime.allow_other_label`
+    - `runtime.label_pool_name`
+- Master-side prompt/candidate filtering now respects the no-`other` pool:
+  - `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/src/reasoning/master_reasoner.py`
+  - candidate normalization is now strict to the active allowed label set
+  - candidate-set text and candidate scorecards no longer carry `other` when the active label pool disables it
+  - R2/R3 prompt contracts no longer mention residual `other` when it is not legal
+- Final adjudication now respects the active label pool:
+  - `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/src/agents/judge_agent.py`
+  - `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/src/agents/llm_evaluator.py`
+  - `other` is excluded from legal candidates when `allow_other_label=false`
+  - `why_not_other` now explicitly reports that `other` is not in the active benchmark label pool
+  - final adjudication falls back to:
+    - a standard label if one remains legal/provisional
+    - otherwise `unknown`
+- This change is scoped to the active split-level-v2 benchmark workflow; it does not delete the generic `other` machinery from the codebase, so a future dedicated `other_benchmark` path can re-enable it cleanly.
+- Focused regression suite:
+  - `conda run -n aie pytest -q tests/test_balanced_loop_candidate_scorecard.py tests/test_master_output_validation.py tests/test_orchestration_run_one.py tests/test_eval_report_feasibility_contract.py tests/test_llm_evaluator.py`
+  - result: `46 passed`
+  - `conda run -n aie pytest -q tests/test_round_runner_stagnation_stop.py tests/test_round_runner_comparative_only_adjust.py`
+  - result: `6 passed`
+
+## 2026-03-13: remove the TPENp ESIPT row from `1_level` and refresh split-level-v2 artifacts
+
+- Applied the requested exclusion to `data/split_list/1_level.csv`:
+  - removed the single row with:
+    - `code=TPENp`
+    - `mechanism_id=ESIPT`
+    - `SMILES=C1(/C(C2=CC=CC=C2)=C(C3=CC=C(C4=CC=CC5=C4C=CC=C5)C=C3)\C6=CC=CC=C6)=CC=CC=C1`
+- Updated `data/split_list/build_manifest.json` to keep the edited split auditable:
+  - `rows_per_level["1"]` changed from `276` to `275`
+  - refreshed level-1 label counts
+  - appended a `manual_exclusions` record with reason `user_requested_exclusion`
+- Rebuilt the split-level-v2 reference source and all views so future structure and neighbor priors stop surfacing the excluded molecule:
+  - `data/reference_indices/split_levels_v2/sources/all_levels_reference.parquet`
+  - `data/reference_indices/split_levels_v2/views/all_levels_full`
+  - `data/reference_indices/split_levels_v2/views/leave_level_1`
+  - `data/reference_indices/split_levels_v2/views/leave_level_2`
+  - `data/reference_indices/split_levels_v2/views/leave_level_3`
+- Sanity checks after the refresh:
+  - `data/split_list/1_level.csv` now has `275` rows and zero matches for the excluded SMILES
+  - `data/reference_indices/split_levels_v2/sources/build_manifest.json` now reports `475` merged rows
+  - rebuilt views report:
+    - `all_levels_full`: `475` input rows
+    - `leave_level_1`: `200`
+    - `leave_level_2`: `319`
+    - `leave_level_3`: `431`
+
+## 2026-03-13: refactor the R0 prior stack into facts / reliability / candidate slate
+
+- Reworked the R0 prior path so Master no longer sees raw `structure_retrieval_profile` and `structure_candidate_distribution` as parallel, conflicting priors.
+- Added `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/src/reasoning/r0_prior_profiles.py` with three compact R0-only views:
+  - `structure_fact_sheet`
+  - `prior_reliability_profile`
+  - `candidate_slate_v2`
+- `candidate_slate_v2` is now the only R0 label-bearing candidate object, and it is restricted to the main benchmark labels:
+  - `ICT`
+  - `TICT`
+  - `ESIPT`
+  - `neutral aromatic`
+- Prior-source weights are now explicit inside `candidate_slate_v2`:
+  - feature retrieval: `0.50`
+  - scaffold retrieval: `0.30`
+  - ECFP prior: `0.20`
+- When cross-source agreement is low or ambiguity is high, the R0 candidate slate is flattened and expanded to up to four candidates instead of forcing a sharp top-1.
+- `build_split_reference_views.py` now materializes label-clean prior artifacts in addition to the raw reference artifacts:
+  - `mechanism_label_map_main_prior.parquet`
+  - `structure_reference_pool_main_prior.parquet`
+- Runtime now prefers those main-prior artifacts automatically:
+  - `DataAgent` prefers `mechanism_label_map_main_prior.parquet`
+  - `StructureAgent` / `build_reference_rows()` prefer `structure_reference_pool_main_prior.parquet`
+- `structure_fact_sheet` is now written by `StructureAgent` and injected into the R0 pack; raw structure prior / motif / retrieval / candidate-distribution objects are no longer passed through the R0 model-facing payload.
+- R0 evidence IDs `E50-E56` were repurposed into the new stack:
+  - `E50-E54`: structure fact sheet entries
+  - `E55`: prior reliability summary
+  - `E56`: candidate slate summary
+- R0 prompt contract now explicitly enforces the read order:
+  1. structure facts
+  2. prior reliability
+  3. candidate slate
+  and tells Master not to restate raw feature/murcko/ECFP disagreements.
+- `motif_detector.py` was strengthened with new phenomenon-level structural facts to reduce the “same template for every large conjugated aromatic system” failure mode:
+  - `donor_acceptor_fragment_balance`
+  - `donor_acceptor_path_multiplicity`
+  - `aromatic_core_connectivity`
+  - `global_flexibility_vs_core_rigidity`
+  - `planarity_break_count`
+  - `conjugation_continuity`
+  - `proton_transfer_local_geometry`
+  - `heteroatom_cluster_pattern`
+- Focused regression suites:
+  - `conda run -n aie pytest -q tests/test_r0_prior_profiles.py tests/test_reference_views_build.py tests/test_structure_agent_reference_view.py tests/test_data_agent_reference_view.py tests/test_structure_agent_r0_pack.py tests/test_master_prompt_structure_r0.py`
+  - result: `8 passed`
+  - `conda run -n aie pytest -q tests/test_reasoning_pack_builder.py tests/test_motif_detector.py tests/test_structure_agent.py tests/test_orchestration_run_one.py`
+  - result: `12 passed`
+  - `conda run -n aie pytest -q tests/test_mechanism_entropy_pre_atb.py`
+  - result: `21 passed`
+
+## 2026-03-13: export deterministic structure-prior snapshots for collaborator review
+
+- Added a tracked snapshot folder at `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/doc/examples/structure_prior_snapshots/`.
+- Exported deterministic JSON snapshots for two reference molecules under the current main benchmark setup (`data/split_list/1_level.csv` + `data/reference_indices/split_levels_v2/views/leave_level_1`):
+  - `o-TPEPh` (`neutral aromatic`)
+  - `BTPETTD` (`ESIPT`)
+- Each molecule folder now contains:
+  - `context.json`
+  - `structure_prior_profile.json`
+  - `structure_motif_profile.json`
+  - `structure_fact_sheet.json`
+  - `prior_reliability_profile.json`
+  - `candidate_slate_v2.json`
+- Added `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/doc/examples/structure_prior_snapshots/README.md` and `index.json` so collaborators can inspect the exact current prior values without rerunning the pipeline.
+- This patch is data-only for collaborator inspection; it does not change reasoning behavior.

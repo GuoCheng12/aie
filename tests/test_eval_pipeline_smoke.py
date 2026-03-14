@@ -2,6 +2,7 @@ import json
 from pathlib import Path
 
 from src.eval import evaluate_testset
+from src.orchestration import run_status
 
 
 def _write_test_csv(path: Path) -> None:
@@ -20,12 +21,25 @@ def _write_test_csv(path: Path) -> None:
     )
 
 
-def test_eval_pipeline_smoke(tmp_path, monkeypatch) -> None:
+def test_eval_pipeline_smoke(tmp_path, monkeypatch, capsys) -> None:
     test_csv = tmp_path / "test.csv"
     _write_test_csv(test_csv)
+    seen_reference = {}
 
     def fake_run_one(ns):
         idx = int(ns.row_index)
+        seen_reference[idx] = {
+            "reference_index_root": ns.reference_index_root,
+            "reference_view": ns.reference_view,
+        }
+        run_status.emit_progress_event(
+            round_index=0,
+            max_rounds=1,
+            active_profile="setup",
+            stage="agent:data_agent",
+            status="running",
+            elapsed_ms=0,
+        )
         if idx == 2:
             raise RuntimeError("synthetic-run-failure")
         case_id = f"CASE{idx}"
@@ -69,6 +83,11 @@ def test_eval_pipeline_smoke(tmp_path, monkeypatch) -> None:
             "5",
             "--temperature",
             "0.0",
+            "--reference-index-root",
+            str(tmp_path / "views"),
+            "--reference-view",
+            "leave_level_1",
+            "--no-show-progress",
         ]
     )
     report = evaluate_testset.run_benchmark(args)
@@ -82,8 +101,14 @@ def test_eval_pipeline_smoke(tmp_path, monkeypatch) -> None:
     assert report_md_path.exists()
 
     status_counts = (report.get("results") or {}).get("counts", {}).get("status", {})
+    metrics = (report.get("results") or {}).get("metrics", {})
     assert status_counts.get("ok", 0) >= 1
     assert status_counts.get("failed_run", 0) == 1
     assert status_counts.get("missing_pred", 0) == 1
     assert status_counts.get("missing_gt", 0) == 1
-
+    assert "top1_accuracy_including_other" in metrics
+    assert "top1_accuracy_excluding_other_gt" in metrics
+    assert seen_reference[0]["reference_view"] == "leave_level_1"
+    assert seen_reference[0]["reference_index_root"] == str(tmp_path / "views")
+    captured = capsys.readouterr()
+    assert "round_progress" not in captured.out

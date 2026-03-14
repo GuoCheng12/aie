@@ -53,6 +53,10 @@ class AgentContext:
     mineru_end_page: Optional[int] = None
     mineru_timeout_sec: int = 1200
     force: bool = False
+    status_path: Optional[Path] = None
+    progress_round_index: int = 0
+    progress_max_rounds: int = 1
+    progress_active_profile: str = "single"
 
     def idempotency_scope(self) -> Dict[str, Any]:
         return {

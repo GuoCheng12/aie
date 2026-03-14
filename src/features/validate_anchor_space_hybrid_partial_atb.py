@@ -47,7 +47,7 @@ def rdkit_tanimoto_from_smiles(smiles1: str, smiles2: str) -> Optional[float]:
     """
     try:
         from rdkit import Chem
-        from rdkit.Chem import AllChem, DataStructs
+        from rdkit.Chem import DataStructs, rdFingerprintGenerator
 
         mol1 = Chem.MolFromSmiles(smiles1)
         mol2 = Chem.MolFromSmiles(smiles2)
@@ -55,9 +55,9 @@ def rdkit_tanimoto_from_smiles(smiles1: str, smiles2: str) -> Optional[float]:
         if mol1 is None or mol2 is None:
             return None
 
-        # Generate Morgan fingerprint (ECFP4, radius=2, 2048 bits)
-        fp1 = AllChem.GetMorganFingerprintAsBitVect(mol1, radius=2, nBits=2048)
-        fp2 = AllChem.GetMorganFingerprintAsBitVect(mol2, radius=2, nBits=2048)
+        generator = rdFingerprintGenerator.GetMorganGenerator(radius=2, fpSize=2048)
+        fp1 = generator.GetFingerprint(mol1)
+        fp2 = generator.GetFingerprint(mol2)
 
         return DataStructs.TanimotoSimilarity(fp1, fp2)
     except Exception as e:

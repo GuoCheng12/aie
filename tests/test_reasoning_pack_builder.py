@@ -64,6 +64,15 @@ def _case_fixture():
                     "s1_rotational_constant_b": 0.48,
                     "s0_rotational_constant_c": 0.25,
                     "s1_rotational_constant_c": 0.24,
+                    "s0_perm_dipole_tot_debye": 2.5,
+                    "s1_perm_dipole_tot_debye": 2.8,
+                    "delta_perm_dipole_tot_debye": 0.3,
+                    "s1_transition_electric_dip_au": 1.4,
+                    "s1_transition_magnetic_dip_norm_au": 0.6,
+                    "s1_rotatory_strength_cgs": -12.5,
+                    "s1_oscillator_strength_f": 0.17,
+                    "s1_excitation_wavelength_nm": 550.0,
+                    "aop_compact_reliability_score": 2.0,
                 },
                 "features": {"delta_gap": 0.1, "delta_dihedral": -1.1, "delta_volume": 0.5, "excitation_energy": 2.2},
             },
@@ -113,6 +122,8 @@ def test_build_reasoning_pack_contains_minimum_sections_and_paths():
     assert "summary" in stats
     assert "reliability" in stats
     risk = pack.get("risk_scores") or {}
+    assert (risk.get("structure_prior_profile") or {}).get("version") == "structure_prior_v1"
+    assert (risk.get("charge_redistribution_profile") or {}).get("version") == "charge_redistribution_v2"
     assert (risk.get("atb_ct_proxy_profile") or {}).get("version") == "atb_ct_proxy_v1"
     assert (risk.get("atb_structural_relaxation_profile") or {}).get("version") == "atb_structural_relaxation_v1"
     assert (risk.get("atb_shape_rigidity_profile") or {}).get("version") == "atb_shape_rigidity_v1"
@@ -122,6 +133,22 @@ def test_build_reasoning_pack_contains_minimum_sections_and_paths():
     assert "E37" in ids
     assert "E38" in ids
     assert "E39" in ids
+    assert "E40" in ids
+    assert "E41" in ids
+    assert "E42" in ids
+    assert ("E43" in ids) or ("E44" in ids)
+    assert "E60" in ids
+    assert "E61" in ids
+    assert "E62" in ids
+    assert "E63" in ids
+    e35 = next(x for x in registry if isinstance(x, dict) and x.get("evidence_id") == "E35")
+    e36 = next(x for x in registry if isinstance(x, dict) and x.get("evidence_id") == "E36")
+    assert e35.get("source_type") == "derived_pack"
+    assert e36.get("source_type") == "derived_pack"
+    assert "charge_variation" not in str(e35.get("value_preview"))
+    assert "element" not in str(e35.get("value_preview"))
+    assert "charge_variation" not in str(e36.get("value_preview"))
+    assert "element" not in str(e36.get("value_preview"))
 
 
 def test_build_reasoning_pack_is_deterministic_for_same_case():
@@ -134,7 +161,7 @@ def test_build_reasoning_pack_is_deterministic_for_same_case():
 def test_reasoning_pack_registry_size_cap():
     case = _case_fixture()
     pack = build_reasoning_pack(case, {"run_lane": "atb_cache_only"})
-    assert len(pack.get("evidence_registry") or []) <= 20
+    assert len(pack.get("evidence_registry") or []) <= 24
 
 
 def test_reasoning_pack_r1_contains_atb_trend_profile_when_target_atb_available():
@@ -153,3 +180,89 @@ def test_reasoning_pack_r1_contains_atb_trend_profile_when_target_atb_available(
     trend = ((pack.get("risk_scores") or {}).get("atb_trend_profile")) or {}
     assert trend.get("version") == "atb_trend_v1"
     assert trend.get("overall_motion_proxy") in {"low", "medium", "high"}
+
+
+def test_reasoning_pack_r0_excludes_and_r1_includes_emission_observation_profile():
+    case = _case_fixture()
+    case["target_fields"] = {
+        "emission_aggr_nm": 520.0,
+        "emission_solid_or_film_nm": 565.0,
+    }
+    case["target_fields_provenance"] = {
+        "emission_aggr_nm": {
+            "source_type": "dataset_row",
+            "source_ref": "/tmp/level1.csv",
+            "source_locator": "row_index=0; code=DEMO",
+            "confidence": 1.0,
+            "identity_match": "exact",
+            "identity_match_confidence": 1.0,
+            "condition": "aggregation",
+            "condition_bucket": "aggregation",
+        },
+        "emission_solid_or_film_nm": {
+            "source_type": "dataset_row",
+            "source_ref": "/tmp/level1.csv",
+            "source_locator": "row_index=0; code=DEMO",
+            "confidence": 1.0,
+            "identity_match": "exact",
+            "identity_match_confidence": 1.0,
+            "condition": "solid_or_film",
+            "condition_bucket": "solid_or_film",
+        },
+    }
+
+    pack_r0 = build_reasoning_pack(
+        case,
+        {"run_lane": "atb_cache_only", "evidence_profiles": {"active_profile": "R0"}},
+    )
+    assert "emission_observation_profile" not in (pack_r0.get("risk_scores") or {})
+    ids_r0 = {str(x.get("evidence_id")) for x in (pack_r0.get("evidence_registry") or []) if isinstance(x, dict)}
+    assert ids_r0.isdisjoint({"E70", "E71", "E72", "E73"})
+
+    pack_r1 = build_reasoning_pack(
+        case,
+        {"run_lane": "atb_cache_only", "evidence_profiles": {"active_profile": "R1"}},
+    )
+    emission_profile = ((pack_r1.get("risk_scores") or {}).get("emission_observation_profile")) or {}
+    assert emission_profile.get("version") == "emission_observation_v1"
+    assert emission_profile.get("coverage") == "both"
+    ids_r1 = {str(x.get("evidence_id")) for x in (pack_r1.get("evidence_registry") or []) if isinstance(x, dict)}
+    assert {"E70", "E71", "E72", "E73"}.issubset(ids_r1)
+
+
+def test_reasoning_pack_sanitizes_raw_delta_dipole_arrays():
+    case = _case_fixture()
+    case["evidence_readiness"]["atb"]["features_summary"]["delta_dipole"] = {
+        "element": ["C", "N"],
+        "charge_variation": [0.01, -0.02],
+    }
+    case["evidence_readiness"]["atb"]["features_summary"]["charge_redis_total_abs"] = 0.03
+    case["evidence_readiness"]["atb"]["features_summary"]["charge_redis_max_abs_atom"] = 0.02
+    case["evidence_readiness"]["atb"]["features_summary"]["charge_redis_top3_abs_share"] = 1.0
+    case["evidence_readiness"]["atb"]["features_summary"]["charge_redis_heteroatom_abs_share"] = 0.6667
+    case["evidence_readiness"]["atb"]["features_summary"]["charge_redis_n_atoms_ge_0p01"] = 2.0
+    case["evidence_readiness"]["atb"]["features_summary"]["charge_redis_n_atoms_ge_0p02"] = 1.0
+
+    pack = build_reasoning_pack(case, {"run_lane": "atb_cache_only"})
+    fs = (((pack.get("evidence_readiness") or {}).get("atb") or {}).get("features_summary") or {})
+    assert "charge_variation" not in str(fs)
+    assert "element" not in str(fs)
+    assert not isinstance(fs.get("delta_dipole"), dict)
+
+
+def test_aop_compact_evidence_ids_follow_target_atb_profile_gate():
+    case = _case_fixture()
+
+    pack_r0 = build_reasoning_pack(
+        case,
+        {"run_lane": "atb_cache_only", "evidence_profiles": {"active_profile": "R0"}},
+    )
+    ids_r0 = {str(x.get("evidence_id")) for x in (pack_r0.get("evidence_registry") or []) if isinstance(x, dict)}
+    assert ids_r0.isdisjoint({"E60", "E61", "E62", "E63"})
+
+    pack_r1 = build_reasoning_pack(
+        case,
+        {"run_lane": "atb_cache_only", "evidence_profiles": {"active_profile": "R1"}},
+    )
+    ids_r1 = {str(x.get("evidence_id")) for x in (pack_r1.get("evidence_registry") or []) if isinstance(x, dict)}
+    assert bool({"E60", "E61", "E62", "E63"} & ids_r1)

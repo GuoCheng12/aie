@@ -175,3 +175,46 @@ R2
     assert parsed["next_round_profile_suggestion"] == "R2"
     assert len(parsed["voi_ranked_actions"]) == 2
     assert parsed["voi_ranked_actions"][0]["action"] == "switch_run_lane_offline_pdf"
+
+
+def test_llm_evaluator_final_adjudication_parses_tagged_output():
+    text = """
+ADJUDICATED_LABEL:
+other
+DECISION_STATE:
+residual_supported
+CONFIDENCE_ADJUSTMENT_DELTA:
+0.03
+NOVELTY_CANDIDATE:
+true
+NOVELTY_BASIS:
+- novelty_struct_high
+- late_round_residual_conflict
+REASON_CODES:
+- llm_final_adjudication
+- residual_other_selected
+WHY_NOT_OTHER:
+Residual other remained admissible and no canonical label closed.
+WHY_NOT_UNKNOWN:
+Target-side evidence is sufficient for a residual outcome.
+WHY_NOT_TOP_STANDARD:
+No standard label achieved closure.
+"""
+    ev = LLMEvaluator(llm_client=_MockTextLLM(text))  # type: ignore[arg-type]
+    out = ev.run_final_adjudication(
+        adjudication_context={
+            "active_profile": "R3",
+            "llm_primary_label": "other",
+            "legal_candidates": ["other", "unknown", "ICT"],
+            "top_standard_label": "ICT",
+            "canonical_pool_closed": False,
+            "residual_other_admissible": True,
+            "novelty_candidate": True,
+            "novelty_basis": ["novelty_struct_high"],
+            "active_conflict_count": 2,
+        }
+    )
+    parsed = out["parsed"]
+    assert parsed["adjudicated_label"] == "other"
+    assert parsed["decision_state"] == "residual_supported"
+    assert parsed["novelty_candidate"] is True

@@ -61,6 +61,8 @@ Mechanism subgraph retrieval as explicit memory; new hypotheses create new branc
 - aTB integration pitfall: avoid using global `args` inside helpers; always pass args explicitly (e.g., volume computation and workdir usage). Record stage failures.
 - aTB can fail at different stages (`opt`, `excit`, `neb`, `volume`, `feature_parse`). Failures must be recorded with `fail_stage` and routed to `Evidence-insufficient` with recommended next steps (retry / different initial conformer / skip NEB / etc.).
 - Amesp can segfault on large molecules (error code -11); consider size-based skipping or reduced parallelism for stability.
+- Some cached/demo `delta_dipole` values are dict-format atomwise charge-variation payloads (`element[]` + `charge_variation[]`), not true dipole-moment scalars. Do not pass these raw arrays to reasoning; compress them into compact redistribution summaries first.
+- For split-level benchmark priors, keep geometry/similarity space separate from label-bearing prior space. Non-standard labels may remain in the density base for novelty/coverage, but candidate-generation artifacts must be filtered to the active benchmark label pool.
 
 ---
 

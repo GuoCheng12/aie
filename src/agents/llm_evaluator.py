@@ -34,6 +34,23 @@ EVAL_TAGGED_SECTION_ALIASES = {
     "NEXT_ROUND_PROFILE": "NEXT_ROUND_PROFILE_SUGGESTION",
     "NEXT_PROFILE": "NEXT_ROUND_PROFILE_SUGGESTION",
 }
+FINAL_ADJ_SECTION_ORDER = [
+    "ADJUDICATED_LABEL",
+    "DECISION_STATE",
+    "CONFIDENCE_ADJUSTMENT_DELTA",
+    "NOVELTY_CANDIDATE",
+    "NOVELTY_BASIS",
+    "REASON_CODES",
+    "WHY_NOT_OTHER",
+    "WHY_NOT_UNKNOWN",
+    "WHY_NOT_TOP_STANDARD",
+]
+FINAL_ADJ_ALLOWED_DECISION_STATES = {
+    "closed_known",
+    "provisional_known",
+    "residual_supported",
+    "insufficient_evidence",
+}
 NUMBER_PATTERN = re.compile(r"-?\d+(?:\.\d+)?")
 
 
@@ -67,7 +84,7 @@ def _parse_json_candidate_text(text: str) -> Optional[Dict[str, Any]]:
 def _parse_tagged_sections(text: str) -> Dict[str, str]:
     raw = str(text or "")
     sections: Dict[str, str] = {}
-    all_tags = list(EVAL_TAGGED_SECTION_ORDER) + list(EVAL_TAGGED_SECTION_ALIASES.keys())
+    all_tags = list(EVAL_TAGGED_SECTION_ORDER) + list(EVAL_TAGGED_SECTION_ALIASES.keys()) + list(FINAL_ADJ_SECTION_ORDER)
     tag_alt = "|".join(sorted({re.escape(x) for x in all_tags}, key=len, reverse=True))
     patt = re.compile(rf"(?mi)^({tag_alt}):\s*(.*)$")
     matches = list(patt.finditer(raw))
@@ -114,6 +131,11 @@ def _parse_first_float(text: Any) -> Optional[float]:
     if not m:
         return None
     return _to_float(m.group(0))
+
+
+def _parse_bool_text(text: Any) -> bool:
+    token = str(text or "").strip().lower()
+    return token in {"true", "1", "yes", "y", "on"}
 
 
 def _parse_severity(text: str) -> str:
@@ -213,6 +235,46 @@ def _tagged_text_to_eval_output(raw_text: str, *, default_next_profile: str = "R
         "confidence_delta_suggestion": float(conf_delta),
         "next_round_profile_suggestion": next_profile,
     }
+
+
+def _tagged_text_to_final_adjudication(raw_text: str) -> Dict[str, Any]:
+    sections = _parse_tagged_sections(raw_text)
+    novelty_basis = _parse_lines(sections.get("NOVELTY_BASIS"))
+    reason_codes = _parse_lines(sections.get("REASON_CODES"))
+    return {
+        "adjudicated_label": str(sections.get("ADJUDICATED_LABEL") or "").strip(),
+        "decision_state": str(sections.get("DECISION_STATE") or "").strip(),
+        "confidence_adjustment_delta": float(_parse_first_float(sections.get("CONFIDENCE_ADJUSTMENT_DELTA")) or 0.0),
+        "novelty_candidate": _parse_bool_text(sections.get("NOVELTY_CANDIDATE")),
+        "novelty_basis": novelty_basis,
+        "reason_codes": reason_codes,
+        "why_not_other": str(sections.get("WHY_NOT_OTHER") or "").strip(),
+        "why_not_unknown": str(sections.get("WHY_NOT_UNKNOWN") or "").strip(),
+        "why_not_top_standard": str(sections.get("WHY_NOT_TOP_STANDARD") or "").strip(),
+    }
+
+
+def _validate_final_adjudication_output(
+    parsed: Dict[str, Any],
+    *,
+    legal_candidates: Sequence[str],
+) -> Tuple[bool, List[str]]:
+    errors: List[str] = []
+    label = str(parsed.get("adjudicated_label") or "").strip()
+    if not label:
+        errors.append("missing_adjudicated_label")
+    elif label not in {str(x) for x in legal_candidates if str(x)}:
+        errors.append("adjudicated_label_not_legal")
+    state = str(parsed.get("decision_state") or "").strip()
+    if state not in FINAL_ADJ_ALLOWED_DECISION_STATES:
+        errors.append("invalid_decision_state")
+    delta = _to_float(parsed.get("confidence_adjustment_delta"))
+    if delta is None or delta < -0.2 or delta > 0.2:
+        errors.append("invalid_confidence_adjustment_delta")
+    for key in ("why_not_other", "why_not_unknown", "why_not_top_standard"):
+        if not str(parsed.get(key) or "").strip():
+            errors.append(f"missing_{key}")
+    return not errors, errors
 
 
 def eval_llm_output_schema_v1() -> Dict[str, Any]:
@@ -612,4 +674,81 @@ class LLMEvaluator:
             "request": out.get("request"),
             "response": out.get("response"),
             "llm_failure_reason": llm_failure_reason,
+        }
+
+    def run_final_adjudication(
+        self,
+        *,
+        adjudication_context: Dict[str, Any],
+        model: Optional[str] = None,
+        reasoning_effort: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        client = self._resolve_client(model=model, reasoning_effort=reasoning_effort)
+        legal_candidates = [str(x) for x in (adjudication_context.get("legal_candidates") or []) if str(x)]
+        if not legal_candidates:
+            raise ValueError("final_adjudication_missing_legal_candidates")
+        allow_other_label = bool(adjudication_context.get("allow_other_label", "other" in legal_candidates))
+        payload = {
+            "active_profile": str(adjudication_context.get("active_profile") or ""),
+            "llm_primary_label": str(adjudication_context.get("llm_primary_label") or ""),
+            "legal_candidates": legal_candidates,
+            "allow_other_label": allow_other_label,
+            "top_standard_label": adjudication_context.get("top_standard_label"),
+            "canonical_pool_closed": bool(adjudication_context.get("canonical_pool_closed")),
+            "residual_other_admissible": bool(adjudication_context.get("residual_other_admissible")),
+            "novelty_candidate": bool(adjudication_context.get("novelty_candidate")),
+            "novelty_basis": [str(x) for x in (adjudication_context.get("novelty_basis") or []) if str(x)],
+            "active_conflict_count": int(adjudication_context.get("active_conflict_count") or 0),
+            "standard_candidate_closures": adjudication_context.get("standard_candidate_closures") or {},
+            "candidate_scorecard_summary": adjudication_context.get("candidate_scorecard_summary") or [],
+            "used_evidence_ids": [str(x) for x in (adjudication_context.get("used_evidence_ids") or []) if str(x)],
+            "information_gain": adjudication_context.get("information_gain") or {},
+            "run_lane": str(adjudication_context.get("run_lane") or ""),
+        }
+        input_text = json.dumps(payload, ensure_ascii=False, sort_keys=True)
+        if allow_other_label:
+            label_semantics = (
+                "Interpret 'other' as a late-round residual outcome and 'unknown' as unresolved evidence.\n"
+            )
+            why_not_other_hint = ""
+        else:
+            label_semantics = (
+                "The active benchmark label pool does not include 'other'; choose only from the legal candidates and use 'unknown' for unresolved evidence.\n"
+            )
+            why_not_other_hint = "WHY_NOT_OTHER should explain that 'other' is not in the active label pool when applicable.\n"
+        instructions = (
+            "You are the final adjudicator for mechanism-label resolution.\n"
+            "Choose a final label only from LEGAL_CANDIDATES.\n"
+            "Do not invent new standard labels.\n"
+            f"{label_semantics}"
+            "A provisional standard label may remain if no legal residual outcome is better justified.\n"
+            "Return concise tagged sections only, no markdown.\n"
+            "Use EXACT section prefixes in this order:\n"
+            "ADJUDICATED_LABEL:\n"
+            "DECISION_STATE:\n"
+            "CONFIDENCE_ADJUSTMENT_DELTA:\n"
+            "NOVELTY_CANDIDATE:\n"
+            "NOVELTY_BASIS:\n"
+            "REASON_CODES:\n"
+            "WHY_NOT_OTHER:\n"
+            "WHY_NOT_UNKNOWN:\n"
+            "WHY_NOT_TOP_STANDARD:\n"
+            f"{why_not_other_hint}"
+            "CONFIDENCE_ADJUSTMENT_DELTA must stay within [-0.2, 0.2]."
+        )
+        out = client.responses_text(
+            instructions=instructions,
+            input_text=input_text,
+            max_output_tokens=min(max(self.max_output_tokens, 600), 1800),
+        )
+        text = str(out.get("text") or "")
+        parsed = _tagged_text_to_final_adjudication(text)
+        ok, errors = _validate_final_adjudication_output(parsed, legal_candidates=legal_candidates)
+        if not ok:
+            raise ValueError(f"invalid_final_adjudication_output:{','.join(errors)}")
+        return {
+            "parsed": parsed,
+            "request": out.get("request"),
+            "response": out.get("response"),
+            "llm_failure_reason": None,
         }

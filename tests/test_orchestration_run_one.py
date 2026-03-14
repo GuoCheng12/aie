@@ -297,3 +297,37 @@ def test_run_one_ready_agent_uses_outlier_signal(monkeypatch, tmp_path):
     assert case["risk_scores"]["atb_neighbor_consistency"]["flag"] == "outlier"
     assert case["current_gate"]["reasoning_mode"] == "conservative"
     assert "atb_neighbor_outlier" in case["current_gate"]["reason"]
+
+
+def test_build_initial_case_seeds_dataset_row_emission_fields():
+    row = {
+        "SMILES": "C",
+        "code": "LEVEL1-ROW",
+        "reference": "demo",
+        "emission_aggr": "520",
+        "emission_solid": "565",
+    }
+    case = run_one_mod._build_initial_case(
+        row,
+        offline_pdf=None,
+        run_lane="atb_cache_only",
+        source_ref="/tmp/level1.csv",
+        source_locator="row_index=3; code=LEVEL1-ROW",
+        reference_index_root="/tmp/views",
+        reference_view="leave_level_1",
+        difficulty_level=1,
+        allow_other_label=False,
+    )
+    assert case["target_fields"]["emission_aggr_nm"] == 520.0
+    assert case["target_fields"]["emission_solid_or_film_nm"] == 565.0
+    aggr_prov = case["target_fields_provenance"]["emission_aggr_nm"]
+    solid_prov = case["target_fields_provenance"]["emission_solid_or_film_nm"]
+    assert aggr_prov["source_type"] == "dataset_row"
+    assert aggr_prov["condition"] == "aggregation"
+    assert aggr_prov["condition_bucket"] == "aggregation"
+    assert solid_prov["condition"] == "solid_or_film"
+    assert solid_prov["condition_bucket"] == "solid_or_film"
+    assert case["runtime"]["reference_view"] == "leave_level_1"
+    assert case["runtime"]["difficulty_level"] == 1
+    assert case["runtime"]["allow_other_label"] is False
+    assert case["runtime"]["label_pool_name"] == "main_no_other"

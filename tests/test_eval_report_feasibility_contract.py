@@ -67,3 +67,27 @@ def test_eval_report_atb_lane_prefers_lane_unblock_action():
     assert actions
     assert actions[0]["action"] in {"switch_run_lane_offline_pdf", "provide_offline_pdf"}
     assert actions[0]["action"] != "request_manual_pdf"
+
+
+def test_eval_report_respects_zero_effective_added_without_fallback():
+    report = build_eval_report(
+        case_json=_case_fixture(),
+        judged={"status": "needs_followup", "confidence": 0.2, "contradictions": [], "missing_evidence": [], "recommended_actions": []},
+        round_index=2,
+        active_profile="R2",
+        run_lane="atb_cache_only",
+        prev_confidence=0.2,
+        info_gain={
+            "count_added": 1,
+            "count_effective_added": 0,
+            "hypothesis_changed": False,
+            "confidence_delta": 0.0,
+            "profile_repeated": True,
+        },
+    )
+    info = report.get("information_gain") or {}
+    assert int(info.get("count_added") or -1) == 1
+    assert info.get("count_effective_added") == 0
+    stop = report.get("stop_recommendation") or {}
+    assert stop.get("should_stop") is True
+    assert stop.get("reason_code") == "no_new_evidence_available_in_lane"

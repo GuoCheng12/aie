@@ -16,6 +16,8 @@ from src.cases.create_case_from_smiles import (
     search_neighbors,
 )
 from src.core.types import AgentContext, AgentResult
+from src.data.rdkit_descriptors import compute_basic_descriptors
+from src.reasoning.structure_prior_profile import compute_structure_prior_profile
 
 from src.utils.logging import get_logger
 
@@ -193,12 +195,21 @@ class DataCaseAgent(CaseAgent):
     def __init__(
         self,
         *,
+        data_dir: str = "data",
         rdkit_features_path: str = "data/rdkit_features.parquet",
         mechanism_label_map_path: str = "data/mechanism_label_map.parquet",
         top_k: int = 10,
     ) -> None:
-        self.rdkit_features_path = Path(rdkit_features_path)
-        self.mechanism_label_map_path = Path(mechanism_label_map_path)
+        self.data_dir = Path(data_dir)
+        rdkit_path = Path(rdkit_features_path)
+        label_path = Path(mechanism_label_map_path)
+        if rdkit_path == Path("data/rdkit_features.parquet"):
+            rdkit_path = self.data_dir / "rdkit_features.parquet"
+        if label_path == Path("data/mechanism_label_map.parquet"):
+            main_prior_label_path = self.data_dir / "mechanism_label_map_main_prior.parquet"
+            label_path = main_prior_label_path if main_prior_label_path.exists() else self.data_dir / "mechanism_label_map.parquet"
+        self.rdkit_features_path = rdkit_path
+        self.mechanism_label_map_path = label_path
         self.top_k = int(top_k)
 
     def build_inputs(self, case: Dict[str, Any], ctx: AgentContext) -> Dict[str, Any]:
@@ -207,6 +218,7 @@ class DataCaseAgent(CaseAgent):
             "case_id": case.get("case_id"),
             "input_smiles": query.get("input_smiles"),
             "top_k": self.top_k,
+            "data_dir": str(self.data_dir),
             "rdkit_features_path": str(self.rdkit_features_path),
             "mechanism_label_map_path": str(self.mechanism_label_map_path),
         }
@@ -256,16 +268,35 @@ class DataCaseAgent(CaseAgent):
             )
 
         fp = compute_ecfp(canonical)
+        descriptors = compute_basic_descriptors(canonical)
+        existing_structure_prior = ((case.get("risk_scores") or {}).get("structure_prior_profile") or {})
+        if isinstance(existing_structure_prior, dict) and existing_structure_prior:
+            structure_prior_profile = existing_structure_prior
+            structure_prior_source = "existing_case"
+        else:
+            structure_prior_profile = compute_structure_prior_profile(canonical, descriptors)
+            structure_prior_source = "data_agent_fallback"
         if fp is None:
+            patch = [
+                {"op": "replace", "path": "/query/canonical_smiles", "value": canonical},
+                {"op": "replace", "path": "/query/inchikey", "value": inchikey},
+                {"op": "replace", "path": "/neighbors", "value": []},
+            ]
+            if structure_prior_source != "existing_case":
+                patch.append({"op": "add", "path": "/risk_scores/structure_prior_profile", "value": structure_prior_profile})
             return AgentResult(
-                patch=[
-                    {"op": "replace", "path": "/query/canonical_smiles", "value": canonical},
-                    {"op": "replace", "path": "/query/inchikey", "value": inchikey},
-                    {"op": "replace", "path": "/neighbors", "value": []},
-                ],
+                patch=patch,
                 status="failed",
                 warnings=["ecfp_compute_failed"],
-                raw_outputs={"data_agent_raw": {"canonical_smiles": canonical, "inchikey": inchikey}},
+                raw_outputs={
+                    "data_agent_raw": {
+                        "canonical_smiles": canonical,
+                        "inchikey": inchikey,
+                        "rdkit_descriptors": descriptors,
+                        "structure_prior_source": structure_prior_source,
+                        "structure_prior_profile": structure_prior_profile,
+                    }
+                },
             )
 
         rdkit_df = pd.read_parquet(self.rdkit_features_path)
@@ -273,6 +304,7 @@ class DataCaseAgent(CaseAgent):
         neighbors = search_neighbors(
             query_fp=fp,
             query_inchikey=inchikey,
+            query_canonical_smiles=canonical,
             rdkit_df=rdkit_df,
             label_map=label_map,
             k=self.top_k,
@@ -284,6 +316,8 @@ class DataCaseAgent(CaseAgent):
             {"op": "replace", "path": "/query/inchikey", "value": inchikey},
             {"op": "replace", "path": "/neighbors", "value": neighbors},
         ]
+        if structure_prior_source != "existing_case":
+            patch.append({"op": "add", "path": "/risk_scores/structure_prior_profile", "value": structure_prior_profile})
         for k, v in risk.items():
             patch.append({"op": "add", "path": f"/risk_scores/{k}", "value": v})
         return AgentResult(
@@ -294,8 +328,12 @@ class DataCaseAgent(CaseAgent):
                 "data_agent_raw": {
                     "canonical_smiles": canonical,
                     "inchikey": inchikey,
+                    "rdkit_descriptors": descriptors,
+                    "structure_prior_source": structure_prior_source,
+                    "structure_prior_profile": structure_prior_profile,
                     "neighbors_count": len(neighbors),
                     "risk_scores": risk,
+                    "data_dir": str(self.data_dir),
                 }
             },
         )

@@ -28,6 +28,50 @@ The orchestrator path uses Case File as the single mutable artifact. All agents 
 - `post_uq.*`: judge output namespace
 - `agent_runs[]`: per-step auditable run records (append-only)
 - `runtime.run_lane`: release lane selector (`atb_cache_only|offline_pdf|full`)
+- `runtime.reference_index_root`: selected reference-index view root
+- `runtime.reference_view`: resolved view name (`all_levels_full|leave_level_N|legacy_data`)
+- `runtime.difficulty_level`: optional split difficulty propagated from input row
+
+### Split-level reference indices (v2)
+
+Versioned root:
+
+- `data/reference_indices/split_levels_v2/`
+
+Unified source:
+
+- `sources/all_levels_reference.parquet`
+- `sources/build_manifest.json`
+
+Required source provenance columns:
+
+- `difficulty_level` (`1..3`)
+- `source_split_file` (`1_level.csv` ... `3_level.csv`)
+- `source_row_index` (row index within source split file)
+
+Materialized runtime views:
+
+- `views/all_levels_full/`
+- `views/leave_level_1/`
+- `views/leave_level_2/`
+- `views/leave_level_3/`
+
+Each view must contain:
+
+- `private_clean.parquet`
+- `molecule_table.parquet`
+- `rdkit_features.parquet`
+- `mechanism_label_map.parquet`
+- `anchor_neighbors_ecfp.parquet`
+- `structure_reference_pool.parquet`
+- `run_manifest.json`
+
+Leakage-safe policy:
+
+- split-list benchmark rows must resolve to `leave_level_N` (never `all_levels_full`);
+- ad-hoc external SMILES defaults to `all_levels_full`;
+- runtime keeps exact self-exclusion by both `inchikey` and `canonical_smiles`.
+- rows with `mechanism_id == other` are removed from the main split levels and exported to `data/other_benchmark.csv`; they must not appear in the main reference source or views.
 
 ### `agent_runs[]` (required)
 
@@ -379,6 +423,15 @@ aTB-computed micro-physical descriptors (cache-derived).
 | s0_charge_dipole | float64 | Yes | Dipole moment (S0) |
 | s1_charge_dipole | float64 | Yes | Dipole moment (S1) |
 | delta_dipole | float64 | Yes | S1 - S0 dipole |
+| s0_perm_dipole_tot_debye | float64 | Yes | Compact S0 permanent dipole total from `opt_run.aop` final block |
+| s1_perm_dipole_tot_debye | float64 | Yes | Compact S1 permanent dipole total from `excit_run.aop` final block |
+| delta_perm_dipole_tot_debye | float64 | Yes | S1 - S0 permanent dipole total (Debye) |
+| s1_transition_electric_dip_au | float64 | Yes | Compact S0->S1 transition electric dipole magnitude (`Dip`) from `excit_run.aop` |
+| s1_transition_magnetic_dip_norm_au | float64 | Yes | Norm of compact S0->S1 transition magnetic dipole vector from `excit_run.aop` |
+| s1_rotatory_strength_cgs | float64 | Yes | S0->S1 rotatory strength (`R(length)`) from `excit_run.aop` |
+| s1_oscillator_strength_f | float64 | Yes | S0->S1 oscillator strength `f` from `excit_run.aop` |
+| s1_excitation_wavelength_nm | float64 | Yes | S0->S1 wavelength (nm) from `excit_run.aop` |
+| aop_compact_reliability_score | float64 | Yes | Compact extraction reliability score (`low=0`, `medium=1`, `high=2`) |
 
 ---
 
@@ -868,6 +921,10 @@ The Case File is the central artifact for SMILES-first workflow. It is created b
 | atb_neighbor_features_all | list[object] | No | Neighbor aTB rows (`features_summary` only) used for compact derived stats |
 | atb_trends_self | object | No | **Reasoning-pack projection only**: legacy target-only trend projection for compatibility |
 | atb_trend_profile | object | No | **Reasoning-pack projection only**: self-only target aTB trend profile (`atb_trend_v1`) used by Master in R1+ |
+| charge_redistribution_profile | object | No | **Reasoning-pack projection only**: compact electronic redistribution profile derived from atom-wise charge variation summary and gap change |
+| structure_motif_profile | object | No | StructureAgent motif-level structural facts derived from SMILES/RDKit only |
+| structure_retrieval_profile | object | No | StructureAgent retrieval priors from Feature Morgan and Murcko scaffold neighbors |
+| structure_candidate_distribution | object | No | StructureAgent calibrated candidate mechanism distribution used for R0 candidate generation |
 | neighbor_atb_stats | object | No | Compact R2+ discriminative stats derived from target-vs-neighbor aTB distributions |
 
 #### risk_scores.atb_neighbor_consistency (optional)
@@ -957,6 +1014,78 @@ Self-only trend profile computed from target `evidence_readiness.atb.features_su
 | reliability | string | Yes | `low/medium/high` from parseable key fields |
 | notes | list[string] | Yes | Short compact notes; no free-form threshold invention |
 
+#### risk_scores.charge_redistribution_profile (optional, reasoning-pack only)
+
+Compact electronic redistribution profile derived from:
+- atom-wise charge variation summary (preferred),
+- legacy scalar `delta_dipole` (fallback),
+- or `delta_gap` only (weakest fallback).
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| version | string | Yes | Fixed `charge_redistribution_v2` |
+| source | string | Yes | `atomwise_charge_variation \| scalar_delta_dipole \| gap_only` |
+| total_abs_charge_variation | float\|null | Yes | Sum of absolute atom-wise charge variation (preferred source only) |
+| max_abs_atom_variation | float\|null | Yes | Maximum absolute atom-wise variation |
+| top3_atom_abs_share | float\|null | Yes | Share of total absolute variation captured by top-3 atoms |
+| heteroatom_abs_share | float\|null | Yes | Share of absolute variation on non-C/H atoms |
+| n_atoms_ge_0p01 | int\|null | Yes | Count of atoms with `abs(delta_q) >= 0.01` |
+| n_atoms_ge_0p02 | int\|null | Yes | Count of atoms with `abs(delta_q) >= 0.02` |
+| redistribution_magnitude_bucket | string | Yes | `low/mid/high/unknown` |
+| redistribution_localization | string | Yes | `distributed/mixed/localized/unknown` |
+| heteroatom_involvement | string | Yes | `low/mid/high/unknown` |
+| delta_gap_abs | float\|null | Yes | Absolute gap change |
+| delta_gap_direction | string | Yes | `increase/decrease/flat/unknown` |
+| delta_gap_bucket | string | Yes | `low/mid/high/unknown` |
+| redistribution_score | string | Yes | `low/medium/high` |
+| reliability | string | Yes | `low/medium/high` |
+| notes | list[string] | Yes | Compact phenomenon-level notes only |
+
+Rules:
+- raw dict-format `delta_dipole` (`element[]`, `charge_variation[]`) is not passed to Master;
+- Master only sees compact redistribution summaries;
+- this profile is an electronic redistribution cue, not a true dipole-moment measurement.
+
+#### risk_scores.structure_motif_profile (optional)
+
+StructureAgent output that summarizes structural motifs as auditable facts only.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| version | string | Yes | Fixed `structure_motif_v1` |
+| intramolecular_hbond_motif | string | Yes | `none/possible/likely/unknown` |
+| tautomerizable_motif | string | Yes | `none/possible/likely/unknown` |
+| donor_acceptor_path_strength | string | Yes | `weak/mid/strong/unknown` |
+| aromatic_scaffold_type | string | Yes | `simple/extended/fused/mixed/unknown` |
+| flexibility_regime | string | Yes | `low/mid/high/unknown` |
+| motif_density | string | Yes | `low/mid/high/unknown` |
+| reliability | string | Yes | `low/medium/high` |
+| notes | list[string] | Yes | Structure facts only; no mechanism verdict text |
+
+#### risk_scores.structure_retrieval_profile (optional)
+
+StructureAgent retrieval profile from feature-Morgan and Murcko-scaffold neighbors.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| version | string | Yes | Fixed `structure_retrieval_v1` |
+| feature_morgan_topk | list[object] | Yes | Top-k feature-Morgan neighbors with similarity and known label |
+| murcko_topk | list[object] | Yes | Top-k scaffold neighbors with similarity and known label |
+| feature_neighbor_label_distribution | object | Yes | Weighted label distribution from feature-Morgan neighbors |
+| scaffold_neighbor_label_distribution | object | Yes | Weighted label distribution from scaffold neighbors |
+| retrieval_consensus_strength | string | Yes | `low/mid/high` consensus between retrieval views |
+
+#### risk_scores.structure_candidate_distribution (optional)
+
+StructureAgent candidate mechanism distribution used for R0 candidate generation.
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| version | string | Yes | Fixed `structure_candidate_dist_v1` |
+| label_probs | object | Yes | Canonical label probability map |
+| top3 | list[object] | Yes | Top-3 candidate labels and probabilities |
+| calibration | object | Yes | Calibration metadata `{method, reliability}` |
+
 #### risk_scores.atb_neighbor_features_all (optional)
 
 This list carries compact neighbor aTB rows (success-only), sorted by neighbor rank.
@@ -1028,6 +1157,19 @@ Master output is written to top-level root keys to avoid collision with legacy `
   - `E34` aTB overall motion proxy (`/risk_scores/atb_trend_profile/overall_motion_proxy`, derived-pack evidence),
   - legacy compatibility IDs:
   - `E_ATB_TREND_1..4` from `risk_scores.atb_trends_self` (target-only trend interpretation).
+- Compact `.aop` evidence IDs (state-1, final-block):
+  - `E60` S1 transition electric dipole cue,
+  - `E61` S1 oscillator strength + excitation wavelength cue,
+  - `E62` S0/S1 permanent dipole delta cue,
+  - `E63` S1 rotatory-strength cue.
+- StructureAgent evidence IDs:
+  - `E50` donor/acceptor path summary,
+  - `E51` intramolecular H-bond motif summary,
+  - `E52` tautomerizable motif summary,
+  - `E53` aromatic/conjugation scaffold summary,
+  - `E54` flexibility/rigidity summary,
+  - `E55` structure retrieval prior summary,
+  - `E56` structure candidate distribution summary.
 - Debug-only hints in case file:
   - `risk_scores.mechanism_hint` and `risk_scores.hint_confidence` may exist for routing/debug,
   - but both are excluded from master model input (`reasoning_pack`) and are forbidden as master evidence references.
@@ -1083,9 +1225,28 @@ Evidence readiness contains the state machine for evidence collection across thr
 | delta_gap | float | S1 - S0 HOMO-LUMO gap difference |
 | delta_dihedral | float | S1 - S0 dihedral angle difference |
 | excitation_energy | float | Vertical excitation energy (raw float cast from cache, no unit conversion) |
+| charge_redis_total_abs | float | (optional) Sum of absolute atom-wise charge variation when `delta_dipole` is stored as a dict |
+| charge_redis_max_abs_atom | float | (optional) Maximum absolute atom-wise charge variation |
+| charge_redis_top3_abs_share | float | (optional) Fraction of total absolute charge variation contained in the top-3 changed atoms |
+| charge_redis_heteroatom_abs_share | float | (optional) Fraction of total absolute charge variation on non-C/H atoms |
+| charge_redis_n_atoms_ge_0p01 | float | (optional) Count of atoms with `abs(delta_q) >= 0.01` |
+| charge_redis_n_atoms_ge_0p02 | float | (optional) Count of atoms with `abs(delta_q) >= 0.02` |
 | s0_volume | float | (optional) S0 molecular volume |
 | s1_volume | float | (optional) S1 molecular volume |
+| s0_perm_dipole_tot_debye | float | (optional) Compact S0 permanent dipole total from `opt_run.aop` final block |
+| s1_perm_dipole_tot_debye | float | (optional) Compact S1 permanent dipole total from `excit_run.aop` final block |
+| delta_perm_dipole_tot_debye | float | (optional) S1 - S0 permanent dipole total |
+| s1_transition_electric_dip_au | float | (optional) Compact S0->S1 transition electric dipole magnitude (`Dip`) |
+| s1_transition_magnetic_dip_norm_au | float | (optional) Norm of compact S0->S1 transition magnetic dipole vector |
+| s1_rotatory_strength_cgs | float | (optional) S0->S1 rotatory strength `R(length)` |
+| s1_oscillator_strength_f | float | (optional) S0->S1 oscillator strength `f` |
+| s1_excitation_wavelength_nm | float | (optional) S0->S1 excitation wavelength (nm) |
+| aop_compact_reliability_score | float | (optional) Compact extraction reliability score (`low=0`, `medium=1`, `high=2`) |
 | _excitation_energy_raw | string | (debug) Raw value as read from cache for validation |
+
+> `delta_dipole` may exist in raw cache as either a scalar legacy fallback or a dict with `element[]` and `charge_variation[]`. Raw dict-format `delta_dipole` is **not** passed to Master. Reasoning uses the compact `charge_redis_*` summaries and `charge_redistribution_profile` instead.
+>
+> Compact `.aop` extraction is stored at `cache/atb/<prefix>/<inchikey>/aop_compact.json` (`aop_compact_v1`). Parser rule is final-block only (last occurrence) for repeated optimization sections.
 
 #### evidence_readiness - neighbor coverage metrics (top-level)
 
@@ -1502,3 +1663,88 @@ artifacts/{run_id}/:
 - `web_search` stays candidate-only unless citations/sources are complete enough for strict traceability.
 - Under current policy, relaxed web-search outputs must remain in `literature.candidates[]` and must not be written into `evidence_table`.
 - E0 hard guard: evidence-table writeback is disabled (`WRITEBACK_EVIDENCE_TABLE=false`); case file is the only write target.
+
+## Split-level reference indices (`split_levels_v2`)
+
+### Reference source
+
+New reference indices may be built from the merged split-list source instead of `data/train.csv`:
+
+```yaml
+all_levels_reference.parquet:
+  source_files:
+    - data/split_list/1_level.csv
+    - data/split_list/2_level.csv
+    - data/split_list/3_level.csv
+  excluded_labels:
+    - other
+other_benchmark.csv:
+  source_files:
+    - data/split_list_legacy_v1/1_level.csv
+    - data/split_list_legacy_v1/2_level.csv
+    - data/split_list_legacy_v1/3_level.csv
+    - data/split_list_legacy_v1/4_level.csv
+```
+
+Additional provenance columns carried through the build:
+
+```yaml
+difficulty_level: "1|2|3"
+source_split_file: "1_level.csv|2_level.csv|3_level.csv"
+source_row_index: "int"
+```
+
+### Reference views
+
+Reference indices are versioned and materialized as named views under:
+
+```yaml
+data/reference_indices/split_levels_v2/views/
+  all_levels_full/
+  leave_level_1/
+  leave_level_2/
+  leave_level_3/
+```
+
+Each view contains a full runtime-ready bundle:
+
+```yaml
+private_clean.parquet
+molecule_table.parquet
+rdkit_features.parquet
+mechanism_label_map.parquet
+anchor_neighbors_ecfp.parquet
+structure_reference_pool.parquet
+run_manifest.json
+```
+
+### Leakage-safe runtime rule
+
+For rows originating from `split_list/N_level.csv`, runtime must use `leave_level_N` instead of `all_levels_full`.
+
+`leave_level_N` means:
+
+```yaml
+source = merge(1_level, 2_level, 3_level)
+filter = difficulty_level != N
+build = full reference bundle on filtered rows
+```
+
+Second guard (always on):
+
+```yaml
+self_exclusion:
+  - inchikey
+  - canonical_smiles
+```
+
+### Runtime selection fields
+
+Suggested runtime audit fields:
+
+```yaml
+runtime:
+  reference_index_root: "string|null"
+  reference_view: "auto|all_levels_full|leave_level_1|leave_level_2|leave_level_3|null"
+  reference_source_version: "split_levels_v2|null"
+```

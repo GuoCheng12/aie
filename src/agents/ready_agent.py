@@ -375,6 +375,9 @@ def review_case_and_patch(case_json: Dict[str, Any]) -> List[Dict[str, Any]]:
     atb_neighbor = ((case_json.get("risk_scores") or {}).get("atb_neighbor_consistency") or {})
     atb_neighbor_flag = str(atb_neighbor.get("flag") or "").strip().lower()
     atb_neighbor_reliability = str(atb_neighbor.get("reliability") or "").strip().lower()
+    run_lane = str(((case_json.get("runtime") or {}).get("run_lane") or "")).strip().lower()
+    structure_prior_profile = ((case_json.get("risk_scores") or {}).get("structure_prior_profile") or {})
+    has_structure_prior = isinstance(structure_prior_profile, dict) and bool(structure_prior_profile)
 
     if not has_aggr and not has_solid:
         has_pdf = bool((case_json.get("inputs") or {}).get("offline_pdfs"))
@@ -385,6 +388,16 @@ def review_case_and_patch(case_json: Dict[str, Any]) -> List[Dict[str, Any]]:
             if not has_pdf:
                 add_request_manual_pdf_non_blocking = True
                 reasons.append("missing_pdf_for_emission_followup")
+            else:
+                add_extraction_manual_non_blocking = True
+                reasons.append("emission_followup_required")
+        elif run_lane == "atb_cache_only" and has_structure_prior:
+            gate_state = GATE_READY_CONSERVATIVE
+            reasons.append("structure_prior_without_target_atb")
+            add_retry_atb = True
+            if not has_pdf:
+                add_request_manual_pdf_non_blocking = True
+                reasons.append("missing_pdf_for_external_followup")
             else:
                 add_extraction_manual_non_blocking = True
                 reasons.append("emission_followup_required")
@@ -411,6 +424,8 @@ def review_case_and_patch(case_json: Dict[str, Any]) -> List[Dict[str, Any]]:
 
             identity_match = _normalize_identity_match(prov.get("identity_match"))
             identity_conf = _to_float(prov.get("identity_match_confidence"))
+            if identity_conf is None:
+                identity_conf = _to_float(prov.get("identity_confidence"))
             if identity_match is None or identity_conf is None:
                 gate_state = GATE_NEEDS_MANUAL
                 reasons.append(f"{field}:missing_identity_match_metadata")

@@ -76,9 +76,16 @@ def test_reasoning_pack_r1_contains_atb_trends_self_and_registry_ids():
     assert "E37" in ids
     assert "E38" in ids
     assert "E39" in ids
+    assert "E40" in ids
+    assert "E41" in ids
+    assert "E42" in ids
+    assert "E43" in ids
+    assert "E44" in ids
 
     trend_profile = ((pack.get("risk_scores") or {}).get("atb_trend_profile")) or {}
     assert trend_profile.get("version") == "atb_trend_v1"
+    assert ((pack.get("risk_scores") or {}).get("structure_prior_profile") or {}).get("version") == "structure_prior_v1"
+    assert ((pack.get("risk_scores") or {}).get("charge_redistribution_profile") or {}).get("version") == "charge_redistribution_v2"
     assert ((pack.get("risk_scores") or {}).get("atb_ct_proxy_profile") or {}).get("version") == "atb_ct_proxy_v1"
     assert ((pack.get("risk_scores") or {}).get("atb_structural_relaxation_profile") or {}).get("version") == "atb_structural_relaxation_v1"
     assert ((pack.get("risk_scores") or {}).get("atb_shape_rigidity_profile") or {}).get("version") == "atb_shape_rigidity_v1"

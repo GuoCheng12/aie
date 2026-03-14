@@ -103,7 +103,7 @@ def extract_features(result: Dict[str, Any]) -> Dict[str, Any]:
     - s0_volume, s1_volume, delta_volume
     - s0_homo_lumo_gap, s1_homo_lumo_gap, delta_gap
     - s0_dihedral_avg, s1_dihedral_avg, delta_dihedral
-    - s0_charge_dipole, s1_charge_dipole, delta_dipole (computed if possible)
+    - s0_charge_dipole, s1_charge_dipole, delta_dipole (legacy scalar fallback if possible)
     - excitation_energy (null in V0)
     - neb_mean_volume
 
@@ -137,7 +137,9 @@ def extract_features(result: Dict[str, Any]) -> Dict[str, Any]:
     s1_dihedral_avg = s1_struct.get("DA")
     delta_dihedral = (s1_dihedral_avg - s0_dihedral_avg) if (s0_dihedral_avg is not None and s1_dihedral_avg is not None) else None
 
-    # Charge dipole - compute from Mulliken charges if available
+    # Legacy scalar charge-separation fallback from Mulliken charges.
+    # New reasoning logic prefers atomwise charge-variation summaries when cache
+    # artifacts provide dict-format delta_dipole data directly.
     s0_charge_dipole = compute_charge_dipole(gs.get("charge"))
     s1_charge_dipole = compute_charge_dipole(es.get("charge"))
     delta_dipole = (s1_charge_dipole - s0_charge_dipole) if (s0_charge_dipole is not None and s1_charge_dipole is not None) else None
@@ -185,10 +187,11 @@ def extract_features(result: Dict[str, Any]) -> Dict[str, Any]:
 
 def compute_charge_dipole(charge_data: Optional[Dict[str, Any]]) -> Optional[float]:
     """
-    Compute a simple charge dipole metric from Mulliken charges.
+    Compute a simple scalar charge-separation fallback from Mulliken charges.
 
-    For V0, we compute the sum of absolute charges as a simple metric.
-    A more sophisticated dipole calculation would require coordinates.
+    This is not a true dipole-moment calculation. It remains a legacy scalar
+    fallback for caches that do not already expose atomwise charge-variation
+    summaries. A physically meaningful dipole moment would require coordinates.
 
     Args:
         charge_data: Dict with "element" and "charge" lists

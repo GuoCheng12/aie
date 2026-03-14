@@ -70,7 +70,7 @@ def build_tables(
 
         if features is not None:
             row = {"inchikey": ik}
-            row.update(extract_numeric_features(features))
+            row.update(extract_numeric_features(features, aop_compact=record.get("aop_compact")))
             feat_rows.append(row)
 
     qc_df = pd.DataFrame(qc_rows)

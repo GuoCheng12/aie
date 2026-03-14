@@ -6,11 +6,29 @@ SMILES canonicalization and InChIKey generation using RDKit.
 
 import pandas as pd
 from rdkit import Chem
-from typing import Optional
+from typing import Optional, Iterable
 
 from src.utils.logging import get_logger
 
 logger = get_logger(__name__)
+
+
+def _unique_int_list(values: Iterable[object]) -> list[int]:
+    out = []
+    seen = set()
+    for value in values:
+        if value is None or pd.isna(value):
+            continue
+        try:
+            ivalue = int(value)
+        except Exception:
+            continue
+        if ivalue in seen:
+            continue
+        seen.add(ivalue)
+        out.append(ivalue)
+    out.sort()
+    return out
 
 
 def normalize_inchikey(value: Optional[str]) -> Optional[str]:
@@ -156,10 +174,42 @@ def create_molecule_table(df: pd.DataFrame) -> pd.DataFrame:
         agg_spec["reference"] = "first"
     if "doi" in valid_df.columns:
         agg_spec["doi"] = "first"
+    if "difficulty_level" in valid_df.columns:
+        agg_spec["difficulty_level"] = lambda x: _unique_int_list(x.tolist())
+    if "source_split_file" in valid_df.columns:
+        agg_spec["source_split_file"] = (
+            lambda x: sorted(
+                {
+                    str(v).strip()
+                    for v in x.tolist()
+                    if v is not None and not pd.isna(v) and str(v).strip() != ""
+                }
+            )
+        )
+    if "source_row_index" in valid_df.columns:
+        agg_spec["source_row_index"] = (
+            lambda x: sorted(
+                {
+                    int(v)
+                    for v in x.tolist()
+                    if v is not None and not pd.isna(v)
+                }
+            )
+        )
 
     molecule_table = valid_df.groupby("inchikey").agg(agg_spec).reset_index()
 
     molecule_table.rename(columns={"id": "id_list"}, inplace=True)
+    if "difficulty_level" in molecule_table.columns:
+        molecule_table.rename(columns={"difficulty_level": "difficulty_levels"}, inplace=True)
+        molecule_table["primary_difficulty_level"] = molecule_table["difficulty_levels"].apply(
+            lambda values: values[0] if isinstance(values, list) and len(values) == 1 else None
+        )
+        molecule_table["primary_difficulty_level"] = molecule_table["primary_difficulty_level"].astype("Int64")
+    if "source_split_file" in molecule_table.columns:
+        molecule_table.rename(columns={"source_split_file": "source_split_files"}, inplace=True)
+    if "source_row_index" in molecule_table.columns:
+        molecule_table.rename(columns={"source_row_index": "source_row_indices"}, inplace=True)
     if "SMILES" in molecule_table.columns:
         molecule_table.rename(columns={"SMILES": "source_smiles"}, inplace=True)
     molecule_table["n_records"] = molecule_table["id_list"].apply(len)

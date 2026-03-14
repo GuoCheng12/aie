@@ -65,7 +65,9 @@ def get_package_versions() -> dict:
 
 def run_p1_pipeline(
     input_csv: str = "data/train.csv",
+    input_parquet: str | None = None,
     output_dir: str = "data",
+    fact_schema_version: str = "v2026-02-09-train-only",
 ):
     """
     Run P1 data standardization pipeline.
@@ -81,7 +83,9 @@ def run_p1_pipeline(
 
     Args:
         input_csv: Path to input CSV (default: data/train.csv)
+        input_parquet: Optional path to parquet input; when set, overrides input_csv
         output_dir: Output directory (default: data)
+        fact_schema_version: Manifest schema version tag
     """
     output_path = Path(output_dir)
     output_path.mkdir(parents=True, exist_ok=True)
@@ -91,8 +95,16 @@ def run_p1_pipeline(
     logger.info("=" * 80)
 
     # Step 1: Load data
-    logger.info("\n[Step 1/7] Loading CSV data")
-    df_raw, encoding_used = load_private_dataset(input_csv)
+    logger.info("\n[Step 1/7] Loading input data")
+    if input_parquet:
+        parquet_path = Path(input_parquet)
+        if not parquet_path.exists():
+            raise FileNotFoundError(f"input_parquet_not_found:{input_parquet}")
+        df_raw = pd.read_parquet(parquet_path)
+        encoding_used = "parquet"
+        logger.info(f"Loaded parquet data from {parquet_path} ({len(df_raw)} rows)")
+    else:
+        df_raw, encoding_used = load_private_dataset(input_csv)
     n_input_rows = len(df_raw)
 
     # Step 2: Standardize
@@ -153,8 +165,9 @@ def run_p1_pipeline(
         "timestamp": datetime.now().isoformat(),
         "git_commit": get_git_commit(),
         **get_package_versions(),
-        "input_csv": str(input_csv),
-        "fact_schema_version": "v2026-02-09-train-only",
+        "input_csv": str(input_csv) if not input_parquet else None,
+        "input_parquet": str(input_parquet) if input_parquet else None,
+        "fact_schema_version": str(fact_schema_version),
         "encoding_used": encoding_used,
         "n_molecules_input": int(n_input_rows),
         "n_molecules_processed": int(len(df_clean)),

@@ -12,20 +12,23 @@ from src.agents.data_agent import DataCaseAgent
 from src.agents.judge_agent import JudgeAgent
 from src.agents.reasoning_agent import ReasoningAgent
 from src.agents.ready_agent import ReadyAgent
+from src.agents.structure_agent import StructureAgent
 
 
-def build_default_agents(*, neighbor_topk: int = 10) -> List[CaseAgent]:
+def build_default_agents(*, neighbor_topk: int = 10, data_dir: str = "data") -> List[CaseAgent]:
     """
     Default execution order:
-      1) Data
-      2) Chem
-      3) Ready
-      4) Reasoning (conditional)
-      5) Judge
-      6) Ready (final)
+      1) Structure
+      2) Data
+      3) Chem
+      4) Ready
+      5) Reasoning (conditional)
+      6) Judge
+      7) Ready (final)
     """
     return [
-        DataCaseAgent(top_k=int(neighbor_topk)),
+        StructureAgent(data_dir=data_dir),
+        DataCaseAgent(data_dir=data_dir, top_k=int(neighbor_topk)),
         ChemAgent(),
         ReadyAgent(),
         ReasoningAgent(use_llm=True),
@@ -34,15 +37,17 @@ def build_default_agents(*, neighbor_topk: int = 10) -> List[CaseAgent]:
     ]
 
 
-def build_setup_agents(*, neighbor_topk: int = 10) -> List[CaseAgent]:
+def build_setup_agents(*, neighbor_topk: int = 10, data_dir: str = "data") -> List[CaseAgent]:
     """
     Setup-only execution order for iterative round runner:
-      1) Data
-      2) Chem
-      3) Ready
+      1) Structure
+      2) Data
+      3) Chem
+      4) Ready
     """
     return [
-        DataCaseAgent(top_k=int(neighbor_topk)),
+        StructureAgent(data_dir=data_dir),
+        DataCaseAgent(data_dir=data_dir, top_k=int(neighbor_topk)),
         ChemAgent(),
         ReadyAgent(),
     ]

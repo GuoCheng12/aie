@@ -69,11 +69,12 @@ def compute_ecfp(smiles: str) -> Optional[np.ndarray]:
     """Compute ECFP4 fingerprint (2048 bits) from SMILES."""
     try:
         from rdkit import Chem
-        from rdkit.Chem import AllChem
+        from rdkit.Chem import rdFingerprintGenerator
         mol = Chem.MolFromSmiles(smiles)
         if mol is None:
             return None
-        fp = AllChem.GetMorganFingerprintAsBitVect(mol, 2, nBits=2048)
+        fpgen = rdFingerprintGenerator.GetMorganGenerator(radius=2, fpSize=2048)
+        fp = fpgen.GetFingerprint(mol)
         return np.array(fp, dtype=np.uint8)
     except Exception:
         return None
@@ -97,6 +98,7 @@ def tanimoto_similarity(fp1: np.ndarray, fp2: np.ndarray) -> float:
 def search_neighbors(
     query_fp: np.ndarray,
     query_inchikey: Optional[str],
+    query_canonical_smiles: Optional[str],
     rdkit_df: pd.DataFrame,
     label_map: pd.DataFrame,
     k: int = 10
@@ -114,8 +116,11 @@ def search_neighbors(
     for _, row in rdkit_df.iterrows():
         neighbor_ik = row['inchikey']
 
-        # Skip self
+        # Skip exact self by inchikey or canonical smiles.
         if query_inchikey and neighbor_ik == query_inchikey:
+            continue
+        neighbor_smiles = str(row.get("canonical_smiles") or "").strip()
+        if query_canonical_smiles and neighbor_smiles and neighbor_smiles == query_canonical_smiles:
             continue
 
         # Get fingerprint
@@ -764,7 +769,7 @@ def create_case_from_smiles(
 
     # Search neighbors
     if query_fp is not None:
-        neighbors = search_neighbors(query_fp, inchikey, rdkit_df, label_map, k)
+        neighbors = search_neighbors(query_fp, inchikey, canonical_smiles, rdkit_df, label_map, k)
     else:
         neighbors = []
 

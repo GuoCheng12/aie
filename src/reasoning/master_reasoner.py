@@ -24,16 +24,25 @@ from typing import Any, Dict, Iterable, List, Optional, Sequence, Set, Tuple
 from src.core.hashing import canonical_json_bytes, sha256_json
 from src.reasoning.evidence_profiles import resolve_evidence_profiles
 from src.reasoning.atb_ct_proxy_profile import compute_atb_ct_proxy_profile
+from src.reasoning.charge_redistribution_profile import compute_charge_redistribution_profile
 from src.reasoning.atb_shape_rigidity_profile import compute_atb_shape_rigidity_profile
 from src.reasoning.atb_structural_relaxation_profile import compute_atb_structural_relaxation_profile
 from src.reasoning.atb_trend_profile import compute_atb_trend_profile
 from src.reasoning.atb_trends_self import compute_atb_trends_self
+from src.reasoning.emission_observation_profile import compute_emission_observation_profile
 from src.reasoning.neighbor_atb_stats import (
     ATB_DELTA_FIELDS,
     compact_neighbor_atb_rows,
     compute_neighbor_atb_stats_by_label,
 )
+from src.reasoning.r0_prior_profiles import (
+    MAIN_PRIOR_LABELS,
+    compute_candidate_slate_v2,
+    compute_prior_reliability_profile,
+    compute_structure_fact_sheet,
+)
 from src.reasoning.reasoning_config import build_allowed_mechanism_labels, build_reasoning_policy
+from src.reasoning.structure_prior_profile import compute_structure_prior_profile
 from src.tools.llm_client import ResponsesLLMClient
 
 
@@ -43,7 +52,7 @@ MASTER_OUTPUT_SCHEMA_VERSION_V1 = "master_output_schema_v1"
 MASTER_OUTPUT_SCHEMA_VERSION_V2 = "master_output_schema_v2"
 MASTER_OUTPUT_SCHEMA_VERSION_V3 = "master_output_schema_v3"
 MASTER_OUTPUT_SCHEMA_VERSION = MASTER_OUTPUT_SCHEMA_VERSION_V3
-MAX_PACK_BYTES = 15 * 1024
+MAX_PACK_BYTES = 24 * 1024
 EVIDENCE_ID_PATTERN = re.compile(r"^(?:E[0-9]+|E_ATB_TREND_[1-4])$")
 EVIDENCE_TOKEN_PATTERN = re.compile(r"\b(?:E_ATB_TREND_[1-4]|E[0-9]+)\b", flags=re.IGNORECASE)
 STRONG_THRESHOLD_TRIGGER_PATTERN = re.compile(r"(?i)\b(?:threshold|cutoff)\b")
@@ -100,6 +109,66 @@ ATB_TREND_EVIDENCE_IDS = (
 )
 ATB_TREND_PROFILE_EVIDENCE_IDS = ("E31", "E32", "E33", "E34")
 ATB_ENRICHMENT_EVIDENCE_IDS = ("E35", "E36", "E37", "E38", "E39")
+AOP_COMPACT_EVIDENCE_IDS = ("E60", "E61", "E62", "E63")
+TARGET_OBSERVATION_EVIDENCE_IDS = ("E70", "E71", "E72", "E73")
+STRUCTURE_PRIOR_EVIDENCE_IDS = ("E40", "E41", "E42", "E43", "E44")
+STRUCTURE_AGENT_EVIDENCE_IDS = ("E50", "E51", "E52", "E53", "E54", "E55", "E56")
+BACKGROUND_PRIOR_EVIDENCE_IDS = ("E1", "E2", "E3", "E4", "E5", "E6")
+COMPARATIVE_TRANSFERABILITY_EVIDENCE_IDS = ("E21", "E22", "E23", "E24")
+COMPACT_REGISTRY_PRIORITY = (
+    *COMPARATIVE_TRANSFERABILITY_EVIDENCE_IDS,
+    *TARGET_OBSERVATION_EVIDENCE_IDS,
+    *ATB_TREND_PROFILE_EVIDENCE_IDS,
+    *ATB_ENRICHMENT_EVIDENCE_IDS,
+    *AOP_COMPACT_EVIDENCE_IDS,
+    *STRUCTURE_AGENT_EVIDENCE_IDS,
+    "E40",
+    "E41",
+    "E42",
+    "E44",
+    "E2",
+    "E4",
+    "E6",
+    "E1",
+    "E3",
+    "E5",
+    "E43",
+    *ATB_TREND_EVIDENCE_IDS,
+)
+ELECTRONIC_REDISTRIBUTION_EVIDENCE_IDS = ("E32", "E35", "E36", "E60", "E61", "E62", "E63", "E_ATB_TREND_2")
+STRUCTURAL_RELAXATION_EVIDENCE_IDS = (
+    "E31",
+    "E33",
+    "E34",
+    "E37",
+    "E38",
+    "E_ATB_TREND_1",
+    "E_ATB_TREND_3",
+    "E_ATB_TREND_4",
+)
+SHAPE_RIGIDITY_EVIDENCE_IDS = ("E39",)
+AXIS_EVIDENCE_ID_GROUPS: Dict[str, Tuple[str, ...]] = {
+    "target_observation": TARGET_OBSERVATION_EVIDENCE_IDS,
+    "electronic_redistribution": ELECTRONIC_REDISTRIBUTION_EVIDENCE_IDS,
+    "structural_relaxation": STRUCTURAL_RELAXATION_EVIDENCE_IDS,
+    "shape_rigidity": SHAPE_RIGIDITY_EVIDENCE_IDS,
+    "structure_prior": STRUCTURE_PRIOR_EVIDENCE_IDS + STRUCTURE_AGENT_EVIDENCE_IDS,
+    "comparative_transferability": COMPARATIVE_TRANSFERABILITY_EVIDENCE_IDS,
+    "background_prior": BACKGROUND_PRIOR_EVIDENCE_IDS,
+}
+GOVERNING_PRIMARY_AXES = (
+    "target_observation",
+    "electronic_redistribution",
+    "structural_relaxation",
+    "shape_rigidity",
+    "structure_prior",
+)
+TARGET_SIDE_PRIMARY_AXES = (
+    "target_observation",
+    "electronic_redistribution",
+    "structural_relaxation",
+    "shape_rigidity",
+)
 
 
 def _now_iso8601() -> str:
@@ -140,6 +209,499 @@ def _resolve_pointer(doc: Any, path: str) -> Tuple[bool, Any]:
             continue
         return False, None
     return True, cur
+
+
+def _axis_for_evidence_id(evidence_id: str) -> Optional[str]:
+    token = str(evidence_id or "").strip()
+    if not token:
+        return None
+    for axis_name, members in AXIS_EVIDENCE_ID_GROUPS.items():
+        if token in members:
+            return axis_name
+    return None
+
+
+def _collect_governing_evidence_ids(master_output: Dict[str, Any]) -> List[str]:
+    evidence_ids: List[str] = []
+
+    def _collect(rows: Any) -> None:
+        if not isinstance(rows, list):
+            return
+        for row in rows:
+            if not isinstance(row, dict):
+                continue
+            role = str(row.get("role") or "context").strip().lower()
+            if role not in {"support", "context"}:
+                continue
+            evidence_id = str(row.get("evidence_id") or "").strip()
+            if evidence_id:
+                evidence_ids.append(evidence_id)
+
+    _collect(master_output.get("evidence_used"))
+    for row in master_output.get("supporting_chain") or []:
+        if isinstance(row, dict):
+            _collect(row.get("evidence_used"))
+    return evidence_ids
+
+
+def _axis_support_summary(evidence_ids: Iterable[str]) -> Dict[str, List[str]]:
+    summary: Dict[str, List[str]] = {axis_name: [] for axis_name in AXIS_EVIDENCE_ID_GROUPS}
+    for evidence_id in evidence_ids:
+        axis_name = _axis_for_evidence_id(str(evidence_id or ""))
+        if not axis_name:
+            continue
+        if evidence_id not in summary[axis_name]:
+            summary[axis_name].append(str(evidence_id))
+    return summary
+
+
+def _axis_role_summary(rows: Any) -> Dict[str, Dict[str, List[str]]]:
+    summary: Dict[str, Dict[str, List[str]]] = {
+        axis_name: {"support": [], "weakening": [], "context": []}
+        for axis_name in AXIS_EVIDENCE_ID_GROUPS
+    }
+    if not isinstance(rows, list):
+        return summary
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        evidence_id = str(row.get("evidence_id") or "").strip()
+        axis_name = _axis_for_evidence_id(evidence_id)
+        if not axis_name:
+            continue
+        role = str(row.get("role") or "context").strip().lower()
+        bucket = "support"
+        if role == "counter":
+            bucket = "weakening"
+        elif role != "support":
+            bucket = "context"
+        if evidence_id and evidence_id not in summary[axis_name][bucket]:
+            summary[axis_name][bucket].append(evidence_id)
+    return summary
+
+
+def _merge_axis_role_summary(*summaries: Dict[str, Dict[str, List[str]]]) -> Dict[str, Dict[str, List[str]]]:
+    merged: Dict[str, Dict[str, List[str]]] = {
+        axis_name: {"support": [], "weakening": [], "context": []}
+        for axis_name in AXIS_EVIDENCE_ID_GROUPS
+    }
+    for summary in summaries:
+        if not isinstance(summary, dict):
+            continue
+        for axis_name, buckets in summary.items():
+            if axis_name not in merged or not isinstance(buckets, dict):
+                continue
+            for bucket in ("support", "weakening", "context"):
+                for evidence_id in buckets.get(bucket) or []:
+                    token = str(evidence_id or "").strip()
+                    if token and token not in merged[axis_name][bucket]:
+                        merged[axis_name][bucket].append(token)
+    return merged
+
+
+def evaluate_standard_label_closure(
+    *,
+    primary_axes: Sequence[str],
+    min_positive_axes: int,
+    requires_target_axis: bool,
+) -> Dict[str, Any]:
+    dedup_axes: List[str] = []
+    for axis_name in primary_axes:
+        token = str(axis_name or "").strip()
+        if token and token not in dedup_axes:
+            dedup_axes.append(token)
+    target_side_axes = [axis_name for axis_name in dedup_axes if axis_name in TARGET_SIDE_PRIMARY_AXES]
+    if len(dedup_axes) >= int(max(1, min_positive_axes)) and (
+        not requires_target_axis or bool(target_side_axes)
+    ):
+        status = "closed"
+    elif dedup_axes:
+        status = "provisional"
+    else:
+        status = "unsupported"
+    return {
+        "status": status,
+        "positive_axes": dedup_axes,
+        "target_side_axes": target_side_axes,
+    }
+
+
+def evaluate_residual_other_admissibility(
+    *,
+    active_profile: str,
+    has_target_side_support: bool,
+    standard_candidates_in_play: Sequence[str],
+    standard_label_closed: bool,
+    primary_axes: Sequence[str],
+    weakening_axes: Sequence[str],
+    active_conflict_count: int,
+    min_standard_candidates: int,
+    min_conflicts: int,
+) -> Dict[str, Any]:
+    reasons: List[str] = []
+    qualifying_signals: List[str] = []
+    profile = str(active_profile or "").upper()
+    standard_pool = [str(x or "").strip() for x in standard_candidates_in_play if str(x or "").strip()]
+    if profile not in {"R2", "R3"}:
+        reasons.append("pre_residual_round")
+    if not has_target_side_support:
+        reasons.append("missing_target_side_evidence")
+    if len(standard_pool) < int(max(1, min_standard_candidates)):
+        reasons.append("insufficient_standard_candidates")
+    if standard_label_closed:
+        reasons.append("standard_label_closed")
+    if primary_axes:
+        qualifying_signals.append("primary_axis_present")
+    if active_conflict_count >= int(max(1, min_conflicts)):
+        qualifying_signals.append("conflict_threshold_met")
+    if len(standard_pool) >= int(max(1, min_standard_candidates)) and weakening_axes:
+        qualifying_signals.append("standard_set_remains_weakened")
+    admissible = not reasons and bool(qualifying_signals)
+    if not admissible and not reasons:
+        reasons.append("insufficient_residual_signals")
+    return {
+        "admissible": admissible,
+        "reasons": reasons,
+        "qualifying_signals": qualifying_signals,
+        "standard_candidates_in_play": standard_pool,
+    }
+
+
+def evaluate_novelty_candidate(
+    *,
+    reasoning_pack: Dict[str, Any],
+    residual_other_admissible: bool,
+    active_conflict_count: int,
+) -> Dict[str, Any]:
+    risk = reasoning_pack.get("risk_scores") if isinstance(reasoning_pack, dict) else {}
+    policy = _policy(reasoning_pack if isinstance(reasoning_pack, dict) else {})
+    novelty_struct = _to_float((risk or {}).get("novelty_struct")) if isinstance(risk, dict) else None
+    mechanism_entropy = _to_float((risk or {}).get("mechanism_entropy")) if isinstance(risk, dict) else None
+    basis: List[str] = []
+    if novelty_struct is not None and novelty_struct >= float(policy.get("novelty_candidate_struct_threshold") or 0.60):
+        basis.append("novelty_struct_high")
+    if mechanism_entropy is not None and mechanism_entropy >= float(policy.get("novelty_candidate_entropy_threshold") or 0.75):
+        basis.append("mechanism_entropy_high")
+    if residual_other_admissible and active_conflict_count >= int(policy.get("residual_other_min_conflicts") or 2):
+        basis.append("late_round_residual_conflict")
+    return {
+        "is_novelty_candidate": bool(basis),
+        "basis": basis,
+        "novelty_struct": novelty_struct,
+        "mechanism_entropy": mechanism_entropy,
+    }
+
+
+def resolve_final_label_and_decision_state(
+    *,
+    active_profile: str,
+    llm_primary_label: str,
+    standard_label_closure: Optional[str],
+    residual_other_admissible: bool,
+) -> Dict[str, Any]:
+    profile = str(active_profile or "").upper()
+    raw_label = str(llm_primary_label or "").strip()
+    closure = str(standard_label_closure or "unsupported")
+    normalized_label = raw_label or "unknown"
+    decision_state = "insufficient_evidence"
+    reason_codes: List[str] = []
+
+    if profile == "R0" and raw_label not in {"", "unknown", "other"}:
+        normalized_label = raw_label
+        decision_state = "provisional_known"
+        reason_codes.append("r0_prior_only_decision")
+    elif raw_label == "other":
+        if profile in {"R2", "R3"} and residual_other_admissible:
+            normalized_label = "other"
+            decision_state = "residual_supported"
+        else:
+            normalized_label = "unknown"
+            decision_state = "insufficient_evidence"
+            reason_codes.append("other_without_residual_admissibility")
+    elif raw_label in {"", "unknown"}:
+        normalized_label = "unknown"
+        decision_state = "insufficient_evidence"
+        if raw_label == "unknown":
+            reason_codes.append("llm_unknown_retained")
+        else:
+            reason_codes.append("missing_primary_label")
+    elif closure == "closed":
+        normalized_label = raw_label
+        decision_state = "closed_known"
+    elif closure == "provisional":
+        normalized_label = raw_label
+        decision_state = "provisional_known"
+        reason_codes.append("standard_label_provisional")
+    else:
+        normalized_label = "unknown"
+        decision_state = "insufficient_evidence"
+        reason_codes.append("standard_label_unsupported")
+
+    return {
+        "normalized_primary_label": normalized_label,
+        "decision_state": decision_state,
+        "reason_codes": reason_codes,
+        "canonical_pool_closed": bool(closure == "closed"),
+    }
+
+
+def _role_ids_from_rows(rows: Any) -> Dict[str, List[str]]:
+    grouped: Dict[str, List[str]] = {"support": [], "weakening": [], "context": []}
+    if not isinstance(rows, list):
+        return grouped
+    for row in rows:
+        if not isinstance(row, dict):
+            continue
+        evidence_id = str(row.get("evidence_id") or "").strip()
+        if not evidence_id:
+            continue
+        role = str(row.get("role") or "context").strip().lower()
+        bucket = "support"
+        if role == "counter":
+            bucket = "weakening"
+        elif role != "support":
+            bucket = "context"
+        if evidence_id not in grouped[bucket]:
+            grouped[bucket].append(evidence_id)
+    return grouped
+
+
+def _role_ids_from_master_output(master_output: Dict[str, Any]) -> Dict[str, List[str]]:
+    grouped = _role_ids_from_rows(master_output.get("evidence_used"))
+    for row in master_output.get("supporting_chain") or []:
+        if not isinstance(row, dict):
+            continue
+        row_grouped = _role_ids_from_rows(row.get("evidence_used"))
+        for bucket in ("support", "weakening", "context"):
+            for evidence_id in row_grouped[bucket]:
+                if evidence_id not in grouped[bucket]:
+                    grouped[bucket].append(evidence_id)
+    return grouped
+
+
+def _normalize_candidate_label(raw: Any, *, allowed_labels: Sequence[str]) -> Optional[str]:
+    txt = str(raw or "").strip()
+    if not txt:
+        return None
+    lookup = {str(x).strip().lower(): str(x).strip() for x in allowed_labels if str(x).strip()}
+    return lookup.get(txt.lower())
+
+
+def _candidate_pool_from_context(
+    reasoning_pack: Dict[str, Any],
+    master_output: Optional[Dict[str, Any]] = None,
+    *,
+    max_items: int = 5,
+) -> List[Dict[str, Any]]:
+    allowed_labels = resolve_allowed_mechanism_labels(reasoning_pack, {})
+    out: List[Dict[str, Any]] = []
+    seen: set[str] = set()
+
+    def _push(label: Any, probability: Any, *, source: str) -> None:
+        normalized = _normalize_candidate_label(label, allowed_labels=allowed_labels)
+        if not normalized or normalized in seen:
+            return
+        prob = _to_float(probability)
+        out.append(
+            {
+                "label": normalized,
+                "probability": float(prob) if prob is not None else None,
+                "source": source,
+            }
+        )
+        seen.add(normalized)
+
+    ctx = reasoning_pack.get("mechanism_context") if isinstance(reasoning_pack, dict) else {}
+    if isinstance(ctx, dict):
+        for row in ctx.get("candidate_mechanisms_topk") or []:
+            if not isinstance(row, dict):
+                continue
+            _push(row.get("mechanism_id"), row.get("probability"), source="mechanism_context")
+
+    if isinstance(master_output, dict):
+        claim = master_output.get("mechanism_claim") if isinstance(master_output.get("mechanism_claim"), dict) else {}
+        primary = claim.get("primary_hypothesis") if isinstance(claim.get("primary_hypothesis"), dict) else {}
+        _push(primary.get("mechanism_label"), claim.get("confidence"), source="master_primary")
+        for row in master_output.get("competing_hypotheses") or []:
+            if not isinstance(row, dict):
+                continue
+            _push(row.get("name"), row.get("confidence"), source="master_competing")
+
+    if len(out) < max_items:
+        risk = reasoning_pack.get("risk_scores") if isinstance(reasoning_pack, dict) else {}
+        structure_dist = (risk or {}).get("candidate_slate_v2") if isinstance(risk, dict) else {}
+        source_name = "candidate_slate_v2"
+        if not isinstance(structure_dist, dict) or not structure_dist:
+            structure_dist = (risk or {}).get("structure_candidate_distribution") if isinstance(risk, dict) else {}
+            source_name = "structure_candidate_distribution"
+        if isinstance(structure_dist, dict):
+            for row in (
+                structure_dist.get("top_candidates")
+                or structure_dist.get("top3")
+                or []
+            ):
+                if not isinstance(row, dict):
+                    continue
+                _push(row.get("label") or row.get("mechanism_id"), row.get("prob") or row.get("probability"), source=source_name)
+                if len(out) >= max_items:
+                    break
+
+    if not out:
+        out.append({"label": "unknown", "probability": None, "source": "fallback"})
+    return out[: max(1, int(max_items))]
+
+
+def build_candidate_scorecard(
+    *,
+    reasoning_pack: Dict[str, Any],
+    master_output: Dict[str, Any],
+    prev_scorecard: Optional[Sequence[Dict[str, Any]]] = None,
+    new_evidence_ids: Optional[Sequence[str]] = None,
+) -> List[Dict[str, Any]]:
+    if not isinstance(master_output, dict):
+        return []
+
+    previous: Dict[str, Dict[str, Any]] = {}
+    for row in prev_scorecard or []:
+        if not isinstance(row, dict):
+            continue
+        label = str(row.get("label") or "").strip()
+        if label:
+            previous[label] = row
+
+    candidates = _candidate_pool_from_context(reasoning_pack, master_output, max_items=5)
+    master_claim = master_output.get("mechanism_claim") if isinstance(master_output.get("mechanism_claim"), dict) else {}
+    primary = master_claim.get("primary_hypothesis") if isinstance(master_claim.get("primary_hypothesis"), dict) else {}
+    primary_label = str(primary.get("mechanism_label") or "").strip()
+    primary_confidence = _to_float(master_claim.get("confidence"))
+    competing_rows = [row for row in (master_output.get("competing_hypotheses") or []) if isinstance(row, dict)]
+    competing_lookup = {str(row.get("name") or "").strip(): row for row in competing_rows if str(row.get("name") or "").strip()}
+
+    global_axis_summary = _merge_axis_role_summary(
+        _axis_role_summary(master_output.get("evidence_used")),
+        *[
+            _axis_role_summary((row or {}).get("evidence_used"))
+            for row in (master_output.get("supporting_chain") or [])
+            if isinstance(row, dict)
+        ],
+    )
+    primary_support_axes = [
+        axis_name
+        for axis_name in GOVERNING_PRIMARY_AXES
+        if global_axis_summary.get(axis_name, {}).get("support")
+    ]
+    context_axes = [
+        axis_name
+        for axis_name in GOVERNING_PRIMARY_AXES + ("comparative_transferability",)
+        if global_axis_summary.get(axis_name, {}).get("context")
+    ]
+    new_ids = {str(x) for x in (new_evidence_ids or []) if str(x)}
+    primary_role_ids = _role_ids_from_master_output(master_output)
+
+    scorecard: List[Dict[str, Any]] = []
+    for idx, row in enumerate(candidates, start=1):
+        label = str(row.get("label") or "").strip()
+        prev_row = previous.get(label) or {}
+        prior_rank = prev_row.get("current_rank") if prev_row.get("current_rank") is not None else idx
+        prior_confidence = _to_float(prev_row.get("current_confidence"))
+        if prior_confidence is None:
+            prior_confidence = _to_float(row.get("probability"))
+
+        current_rank: Optional[int] = None
+        current_confidence: Optional[float] = None
+        support_axes: List[str] = []
+        weakening_axes: List[str] = []
+        unresolved_axes: List[str] = []
+        new_support_ids: List[str] = []
+        new_weakening_ids: List[str] = []
+
+        if label and label == primary_label:
+            current_rank = 1
+            current_confidence = primary_confidence
+            support_axes = list(primary_support_axes)
+            unresolved_axes = list(context_axes)
+            new_support_ids = sorted(new_ids.intersection(primary_role_ids.get("support") or []))
+            new_weakening_ids = sorted(new_ids.intersection(primary_role_ids.get("weakening") or []))
+        else:
+            comp = competing_lookup.get(label) or {}
+            if comp:
+                current_rank = competing_rows.index(comp) + 2
+                current_confidence = _to_float(comp.get("confidence"))
+                comp_axis_summary = _axis_role_summary(comp.get("evidence_used"))
+                comp_role_ids = _role_ids_from_rows(comp.get("evidence_used"))
+                support_axes = [
+                    axis_name
+                    for axis_name in GOVERNING_PRIMARY_AXES
+                    if comp_axis_summary.get(axis_name, {}).get("support")
+                ]
+                unresolved_axes = [
+                    axis_name
+                    for axis_name in GOVERNING_PRIMARY_AXES + ("comparative_transferability",)
+                    if comp_axis_summary.get(axis_name, {}).get("context")
+                ]
+                if primary_support_axes:
+                    weakening_axes = [axis for axis in primary_support_axes if axis not in support_axes]
+                new_support_ids = sorted(new_ids.intersection(comp_role_ids.get("support") or []))
+                new_weakening_ids = sorted(new_ids.intersection(comp_role_ids.get("weakening") or []))
+                if not new_weakening_ids and new_ids and weakening_axes:
+                    new_weakening_ids = sorted(new_ids.intersection(primary_role_ids.get("support") or []))
+            else:
+                current_rank = idx
+                current_confidence = _to_float(row.get("probability"))
+                unresolved_axes = list(context_axes or primary_support_axes)
+
+        if current_rank is None:
+            current_rank = idx
+        if current_confidence is None:
+            current_confidence = prior_confidence
+        if current_confidence is None:
+            current_confidence = 0.0
+
+        if prior_rank is None:
+            net_direction = "flat"
+        elif int(current_rank) < int(prior_rank):
+            net_direction = "up"
+        elif int(current_rank) > int(prior_rank):
+            net_direction = "down"
+        else:
+            delta = float(current_confidence) - float(prior_confidence or current_confidence)
+            if delta > 0.03:
+                net_direction = "up"
+            elif delta < -0.03:
+                net_direction = "down"
+            else:
+                net_direction = "flat"
+
+        commentary: str
+        if label == primary_label:
+            if support_axes:
+                commentary = f"Current leading candidate supported by {', '.join(support_axes)}."
+            else:
+                commentary = "Current leading candidate remains provisional; primary support is still limited."
+        elif weakening_axes:
+            commentary = f"Candidate remains in play but is weakened relative to {primary_label or 'the current lead'}."
+        else:
+            commentary = "Candidate remains unresolved under current evidence and stays in the negotiation set."
+
+        scorecard.append(
+            {
+                "label": label,
+                "prior_rank": int(prior_rank),
+                "prior_confidence": round(float(prior_confidence or 0.0), 4),
+                "current_rank": int(current_rank),
+                "current_confidence": round(float(current_confidence or 0.0), 4),
+                "support_axes": support_axes,
+                "weakening_axes": weakening_axes,
+                "unresolved_axes": unresolved_axes,
+                "new_support_evidence_ids": new_support_ids,
+                "new_weakening_evidence_ids": new_weakening_ids,
+                "net_direction": net_direction,
+                "commentary": commentary,
+            }
+        )
+
+    scorecard.sort(key=lambda row: (int(row.get("current_rank") or 999), -float(row.get("current_confidence") or 0.0), str(row.get("label") or "")))
+    return scorecard
 
 
 def _collect_paths(prefix: str, value: Any) -> Set[str]:
@@ -238,6 +800,12 @@ def _thresholds(reasoning_config: Dict[str, Any]) -> Dict[str, float]:
         "atb_dipole_flat_eps": float(policy.get("atb_dipole_flat_eps", 0.05)),
         "atb_dipole_weak": float(policy.get("atb_dipole_weak", 0.2)),
         "atb_dipole_strong": float(policy.get("atb_dipole_strong", 0.6)),
+        "charge_redis_total_abs_low": float(policy.get("charge_redis_total_abs_low", 0.2190)),
+        "charge_redis_total_abs_high": float(policy.get("charge_redis_total_abs_high", 0.4805)),
+        "charge_redis_top3_share_low": float(policy.get("charge_redis_top3_share_low", 0.1908)),
+        "charge_redis_top3_share_high": float(policy.get("charge_redis_top3_share_high", 0.3195)),
+        "charge_redis_hetero_share_low": float(policy.get("charge_redis_hetero_share_low", 0.1046)),
+        "charge_redis_hetero_share_high": float(policy.get("charge_redis_hetero_share_high", 0.2620)),
         "atb_vol_flat_eps": float(policy.get("atb_vol_flat_eps", 0.1)),
         "atb_vol_weak": float(policy.get("atb_vol_weak", 0.5)),
         "atb_vol_strong": float(policy.get("atb_vol_strong", 2.0)),
@@ -514,7 +1082,7 @@ def _candidate_set_labels(reasoning_pack: Dict[str, Any]) -> List[str]:
     ctx = reasoning_pack.get("mechanism_context")
     if not isinstance(ctx, dict):
         return out
-    rows = ctx.get("candidate_mechanisms_top3")
+    rows = ctx.get("candidate_mechanisms_topk") or ctx.get("candidate_mechanisms_top3")
     if not isinstance(rows, list):
         return out
     for row in rows:
@@ -534,10 +1102,22 @@ def resolve_allowed_mechanism_labels(
     reasoning_config: Dict[str, Any],
 ) -> List[str]:
     cfg_labels = None
+    allow_other_label = None
     if isinstance(reasoning_config, dict):
         cfg_labels = reasoning_config.get("allowed_mechanism_labels")
-    out = build_allowed_mechanism_labels(cfg_labels)
+        allow_other_label = reasoning_config.get("allow_other_label")
+        if allow_other_label is None:
+            policy = reasoning_config.get("policy")
+            if isinstance(policy, dict):
+                allow_other_label = policy.get("allow_other_label")
+    if allow_other_label is None and isinstance(reasoning_pack, dict):
+        runtime = reasoning_pack.get("runtime")
+        if isinstance(runtime, dict) and isinstance(runtime.get("allow_other_label"), bool):
+            allow_other_label = runtime.get("allow_other_label")
+    out = build_allowed_mechanism_labels(cfg_labels, include_other=allow_other_label)
     for label in _candidate_set_labels(reasoning_pack):
+        if allow_other_label is False and label == "other":
+            continue
         if label not in out:
             out.append(label)
     return out
@@ -767,7 +1347,7 @@ def _tagged_text_to_master_output(
         {
             "step_id": "B",
             "step_name": "ct_family",
-            "claim": "A nonradiative channel is hypothesized from CT/torsional context.",
+            "claim": "An electronic redistribution or nonradiative-channel hypothesis is updated from current target cues.",
             "evidence_used": _ev_one(1, "channel context cue", "context"),
         },
         {
@@ -922,6 +1502,13 @@ def _risk_scores_subset(
         "novelty_struct",
         "mechanism_entropy",
         "atb_neighbor_consistency",
+        "structure_fact_sheet",
+        "prior_reliability_profile",
+        "candidate_slate_v2",
+        "structure_prior_profile",
+        "structure_motif_profile",
+        "structure_retrieval_profile",
+        "structure_candidate_distribution",
     ]
     if include_neighbor_summary and include_neighbor_feature_rows:
         keep.append("atb_neighbor_features_all")
@@ -933,6 +1520,16 @@ def _risk_scores_subset(
         out["atb_neighbor_features_all"] = compact_neighbor_atb_rows(src.get("atb_neighbor_features_all"))
     elif "atb_neighbor_features_all" in out:
         out["atb_neighbor_features_all"] = []
+    return out
+
+
+def _sanitize_features_summary_for_reasoning(features_summary: Any) -> Optional[Dict[str, Any]]:
+    if not isinstance(features_summary, dict):
+        return None
+    out = deepcopy(features_summary)
+    raw_delta_dipole = out.get("delta_dipole")
+    if isinstance(raw_delta_dipole, dict):
+        out.pop("delta_dipole", None)
     return out
 
 
@@ -951,7 +1548,9 @@ def _evidence_readiness_subset(
     return {
         "atb": {
             "cache_status": atb.get("cache_status"),
-            "features_summary": atb.get("features_summary") if include_target_atb_summary else None,
+            "features_summary": _sanitize_features_summary_for_reasoning(atb.get("features_summary"))
+            if include_target_atb_summary
+            else None,
             "features": atb.get("features") if include_target_atb_full else None,
             "missing_fields": atb.get("missing_fields"),
         },
@@ -1011,19 +1610,53 @@ def _neighbor_label_lookup(case_json: Dict[str, Any]) -> Dict[str, str]:
 def _mechanism_context(case_json: Dict[str, Any]) -> Dict[str, Any]:
     out: Dict[str, Any] = {
         "candidate_mechanisms_top3": [],
+        "candidate_mechanisms_topk": [],
         "mechanism_signatures_top3": [],
     }
     candidates = case_json.get("candidate_mechanisms")
     if isinstance(candidates, list):
-        for row in candidates[:3]:
+        for idx, row in enumerate(candidates[:5]):
             if not isinstance(row, dict):
                 continue
-            out["candidate_mechanisms_top3"].append(
-                {
-                    "mechanism_id": row.get("mechanism_id") or row.get("label") or row.get("name"),
-                    "probability": row.get("probability") or row.get("confidence"),
+            payload = {
+                "mechanism_id": row.get("mechanism_id") or row.get("label") or row.get("name"),
+                "probability": row.get("probability") or row.get("confidence"),
+            }
+            out["candidate_mechanisms_topk"].append(payload)
+            if idx < 3:
+                out["candidate_mechanisms_top3"].append(payload)
+    if not out["candidate_mechanisms_top3"]:
+        slate_v2 = (case_json.get("risk_scores") or {}).get("candidate_slate_v2") or {}
+        structure_dist = slate_v2.get("top_candidates") or slate_v2.get("top3") or []
+        if isinstance(structure_dist, list):
+            for idx, row in enumerate(structure_dist[:5]):
+                if not isinstance(row, dict):
+                    continue
+                payload = {
+                    "mechanism_id": row.get("label") or row.get("mechanism_id") or row.get("name"),
+                    "probability": row.get("prob") or row.get("probability") or row.get("confidence"),
                 }
-            )
+                out["candidate_mechanisms_topk"].append(payload)
+                if idx < 3:
+                    out["candidate_mechanisms_top3"].append(payload)
+    if not out["candidate_mechanisms_top3"]:
+        structure_candidate_dist = (case_json.get("risk_scores") or {}).get("structure_candidate_distribution") or {}
+        structure_dist = (
+            structure_candidate_dist.get("top_candidates")
+            or structure_candidate_dist.get("top3")
+            or []
+        )
+        if isinstance(structure_dist, list):
+            for idx, row in enumerate(structure_dist[:5]):
+                if not isinstance(row, dict):
+                    continue
+                payload = {
+                    "mechanism_id": row.get("label") or row.get("mechanism_id") or row.get("name"),
+                    "probability": row.get("prob") or row.get("probability") or row.get("confidence"),
+                }
+                out["candidate_mechanisms_topk"].append(payload)
+                if idx < 3:
+                    out["candidate_mechanisms_top3"].append(payload)
 
     signatures = case_json.get("mechanism_signatures")
     if isinstance(signatures, dict):
@@ -1043,8 +1676,18 @@ def _build_evidence_registry(
     case_json: Dict[str, Any],
     neighbors_topk: Sequence[Dict[str, Any]],
     *,
+    structure_prior_profile: Optional[Dict[str, Any]],
+    structure_motif_profile: Optional[Dict[str, Any]],
+    structure_fact_sheet: Optional[Dict[str, Any]],
+    prior_reliability_profile: Optional[Dict[str, Any]],
+    candidate_slate_v2: Optional[Dict[str, Any]],
+    structure_retrieval_profile: Optional[Dict[str, Any]],
+    structure_candidate_distribution: Optional[Dict[str, Any]],
+    emission_observation_profile: Optional[Dict[str, Any]],
+    use_r0_prior_stack: bool,
     include_target_atb_signals: bool,
     atb_trend_profile: Optional[Dict[str, Any]],
+    charge_redistribution_profile: Optional[Dict[str, Any]],
     atb_ct_proxy_profile: Optional[Dict[str, Any]],
     atb_structural_relaxation_profile: Optional[Dict[str, Any]],
     atb_shape_rigidity_profile: Optional[Dict[str, Any]],
@@ -1054,7 +1697,7 @@ def _build_evidence_registry(
     atb_trends_self: Optional[Dict[str, Any]],
     include_neighbor_atb_stats: bool,
     neighbor_atb_stats: Optional[Dict[str, Any]],
-    max_items: int = 20,
+    max_items: int = 24,
 ) -> List[Dict[str, Any]]:
     entries: List[Dict[str, Any]] = []
 
@@ -1075,6 +1718,10 @@ def _build_evidence_registry(
             }
         )
 
+    target_features_summary = (((case_json.get("evidence_readiness") or {}).get("atb") or {}).get("features_summary") or {})
+    if not isinstance(target_features_summary, dict):
+        target_features_summary = {}
+
     # Gate core
     _add("/current_gate/state", "gate state", "context", "gate state")
     _add("/current_gate/reasoning_mode", "gate reasoning mode", "context", "reasoning mode")
@@ -1085,6 +1732,7 @@ def _build_evidence_registry(
     _add("/risk_scores/mean_topk_sim", "mean top-k similarity", "context", "local neighborhood density")
     _add("/risk_scores/mechanism_entropy", "neighbor mechanism entropy", "context", "neighbor label uncertainty")
     _add("/risk_scores/novelty_struct", "structural novelty", "context", "structural novelty score")
+    _add("/risk_scores/structure_prior_profile/overall_structure_prior", "overall structure prior", "context", "structure-only prior summary")
 
     # aTB evidence keys (R1+ by default; excluded from R0 prior-only stage).
     if include_target_atb_signals:
@@ -1099,7 +1747,7 @@ def _build_evidence_registry(
             "/evidence_readiness/atb/features_summary/delta_gap",
             "aTB delta gap",
             "context",
-            "CT-family weak context",
+            "electronic redistribution context",
         )
         _add(
             "/evidence_readiness/atb/features_summary/delta_volume",
@@ -1177,13 +1825,13 @@ def _build_evidence_registry(
                     "evidence_id": "E32",
                     "source_type": "case",
                     "case_path": "/evidence_readiness/atb/features_summary/delta_gap",
-                    "label": "aTB CT proxy trend",
+                    "label": "aTB electronic redistribution trend",
                     "value_preview": {
                         "bucket": buckets.get("delta_gap"),
                         "direction": direction.get("delta_gap"),
                     },
                     "role_hint": "context",
-                    "note_hint": f"ct proxy bucket={buckets.get('delta_gap')} direction={direction.get('delta_gap')}",
+                    "note_hint": f"redistribution bucket={buckets.get('delta_gap')} direction={direction.get('delta_gap')}",
                 },
                 {
                     "evidence_id": "E33",
@@ -1220,39 +1868,114 @@ def _build_evidence_registry(
             return
         reg.append(row)
 
-    if isinstance(atb_ct_proxy_profile, dict):
+    if isinstance(emission_observation_profile, dict) and str(emission_observation_profile.get("coverage") or "none") != "none":
+        aggr_val = ((case_json.get("target_fields") or {}).get("emission_aggr_nm"))
+        solid_val = ((case_json.get("target_fields") or {}).get("emission_solid_or_film_nm"))
+        if not _is_empty_value(aggr_val):
+            _append_registry_entry(
+                {
+                    "evidence_id": "E70",
+                    "source_type": "case",
+                    "case_path": "/target_fields/emission_aggr_nm",
+                    "label": "aggregate-state emission observation",
+                    "value_preview": {"emission_aggr_nm": aggr_val},
+                    "role_hint": "support",
+                    "note_hint": "target aggregate-state emission observation",
+                }
+            )
+        if not _is_empty_value(solid_val):
+            _append_registry_entry(
+                {
+                    "evidence_id": "E71",
+                    "source_type": "case",
+                    "case_path": "/target_fields/emission_solid_or_film_nm",
+                    "label": "solid/film emission observation",
+                    "value_preview": {"emission_solid_or_film_nm": solid_val},
+                    "role_hint": "support",
+                    "note_hint": "target solid/film emission observation",
+                }
+            )
+        _append_registry_entry(
+            {
+                "evidence_id": "E72",
+                "source_type": "derived_pack",
+                "pack_path": "/risk_scores/emission_observation_profile",
+                "derived_from_case_paths": [
+                    "/target_fields/emission_aggr_nm",
+                    "/target_fields/emission_solid_or_film_nm",
+                ],
+                "label": "emission shift summary",
+                "value_preview": {
+                    "coverage": emission_observation_profile.get("coverage"),
+                    "shift_nm": emission_observation_profile.get("shift_nm"),
+                    "shift_direction": emission_observation_profile.get("shift_direction"),
+                    "shift_magnitude_bucket": emission_observation_profile.get("shift_magnitude_bucket"),
+                },
+                "role_hint": "support",
+                "note_hint": "compact target emission observation shift summary",
+            }
+        )
+        _append_registry_entry(
+            {
+                "evidence_id": "E73",
+                "source_type": "derived_pack",
+                "pack_path": "/risk_scores/emission_observation_profile",
+                "derived_from_case_paths": [
+                    "/target_fields/emission_aggr_nm",
+                    "/target_fields/emission_solid_or_film_nm",
+                    "/target_fields_provenance/emission_aggr_nm",
+                    "/target_fields_provenance/emission_solid_or_film_nm",
+                ],
+                "label": "emission observation reliability summary",
+                "value_preview": {
+                    "coverage": emission_observation_profile.get("coverage"),
+                    "reliability": emission_observation_profile.get("reliability"),
+                },
+                "role_hint": "context",
+                "note_hint": "emission observation coverage and provenance reliability summary",
+            }
+        )
+
+    if isinstance(charge_redistribution_profile, dict):
         _append_registry_entry(
             {
                 "evidence_id": "E35",
-                "source_type": "case",
-                "case_path": "/evidence_readiness/atb/features_summary/delta_dipole",
-                "label": "aTB charge-separation proxy",
+                "source_type": "derived_pack",
+                "pack_path": "/risk_scores/charge_redistribution_profile/redistribution_magnitude_bucket",
+                "derived_from_case_paths": [
+                    "/evidence_readiness/atb/features_summary/charge_redis_total_abs",
+                    "/evidence_readiness/atb/features_summary/charge_redis_top3_abs_share",
+                    "/evidence_readiness/atb/features_summary/charge_redis_heteroatom_abs_share",
+                ],
+                "label": "aTB electronic redistribution magnitude cue",
                 "value_preview": {
-                    "delta_dipole_bucket": atb_ct_proxy_profile.get("delta_dipole_bucket"),
-                    "delta_dipole_direction": atb_ct_proxy_profile.get("delta_dipole_direction"),
-                    "reliability": atb_ct_proxy_profile.get("reliability"),
+                    "source": charge_redistribution_profile.get("source"),
+                    "redistribution_magnitude_bucket": charge_redistribution_profile.get("redistribution_magnitude_bucket"),
+                    "redistribution_localization": charge_redistribution_profile.get("redistribution_localization"),
+                    "heteroatom_involvement": charge_redistribution_profile.get("heteroatom_involvement"),
+                    "reliability": charge_redistribution_profile.get("reliability"),
                 },
                 "role_hint": "support",
-                "note_hint": "charge-separation change from target-only aTB",
+                "note_hint": "compact target-only electronic redistribution magnitude cue",
             }
         )
         _append_registry_entry(
             {
                 "evidence_id": "E36",
                 "source_type": "derived_pack",
-                "pack_path": "/risk_scores/atb_ct_proxy_profile/ct_proxy_score",
+                "pack_path": "/risk_scores/charge_redistribution_profile/redistribution_score",
                 "derived_from_case_paths": [
-                    "/evidence_readiness/atb/features_summary/delta_dipole",
+                    "/evidence_readiness/atb/features_summary/charge_redis_total_abs",
                     "/evidence_readiness/atb/features_summary/delta_gap",
                 ],
-                "label": "aTB CT proxy summary",
+                "label": "aTB electronic redistribution summary",
                 "value_preview": {
-                    "ct_proxy_score": atb_ct_proxy_profile.get("ct_proxy_score"),
-                    "delta_gap_bucket": atb_ct_proxy_profile.get("delta_gap_bucket"),
-                    "delta_dipole_bucket": atb_ct_proxy_profile.get("delta_dipole_bucket"),
-                },
+                    "redistribution_score": charge_redistribution_profile.get("redistribution_score"),
+                    "delta_gap_bucket": charge_redistribution_profile.get("delta_gap_bucket"),
+                    "source": charge_redistribution_profile.get("source"),
+                    },
                 "role_hint": "support",
-                "note_hint": "compact CT proxy from dipole and gap change",
+                "note_hint": "compact electronic redistribution summary",
             }
         )
 
@@ -1312,7 +2035,380 @@ def _build_evidence_registry(
                     "reliability": atb_shape_rigidity_profile.get("reliability"),
                 },
                 "role_hint": "context",
-                "note_hint": "auxiliary rigidity/shape cue from asymmetry and rotational changes",
+                "note_hint": "auxiliary shape/rigidity cue from asymmetry and rotational changes",
+            }
+        )
+
+    if include_target_atb_signals:
+        def _fs_num(name: str) -> Optional[float]:
+            value = target_features_summary.get(name)
+            if value is None:
+                return None
+            try:
+                out = float(value)
+            except (TypeError, ValueError):
+                return None
+            if out != out:
+                return None
+            return out
+
+        aop_reliability = _fs_num("aop_compact_reliability_score")
+        s1_electric_dip = _fs_num("s1_transition_electric_dip_au")
+        s1_osc = _fs_num("s1_oscillator_strength_f")
+        s1_wave = _fs_num("s1_excitation_wavelength_nm")
+        delta_perm = _fs_num("delta_perm_dipole_tot_debye")
+        s1_rotatory = _fs_num("s1_rotatory_strength_cgs")
+
+        if s1_electric_dip is not None:
+            _append_registry_entry(
+                {
+                    "evidence_id": "E60",
+                    "source_type": "case",
+                    "case_path": "/evidence_readiness/atb/features_summary/s1_transition_electric_dip_au",
+                    "label": "aTB S1 transition electric dipole cue",
+                    "value_preview": {
+                        "s1_transition_electric_dip_au": s1_electric_dip,
+                        "aop_reliability_score": aop_reliability,
+                    },
+                    "role_hint": "context",
+                    "note_hint": "compact S1 transition electric dipole magnitude from final excit aop block",
+                }
+            )
+        if s1_osc is not None:
+            _append_registry_entry(
+                {
+                    "evidence_id": "E61",
+                    "source_type": "case",
+                    "case_path": "/evidence_readiness/atb/features_summary/s1_oscillator_strength_f",
+                    "label": "aTB S1 oscillator/excitation cue",
+                    "value_preview": {
+                        "s1_oscillator_strength_f": s1_osc,
+                        "s1_excitation_wavelength_nm": s1_wave,
+                        "aop_reliability_score": aop_reliability,
+                    },
+                    "role_hint": "context",
+                    "note_hint": "compact S1 oscillator and excitation-wavelength cue from final excit aop block",
+                }
+            )
+        if delta_perm is not None:
+            _append_registry_entry(
+                {
+                    "evidence_id": "E62",
+                    "source_type": "case",
+                    "case_path": "/evidence_readiness/atb/features_summary/delta_perm_dipole_tot_debye",
+                    "label": "aTB permanent dipole delta cue",
+                    "value_preview": {
+                        "delta_perm_dipole_tot_debye": delta_perm,
+                        "aop_reliability_score": aop_reliability,
+                    },
+                    "role_hint": "context",
+                    "note_hint": "compact S0/S1 permanent dipole delta from final opt/excit aop blocks",
+                }
+            )
+        if s1_rotatory is not None:
+            _append_registry_entry(
+                {
+                    "evidence_id": "E63",
+                    "source_type": "case",
+                    "case_path": "/evidence_readiness/atb/features_summary/s1_rotatory_strength_cgs",
+                    "label": "aTB S1 rotatory-strength cue",
+                    "value_preview": {
+                        "s1_rotatory_strength_cgs": s1_rotatory,
+                        "aop_reliability_score": aop_reliability,
+                    },
+                    "role_hint": "context",
+                    "note_hint": "compact S1 rotatory-strength cue from final excit aop block",
+                }
+            )
+
+    if use_r0_prior_stack and isinstance(structure_fact_sheet, dict):
+        _append_registry_entry(
+            {
+                "evidence_id": "E50",
+                "source_type": "case",
+                "case_path": "/risk_scores/structure_fact_sheet/donor_acceptor_fragment_balance",
+                "label": "R0 structure fact: donor-acceptor topology",
+                "value_preview": {
+                    "donor_acceptor_fragment_balance": structure_fact_sheet.get("donor_acceptor_fragment_balance"),
+                    "donor_acceptor_separation_regime": structure_fact_sheet.get("donor_acceptor_separation_regime"),
+                    "reliability": structure_fact_sheet.get("reliability"),
+                },
+                "role_hint": "context",
+                "note_hint": "phenomenon-level donor/acceptor topology fact sheet entry",
+            }
+        )
+        _append_registry_entry(
+            {
+                "evidence_id": "E51",
+                "source_type": "case",
+                "case_path": "/risk_scores/structure_fact_sheet/intramolecular_hbond_geometry",
+                "label": "R0 structure fact: local proton-transfer geometry",
+                "value_preview": {
+                    "intramolecular_hbond_geometry": structure_fact_sheet.get("intramolecular_hbond_geometry"),
+                    "proton_transfer_local_geometry": structure_fact_sheet.get("proton_transfer_local_geometry"),
+                },
+                "role_hint": "context",
+                "note_hint": "local H-bond and proton-transfer geometry fact sheet entry",
+            }
+        )
+        _append_registry_entry(
+            {
+                "evidence_id": "E52",
+                "source_type": "case",
+                "case_path": "/risk_scores/structure_fact_sheet/tautomerizable_subgraph_strength",
+                "label": "R0 structure fact: tautomer and proton-transfer topology",
+                "value_preview": {
+                    "tautomerizable_subgraph_strength": structure_fact_sheet.get("tautomerizable_subgraph_strength"),
+                    "proton_transfer_topology_candidate": structure_fact_sheet.get("proton_transfer_topology_candidate"),
+                },
+                "role_hint": "context",
+                "note_hint": "tautomerizable subgraph and proton-transfer topology fact sheet entry",
+            }
+        )
+        _append_registry_entry(
+            {
+                "evidence_id": "E53",
+                "source_type": "case",
+                "case_path": "/risk_scores/structure_fact_sheet/aromatic_core_connectivity",
+                "label": "R0 structure fact: aromatic-core connectivity",
+                "value_preview": {
+                    "aromatic_core_connectivity": structure_fact_sheet.get("aromatic_core_connectivity"),
+                    "fused_aromatic_core_strength": structure_fact_sheet.get("fused_aromatic_core_strength"),
+                    "conjugation_continuity": structure_fact_sheet.get("conjugation_continuity"),
+                },
+                "role_hint": "context",
+                "note_hint": "aromatic-core connectivity and conjugation continuity fact sheet entry",
+            }
+        )
+        _append_registry_entry(
+            {
+                "evidence_id": "E54",
+                "source_type": "case",
+                "case_path": "/risk_scores/structure_fact_sheet/global_flexibility_vs_core_rigidity",
+                "label": "R0 structure fact: rigidity and planarity summary",
+                "value_preview": {
+                    "global_flexibility_vs_core_rigidity": structure_fact_sheet.get("global_flexibility_vs_core_rigidity"),
+                    "planarity_proxy": structure_fact_sheet.get("planarity_proxy"),
+                    "heteroatom_cluster_pattern": structure_fact_sheet.get("heteroatom_cluster_pattern"),
+                },
+                "role_hint": "context",
+                "note_hint": "global flexibility/rigidity and planarity fact sheet entry",
+            }
+        )
+        if isinstance(prior_reliability_profile, dict):
+            _append_registry_entry(
+                {
+                    "evidence_id": "E55",
+                    "source_type": "derived_pack",
+                    "pack_path": "/risk_scores/prior_reliability_profile",
+                    "label": "R0 prior reliability summary",
+                    "value_preview": {
+                        "feature_consensus_strength": prior_reliability_profile.get("feature_consensus_strength"),
+                        "scaffold_consensus_strength": prior_reliability_profile.get("scaffold_consensus_strength"),
+                        "neighbor_consensus_strength": prior_reliability_profile.get("neighbor_consensus_strength"),
+                        "cross_source_agreement": prior_reliability_profile.get("cross_source_agreement"),
+                        "prior_reliability": prior_reliability_profile.get("prior_reliability"),
+                        "ambiguity_level": prior_reliability_profile.get("ambiguity_level"),
+                    },
+                    "role_hint": "context",
+                    "note_hint": "R0 prior reliability summary from feature, scaffold, and ECFP agreement",
+                }
+            )
+        if isinstance(candidate_slate_v2, dict):
+            _append_registry_entry(
+                {
+                    "evidence_id": "E56",
+                    "source_type": "derived_pack",
+                    "pack_path": "/risk_scores/candidate_slate_v2",
+                    "label": "R0 candidate slate summary",
+                    "value_preview": {
+                        "top_candidates": candidate_slate_v2.get("top_candidates"),
+                        "slate_confidence": candidate_slate_v2.get("slate_confidence"),
+                    },
+                    "role_hint": "context",
+                    "note_hint": "R0 candidate slate synthesized from structure facts and prior reliability",
+                }
+            )
+    elif isinstance(structure_prior_profile, dict):
+        _append_registry_entry(
+            {
+                "evidence_id": "E40",
+                "source_type": "case",
+                "case_path": "/risk_scores/structure_prior_profile/donor_acceptor_topology",
+                "label": "donor-acceptor topology summary",
+                "value_preview": {
+                    "donor_acceptor_topology": structure_prior_profile.get("donor_acceptor_topology"),
+                    "reliability": structure_prior_profile.get("reliability"),
+                },
+                "role_hint": "context",
+                "note_hint": "structure-prior topology cue from canonical SMILES and RDKit descriptors",
+            }
+        )
+        _append_registry_entry(
+            {
+                "evidence_id": "E41",
+                "source_type": "case",
+                "case_path": "/risk_scores/structure_prior_profile/intramolecular_hbond_candidates",
+                "label": "intramolecular H-bond candidate summary",
+                "value_preview": {
+                    "intramolecular_hbond_candidates": structure_prior_profile.get("intramolecular_hbond_candidates"),
+                },
+                "role_hint": "context",
+                "note_hint": "structure-prior H-bond candidate cue",
+            }
+        )
+        _append_registry_entry(
+            {
+                "evidence_id": "E42",
+                "source_type": "case",
+                "case_path": "/risk_scores/structure_prior_profile/aromatic_core_density",
+                "label": "aromatic-core and conjugation summary",
+                "value_preview": {
+                    "aromatic_core_density": structure_prior_profile.get("aromatic_core_density"),
+                    "conjugation_proxy": structure_prior_profile.get("conjugation_proxy"),
+                },
+                "role_hint": "context",
+                "note_hint": "structure-prior aromatic-core/conjugation cue",
+            }
+        )
+        _append_registry_entry(
+            {
+                "evidence_id": "E43",
+                "source_type": "case",
+                "case_path": "/risk_scores/structure_prior_profile/flexibility_proxy",
+                "label": "flexibility summary",
+                "value_preview": {
+                    "flexibility_proxy": structure_prior_profile.get("flexibility_proxy"),
+                },
+                "role_hint": "context",
+                "note_hint": "structure-prior flexibility cue from rotatable-bond and topology summary",
+            }
+        )
+        _append_registry_entry(
+            {
+                "evidence_id": "E44",
+                "source_type": "case",
+                "case_path": "/risk_scores/structure_prior_profile/overall_structure_prior",
+                "label": "overall structure prior summary",
+                "value_preview": {
+                    "overall_structure_prior": structure_prior_profile.get("overall_structure_prior"),
+                    "reliability": structure_prior_profile.get("reliability"),
+                },
+                "role_hint": "context",
+                "note_hint": "structure-prior overall summary",
+            }
+        )
+
+    if not use_r0_prior_stack and isinstance(structure_motif_profile, dict):
+        _append_registry_entry(
+            {
+                "evidence_id": "E50",
+                "source_type": "case",
+                "case_path": "/risk_scores/structure_motif_profile/donor_acceptor_path_strength",
+                "label": "donor-acceptor path summary",
+                "value_preview": {
+                    "donor_acceptor_path_strength": structure_motif_profile.get("donor_acceptor_path_strength"),
+                    "reliability": structure_motif_profile.get("reliability"),
+                },
+                "role_hint": "context",
+                "note_hint": "structure-motif donor/acceptor path summary",
+            }
+        )
+        _append_registry_entry(
+            {
+                "evidence_id": "E51",
+                "source_type": "case",
+                "case_path": "/risk_scores/structure_motif_profile/intramolecular_hbond_motif",
+                "label": "intramolecular H-bond motif summary",
+                "value_preview": {
+                    "intramolecular_hbond_motif": structure_motif_profile.get("intramolecular_hbond_motif"),
+                    "possible_intramolecular_hbond_pairs": structure_motif_profile.get("possible_intramolecular_hbond_pairs"),
+                },
+                "role_hint": "context",
+                "note_hint": "structure-motif intramolecular H-bond summary",
+            }
+        )
+        _append_registry_entry(
+            {
+                "evidence_id": "E52",
+                "source_type": "case",
+                "case_path": "/risk_scores/structure_motif_profile/tautomerizable_motif",
+                "label": "tautomerizable motif summary",
+                "value_preview": {
+                    "tautomerizable_motif": structure_motif_profile.get("tautomerizable_motif"),
+                    "tautomerizable_motif_candidates": structure_motif_profile.get("tautomerizable_motif_candidates"),
+                },
+                "role_hint": "context",
+                "note_hint": "structure-motif tautomerizable substructure summary",
+            }
+        )
+        _append_registry_entry(
+            {
+                "evidence_id": "E53",
+                "source_type": "case",
+                "case_path": "/risk_scores/structure_motif_profile/aromatic_scaffold_type",
+                "label": "aromatic and conjugation scaffold summary",
+                "value_preview": {
+                    "aromatic_scaffold_type": structure_motif_profile.get("aromatic_scaffold_type"),
+                    "conjugation_span_bucket": structure_motif_profile.get("conjugation_span_bucket"),
+                    "fused_aromatic_core": structure_motif_profile.get("fused_aromatic_core"),
+                },
+                "role_hint": "context",
+                "note_hint": "structure-motif aromatic scaffold and conjugation summary",
+            }
+        )
+        _append_registry_entry(
+            {
+                "evidence_id": "E54",
+                "source_type": "case",
+                "case_path": "/risk_scores/structure_motif_profile/flexibility_regime",
+                "label": "flexibility and rigidity summary",
+                "value_preview": {
+                    "flexibility_regime": structure_motif_profile.get("flexibility_regime"),
+                    "motif_density": structure_motif_profile.get("motif_density"),
+                    "reliability": structure_motif_profile.get("reliability"),
+                },
+                "role_hint": "context",
+                "note_hint": "structure-motif flexibility and rigidity summary",
+            }
+        )
+
+    if not use_r0_prior_stack and isinstance(structure_retrieval_profile, dict):
+        _append_registry_entry(
+            {
+                "evidence_id": "E55",
+                "source_type": "case",
+                "case_path": "/risk_scores/structure_retrieval_profile/retrieval_consensus_strength",
+                "label": "structure retrieval prior summary",
+                "value_preview": {
+                    "retrieval_consensus_strength": structure_retrieval_profile.get("retrieval_consensus_strength"),
+                    "feature_neighbor_label_distribution": structure_retrieval_profile.get("feature_neighbor_label_distribution"),
+                    "scaffold_neighbor_label_distribution": structure_retrieval_profile.get("scaffold_neighbor_label_distribution"),
+                },
+                "role_hint": "context",
+                "note_hint": "structure retrieval prior from feature and scaffold neighbors",
+            }
+        )
+
+    if not use_r0_prior_stack and isinstance(structure_candidate_distribution, dict):
+        candidate_case_path = "/risk_scores/structure_candidate_distribution/top3"
+        candidate_preview = structure_candidate_distribution.get("top3")
+        if isinstance(structure_candidate_distribution.get("top_candidates"), list):
+            candidate_case_path = "/risk_scores/structure_candidate_distribution/top_candidates"
+            candidate_preview = structure_candidate_distribution.get("top_candidates")
+        _append_registry_entry(
+            {
+                "evidence_id": "E56",
+                "source_type": "case",
+                "case_path": candidate_case_path,
+                "label": "structure candidate distribution summary",
+                "value_preview": {
+                    "top_candidates": candidate_preview,
+                    "top3": structure_candidate_distribution.get("top3"),
+                    "calibration": structure_candidate_distribution.get("calibration"),
+                },
+                "role_hint": "context",
+                "note_hint": "structure candidate distribution summary from calibrated structure prior model",
             }
         )
 
@@ -1439,7 +2535,7 @@ def _build_evidence_registry(
                     "label": "target delta_gap vs neighbor distribution",
                     "value_preview": e22,
                     "role_hint": "context",
-                    "note_hint": "R2 comparative CT-family context",
+                    "note_hint": "R2 comparative electronic-redistribution context",
                 }
             )
 
@@ -1474,24 +2570,11 @@ def _build_evidence_registry(
                     "note_hint": "R2 comparative reliability level",
                 }
             )
-    # Keep registry compact (target <=20) while preserving derived comparative entries.
-    if len(reg) > 20:
-        protected = {"E21", "E22", "E23", "E24", *ATB_TREND_PROFILE_EVIDENCE_IDS, *ATB_ENRICHMENT_EVIDENCE_IDS, *ATB_TREND_EVIDENCE_IDS}
-        trimmed: List[Dict[str, Any]] = []
-        for row in reg:
-            if len(trimmed) >= 20:
-                break
-            eid = str(row.get("evidence_id") or "")
-            if eid in protected:
-                trimmed.append(row)
-        for row in reg:
-            if len(trimmed) >= 20:
-                break
-            eid = str(row.get("evidence_id") or "")
-            if eid in protected:
-                continue
-            trimmed.append(row)
-        reg = trimmed
+    reg = _compact_registry(
+        reg,
+        max_items=max_items,
+        prefer_comparative=include_neighbor_atb_stats and isinstance(neighbor_atb_stats, dict),
+    )
     return reg
 
 
@@ -1515,6 +2598,49 @@ def _registry_map(evidence_registry: Any) -> Dict[str, Dict[str, Any]]:
     return out
 
 
+def _compact_registry(
+    reg: List[Dict[str, Any]],
+    *,
+    max_items: int,
+    prefer_comparative: bool,
+) -> List[Dict[str, Any]]:
+    if len(reg) <= max_items:
+        return reg
+    id_to_row: Dict[str, Dict[str, Any]] = {}
+    ordered_ids: List[str] = []
+    for row in reg:
+        eid = str(row.get("evidence_id") or "")
+        if not eid or eid in id_to_row:
+            continue
+        id_to_row[eid] = row
+        ordered_ids.append(eid)
+    priority_order: List[str] = []
+    if prefer_comparative:
+        priority_order.extend(COMPACT_REGISTRY_PRIORITY)
+    else:
+        # Keep non-comparative rounds aligned with the same compact priority so
+        # target aTB enrichments and compact .aop cues survive pack-size trimming.
+        priority_order.extend(COMPACT_REGISTRY_PRIORITY)
+    trimmed: List[Dict[str, Any]] = []
+    seen: set[str] = set()
+    for eid in priority_order:
+        if len(trimmed) >= max_items:
+            break
+        row = id_to_row.get(eid)
+        if row is None or eid in seen:
+            continue
+        trimmed.append(row)
+        seen.add(eid)
+    for eid in ordered_ids:
+        if len(trimmed) >= max_items:
+            break
+        if eid in seen:
+            continue
+        trimmed.append(id_to_row[eid])
+        seen.add(eid)
+    return trimmed
+
+
 def build_reasoning_pack(case_json: Dict[str, Any], reasoning_config: Dict[str, Any]) -> Dict[str, Any]:
     query = case_json.get("query") or {}
     runtime = case_json.get("runtime") or {}
@@ -1531,6 +2657,16 @@ def build_reasoning_pack(case_json: Dict[str, Any], reasoning_config: Dict[str, 
         else active_profile_cfg.get("include_neighbor_atb_stats", True)
     )
     include_neighbor_feature_rows = bool(active_profile_cfg.get("include_neighbor_feature_rows", False))
+    include_structure_fact_sheet = bool(active_profile_cfg.get("include_structure_fact_sheet", active_profile == "R0"))
+    include_prior_reliability_profile = bool(active_profile_cfg.get("include_prior_reliability_profile", active_profile == "R0"))
+    include_candidate_slate_v2 = bool(active_profile_cfg.get("include_candidate_slate_v2", active_profile == "R0"))
+    include_structure_prior_profile = bool(active_profile_cfg.get("include_structure_prior_profile", True))
+    include_structure_motif_profile = bool(active_profile_cfg.get("include_structure_motif_profile", active_profile in {"R0", "R1", "R2", "R3"}))
+    include_structure_retrieval_profile = bool(active_profile_cfg.get("include_structure_retrieval_profile", active_profile in {"R0", "R1", "R2", "R3"}))
+    include_structure_candidate_distribution = bool(active_profile_cfg.get("include_structure_candidate_distribution", active_profile in {"R0", "R1", "R2", "R3"}))
+    include_emission_observation_profile = bool(
+        active_profile_cfg.get("include_emission_observation_profile", active_profile in {"R1", "R2", "R3"})
+    )
     include_target_atb_summary = bool(active_profile_cfg.get("include_target_atb_summary", True))
     include_target_atb_full = bool(active_profile_cfg.get("include_target_atb_full", False))
     include_atb_trend_profile = bool(
@@ -1556,6 +2692,87 @@ def build_reasoning_pack(case_json: Dict[str, Any], reasoning_config: Dict[str, 
         include_neighbor_summary=include_neighbor_summary,
         include_neighbor_feature_rows=include_neighbor_feature_rows,
     )
+    if active_profile == "R0":
+        for key in (
+            "structure_prior_profile",
+            "structure_motif_profile",
+            "structure_retrieval_profile",
+            "structure_candidate_distribution",
+        ):
+            risk_subset.pop(key, None)
+    structure_prior_profile: Optional[Dict[str, Any]] = None
+    if include_structure_prior_profile:
+        existing_structure_prior = ((case_json.get("risk_scores") or {}).get("structure_prior_profile") or {})
+        if isinstance(existing_structure_prior, dict) and existing_structure_prior:
+            structure_prior_profile = deepcopy(existing_structure_prior)
+        else:
+            canonical_smiles = str((query.get("canonical_smiles") or query.get("input_smiles") or "")).strip()
+            if canonical_smiles:
+                structure_prior_profile = compute_structure_prior_profile(canonical_smiles)
+        if isinstance(structure_prior_profile, dict) and active_profile != "R0":
+            risk_subset["structure_prior_profile"] = structure_prior_profile
+    structure_motif_profile = None
+    if include_structure_motif_profile:
+        existing_structure_motif = ((case_json.get("risk_scores") or {}).get("structure_motif_profile") or {})
+        if isinstance(existing_structure_motif, dict) and existing_structure_motif:
+            structure_motif_profile = deepcopy(existing_structure_motif)
+            if active_profile != "R0":
+                risk_subset["structure_motif_profile"] = structure_motif_profile
+    structure_fact_sheet: Optional[Dict[str, Any]] = None
+    if include_structure_fact_sheet and isinstance(structure_prior_profile, dict) and isinstance(structure_motif_profile, dict):
+        existing_fact_sheet = ((case_json.get("risk_scores") or {}).get("structure_fact_sheet") or {})
+        if isinstance(existing_fact_sheet, dict) and existing_fact_sheet:
+            structure_fact_sheet = deepcopy(existing_fact_sheet)
+        else:
+            structure_fact_sheet = compute_structure_fact_sheet(structure_prior_profile, structure_motif_profile)
+        risk_subset["structure_fact_sheet"] = structure_fact_sheet
+    structure_retrieval_profile = None
+    if include_structure_retrieval_profile:
+        existing_structure_retrieval = ((case_json.get("risk_scores") or {}).get("structure_retrieval_profile") or {})
+        if isinstance(existing_structure_retrieval, dict) and existing_structure_retrieval:
+            structure_retrieval_profile = deepcopy(existing_structure_retrieval)
+            if active_profile != "R0":
+                risk_subset["structure_retrieval_profile"] = structure_retrieval_profile
+    structure_candidate_distribution = None
+    if include_structure_candidate_distribution:
+        existing_structure_candidate_distribution = ((case_json.get("risk_scores") or {}).get("structure_candidate_distribution") or {})
+        if isinstance(existing_structure_candidate_distribution, dict) and existing_structure_candidate_distribution:
+            structure_candidate_distribution = deepcopy(existing_structure_candidate_distribution)
+            if active_profile != "R0":
+                risk_subset["structure_candidate_distribution"] = structure_candidate_distribution
+    prior_reliability_profile: Optional[Dict[str, Any]] = None
+    candidate_slate_v2: Optional[Dict[str, Any]] = None
+    if active_profile == "R0":
+        if include_prior_reliability_profile:
+            prior_reliability_profile = compute_prior_reliability_profile(
+                structure_retrieval_profile=structure_retrieval_profile or {},
+                neighbors=case_json.get("neighbors") or [],
+                top1_sim=((case_json.get("risk_scores") or {}).get("top1_sim")),
+                mechanism_entropy=((case_json.get("risk_scores") or {}).get("mechanism_entropy")),
+                novelty_struct=((case_json.get("risk_scores") or {}).get("novelty_struct")),
+                allowed_labels=MAIN_PRIOR_LABELS,
+            )
+            risk_subset["prior_reliability_profile"] = prior_reliability_profile
+        if include_candidate_slate_v2:
+            candidate_slate_v2 = compute_candidate_slate_v2(
+                structure_retrieval_profile=structure_retrieval_profile or {},
+                neighbors=case_json.get("neighbors") or [],
+                top1_sim=((case_json.get("risk_scores") or {}).get("top1_sim")),
+                mechanism_entropy=((case_json.get("risk_scores") or {}).get("mechanism_entropy")),
+                novelty_struct=((case_json.get("risk_scores") or {}).get("novelty_struct")),
+                allowed_labels=MAIN_PRIOR_LABELS,
+            )
+            risk_subset["candidate_slate_v2"] = candidate_slate_v2
+    emission_observation_profile: Optional[Dict[str, Any]] = None
+    if include_emission_observation_profile and active_profile in {"R1", "R2", "R3"}:
+        target_fields = case_json.get("target_fields") or {}
+        target_fields_provenance = case_json.get("target_fields_provenance") or {}
+        emission_observation_profile = compute_emission_observation_profile(
+            target_fields if isinstance(target_fields, dict) else {},
+            target_fields_provenance if isinstance(target_fields_provenance, dict) else {},
+        )
+        if str(emission_observation_profile.get("coverage") or "none") != "none":
+            risk_subset["emission_observation_profile"] = emission_observation_profile
     atb_status = str((((case_json.get("evidence_readiness") or {}).get("atb") or {}).get("cache_status") or "")).lower()
     target_summary = (((case_json.get("evidence_readiness") or {}).get("atb") or {}).get("features_summary") or {})
     if include_atb_trends_self and active_profile in {"R1", "R2", "R3"}:
@@ -1596,6 +2813,7 @@ def build_reasoning_pack(case_json: Dict[str, Any], reasoning_config: Dict[str, 
         atb_trend_profile = compute_atb_trend_profile(target_summary)
         risk_subset["atb_trend_profile"] = atb_trend_profile
     atb_ct_proxy_profile: Optional[Dict[str, Any]] = None
+    charge_redistribution_profile: Optional[Dict[str, Any]] = None
     if (
         include_atb_ct_proxy_profile
         and include_target_atb_summary
@@ -1603,7 +2821,12 @@ def build_reasoning_pack(case_json: Dict[str, Any], reasoning_config: Dict[str, 
         and atb_status == "success"
         and isinstance(target_summary, dict)
     ):
+        charge_redistribution_profile = compute_charge_redistribution_profile(
+            target_summary,
+            thresholds=_thresholds(reasoning_config),
+        )
         atb_ct_proxy_profile = compute_atb_ct_proxy_profile(target_summary, thresholds=_thresholds(reasoning_config))
+        risk_subset["charge_redistribution_profile"] = charge_redistribution_profile
         risk_subset["atb_ct_proxy_profile"] = atb_ct_proxy_profile
     atb_structural_relaxation_profile: Optional[Dict[str, Any]] = None
     if (
@@ -1648,6 +2871,23 @@ def build_reasoning_pack(case_json: Dict[str, Any], reasoning_config: Dict[str, 
     risk_subset["neighbor_atb_stats_by_label"] = neighbor_atb_stats
     risk_subset["neighbor_atb_stats"] = neighbor_atb_stats
 
+    mechanism_context = _mechanism_context(case_json)
+    if active_profile == "R0" and isinstance(candidate_slate_v2, dict):
+        slate_rows = candidate_slate_v2.get("top_candidates") or candidate_slate_v2.get("top3") or []
+        if isinstance(slate_rows, list) and slate_rows:
+            mechanism_context["candidate_mechanisms_topk"] = []
+            mechanism_context["candidate_mechanisms_top3"] = []
+            for idx, row in enumerate(slate_rows[:5]):
+                if not isinstance(row, dict):
+                    continue
+                payload = {
+                    "mechanism_id": row.get("label") or row.get("mechanism_id") or row.get("name"),
+                    "probability": row.get("prob") or row.get("probability") or row.get("confidence"),
+                }
+                mechanism_context["candidate_mechanisms_topk"].append(payload)
+                if idx < 3:
+                    mechanism_context["candidate_mechanisms_top3"].append(payload)
+
     pack = {
         "pack_version": MASTER_PACK_VERSION,
         "query": {
@@ -1662,6 +2902,8 @@ def build_reasoning_pack(case_json: Dict[str, Any], reasoning_config: Dict[str, 
             "run_lane": runtime.get("run_lane") or reasoning_config.get("run_lane"),
             "emission_mode": emission_cfg.get("mode"),
             "emission_strictness": emission_cfg.get("strictness"),
+            "allow_other_label": runtime.get("allow_other_label"),
+            "label_pool_name": runtime.get("label_pool_name"),
         },
         "evidence_profile": {
             "active_profile": active_profile,
@@ -1683,13 +2925,23 @@ def build_reasoning_pack(case_json: Dict[str, Any], reasoning_config: Dict[str, 
         ),
         "target_fields": deepcopy(case_json.get("target_fields") or {}),
         "target_fields_provenance": deepcopy(case_json.get("target_fields_provenance") or {}),
-        "mechanism_context": _mechanism_context(case_json),
+        "mechanism_context": mechanism_context,
     }
     pack["evidence_registry"] = _build_evidence_registry(
         case_json,
         neighbors_topk,
+        structure_prior_profile=structure_prior_profile,
+        structure_motif_profile=structure_motif_profile,
+        structure_fact_sheet=structure_fact_sheet,
+        prior_reliability_profile=prior_reliability_profile,
+        candidate_slate_v2=candidate_slate_v2,
+        structure_retrieval_profile=structure_retrieval_profile,
+        structure_candidate_distribution=structure_candidate_distribution,
+        emission_observation_profile=emission_observation_profile,
+        use_r0_prior_stack=active_profile == "R0",
         include_target_atb_signals=include_target_atb_summary and active_profile in {"R1", "R2", "R3"},
         atb_trend_profile=atb_trend_profile,
+        charge_redistribution_profile=charge_redistribution_profile,
         atb_ct_proxy_profile=atb_ct_proxy_profile,
         atb_structural_relaxation_profile=atb_structural_relaxation_profile,
         atb_shape_rigidity_profile=atb_shape_rigidity_profile,
@@ -1711,8 +2963,18 @@ def build_reasoning_pack(case_json: Dict[str, Any], reasoning_config: Dict[str, 
         pack["evidence_registry"] = _build_evidence_registry(
             case_json,
             pack["neighbors_topk"],
+            structure_prior_profile=structure_prior_profile,
+            structure_motif_profile=structure_motif_profile,
+            structure_fact_sheet=structure_fact_sheet,
+            prior_reliability_profile=prior_reliability_profile,
+            candidate_slate_v2=candidate_slate_v2,
+            structure_retrieval_profile=structure_retrieval_profile,
+            structure_candidate_distribution=structure_candidate_distribution,
+            emission_observation_profile=emission_observation_profile,
+            use_r0_prior_stack=active_profile == "R0",
             include_target_atb_signals=include_target_atb_summary and active_profile in {"R1", "R2", "R3"},
             atb_trend_profile=atb_trend_profile,
+            charge_redistribution_profile=charge_redistribution_profile,
             atb_ct_proxy_profile=atb_ct_proxy_profile,
             atb_structural_relaxation_profile=atb_structural_relaxation_profile,
             atb_shape_rigidity_profile=atb_shape_rigidity_profile,
@@ -1722,7 +2984,7 @@ def build_reasoning_pack(case_json: Dict[str, Any], reasoning_config: Dict[str, 
             atb_trends_self=atb_trends_self,
             include_neighbor_atb_stats=include_neighbor_atb_stats and active_profile in {"R2", "R3"},
             neighbor_atb_stats=neighbor_atb_stats,
-            max_items=min(registry_max_items, 16),
+            max_items=min(registry_max_items, 20),
         )
     return pack
 
@@ -1758,20 +3020,38 @@ def _build_prompt_payload(reasoning_pack: Dict[str, Any], reasoning_config: Dict
     - reduce traceability token overhead while preserving strict server-side validation.
     """
     payload = deepcopy(reasoning_pack)
+    active_profile = str((((reasoning_pack.get("evidence_profile") or {}).get("active_profile")) or "R0")).upper()
     risk_scores = payload.get("risk_scores")
     if isinstance(risk_scores, dict):
         # Keep prompt compact: neighbor raw rows stay out of model-facing payload.
         risk_scores.pop("atb_neighbor_features_all", None)
+        if active_profile == "R0":
+            for key in (
+                "structure_prior_profile",
+                "structure_motif_profile",
+                "structure_retrieval_profile",
+                "structure_candidate_distribution",
+            ):
+                risk_scores.pop(key, None)
     payload["validation_note"] = "Use only evidence_id keys from evidence_registry for citations."
-    payload["candidate_set_text"] = _candidate_set_text(reasoning_pack)
+    payload["candidate_set_text"] = _candidate_set_text(reasoning_pack, reasoning_config)
     payload["reasoning_config"] = {"thresholds": _thresholds(reasoning_config)}
     return payload
 
 
-def _candidate_set_text(reasoning_pack: Dict[str, Any]) -> str:
+def _candidate_set_text(reasoning_pack: Dict[str, Any], reasoning_config: Optional[Dict[str, Any]] = None) -> str:
     ctx = reasoning_pack.get("mechanism_context") or {}
-    rows = ctx.get("candidate_mechanisms_top3")
+    rows = ctx.get("candidate_mechanisms_topk") or ctx.get("candidate_mechanisms_top3")
+    if not rows:
+        slate_v2 = (((reasoning_pack.get("risk_scores") or {}).get("candidate_slate_v2")) or {})
+        rows = slate_v2.get("top_candidates") or slate_v2.get("top3")
+    allowed_lookup = {
+        str(label).strip().lower(): str(label).strip()
+        for label in resolve_allowed_mechanism_labels(reasoning_pack, reasoning_config or {})
+        if str(label).strip()
+    }
     labels: List[str] = []
+    residual_labels: List[str] = []
     if isinstance(rows, list):
         for row in rows:
             label: Optional[str] = None
@@ -1781,11 +3061,32 @@ def _candidate_set_text(reasoning_pack: Dict[str, Any]) -> str:
                     label = raw.strip()
             elif isinstance(row, str):
                 label = row.strip()
-            if label and label not in labels:
-                labels.append(label)
+            if label:
+                label = allowed_lookup.get(label.lower())
+            if label and label not in labels and label not in residual_labels:
+                if label == "other":
+                    residual_labels.append(label)
+                else:
+                    labels.append(label)
+    labels.extend(residual_labels)
     if labels:
-        return f"Top competing mechanisms (from retrieval priors): {', '.join(labels)}."
+        return f"Top competing mechanisms (from candidate slate): {', '.join(labels)}."
     return "Top competing mechanisms are uncertain; propose plausible hypotheses from evidence."
+
+
+def _available_evidence_ids(
+    reasoning_pack: Dict[str, Any],
+    candidate_ids: Sequence[str],
+) -> List[str]:
+    registry = reasoning_pack.get("evidence_registry")
+    if not isinstance(registry, list):
+        return []
+    available = {
+        str(row.get("evidence_id") or "").strip()
+        for row in registry
+        if isinstance(row, dict) and str(row.get("evidence_id") or "").strip()
+    }
+    return [eid for eid in candidate_ids if eid in available]
 
 
 def build_master_prompt_bundle(reasoning_pack: Dict[str, Any], reasoning_config: Dict[str, Any]) -> Dict[str, Any]:
@@ -1796,8 +3097,16 @@ def build_master_prompt_bundle(reasoning_pack: Dict[str, Any], reasoning_config:
     schema_version = str(reasoning_config.get("master_output_schema_version") or "v3").lower()
     output_mode = str(reasoning_config.get("master_output_mode") or MASTER_OUTPUT_MODE_TAGGED_REPAIR).strip().lower()
     thresholds = _thresholds(reasoning_config)
-    candidate_set_text = _candidate_set_text(reasoning_pack)
+    candidate_set_text = _candidate_set_text(reasoning_pack, reasoning_config)
     allowed_labels = resolve_allowed_mechanism_labels(reasoning_pack, reasoning_config)
+    allow_other_label = "other" in allowed_labels
+    available_trend_ids = _available_evidence_ids(reasoning_pack, ATB_TREND_PROFILE_EVIDENCE_IDS)
+    available_enrichment_ids = _available_evidence_ids(reasoning_pack, ATB_ENRICHMENT_EVIDENCE_IDS)
+    available_emission_ids = _available_evidence_ids(reasoning_pack, TARGET_OBSERVATION_EVIDENCE_IDS)
+    available_structure_prior_ids = _available_evidence_ids(reasoning_pack, STRUCTURE_PRIOR_EVIDENCE_IDS)
+    available_structure_agent_ids = _available_evidence_ids(reasoning_pack, STRUCTURE_AGENT_EVIDENCE_IDS)
+    available_comparative_ids = _available_evidence_ids(reasoning_pack, COMPARATIVE_TRANSFERABILITY_EVIDENCE_IDS)
+    available_aop_compact_ids = _available_evidence_ids(reasoning_pack, AOP_COMPACT_EVIDENCE_IDS)
 
     output_line = (
         "Respond in natural language using tagged sections only.\n"
@@ -1821,29 +3130,41 @@ def build_master_prompt_bundle(reasoning_pack: Dict[str, Any], reasoning_config:
         "- novelty: emphasize uncertainty and verification path.",
         "Evidence Weighting Policy:",
         f"- Neighbors are context/prior unless top1_sim >= {policy['neighbor_support_min_sim']:.2f}.",
+        f"- Target observation IDs available this round: {', '.join(available_emission_ids) if available_emission_ids else 'none'}.",
         "- aTB features are support evidence when available.",
-        "- In R1+ profiles, use self-trend evidence IDs (E31..E34) as primary aTB support when present.",
-        "- When available, also use E35..E39 to summarize CT proxy, structural relaxation, and shape-rigidity cues from target-only aTB.",
+        f"- Self-trend IDs available this round: {', '.join(available_trend_ids) if available_trend_ids else 'none'}.",
+        f"- Target aTB enrichment IDs available this round: {', '.join(available_enrichment_ids) if available_enrichment_ids else 'none'}.",
+        f"- Compact .aop transition IDs available this round: {', '.join(available_aop_compact_ids) if available_aop_compact_ids else 'none'}.",
+        f"- Structure-prior IDs available this round: {', '.join(available_structure_prior_ids) if available_structure_prior_ids else 'none'}.",
+        f"- Structure-agent IDs available this round: {', '.join(available_structure_agent_ids) if available_structure_agent_ids else 'none'}.",
+        f"- Comparative IDs available this round: {', '.join(available_comparative_ids) if available_comparative_ids else 'none'}.",
+        "- Cite only IDs that actually appear in evidence_registry for this round.",
         "- Do not use raw absolute aTB values as standalone mechanism verdicts; cite self-trend buckets/directions first.",
         f"- {candidate_set_text}",
         "aTB discriminative rubric:",
         "- Assign atb_support_level by comparing abs(delta_dihedral) against reasoning_config.thresholds.atb_dihedral_thresh_none and reasoning_config.thresholds.atb_dihedral_thresh_strong.",
         "- If you mention threshold logic in text, you must cite exact key=value from reasoning_config.thresholds.",
         "- Otherwise use relative wording only (e.g., modest/large) and avoid threshold/range/band/cutoff terms.",
-        "- delta_gap is weak CT-family context only (never strong evidence).",
-        "- For aTB evidence, prefer direction/bucket wording from atb_trend_profile (or legacy atb_trends_self) over raw numeric thresholds.",
-        "- Treat delta_dipole plus delta_gap as the CT proxy axis; do not use delta_gap alone as the only CT argument when E35/E36 are available.",
+        "- Treat electronic redistribution as one generic axis described in phenomenon-level terms only.",
+        "- Treat target observation (emission observations and their compact summary) as a target-side axis that is stronger than neighbor comparative context when present.",
+        "- For target-only aTB evidence, prefer direction/bucket wording from atb_trend_profile (or legacy atb_trends_self) over raw numeric thresholds.",
+        "- Treat the electronic redistribution profile as a compact cue derived from atom-wise charge-variation summaries and gap change.",
+        "- It is not a true dipole-moment measurement and should be interpreted only as one evidence axis among others.",
         "- Treat structural relaxation as a combined signal from torsion, bond, angle, and volume changes; do not rely on delta_dihedral alone when E37 is available.",
-        "- Treat shape-rigidity (E39) as auxiliary context only; it can support neutral-aromatic-like stability but should not override stronger CT or relaxation evidence.",
+        "- Treat shape-rigidity (E39) as auxiliary context that may reinforce or weaken cross-axis consistency.",
+        "- Treat structure prior (E40..E44) as a generic topology/context axis that stays label-agnostic and auditable when those IDs are present.",
+        "- Treat structure-agent evidence (E50..E56) as candidate-generation context from the R0 fact sheet, prior reliability, and candidate slate; it does not by itself determine the final mechanism.",
+        "- Comparative transferability evidence (E21..E24) may refine target-only interpretation but cannot determine the winning label by itself.",
         "supporting_chain must contain exactly 4 ordered steps A->B->C->D:",
         "- A excited-state structural access (aTB features)",
-        "- B hypothesized nonradiative channel",
+        "- B electronic redistribution or nonradiative-channel interpretation (legacy schema key ct_family)",
         "- C aggregation/rigidification suppressing nonradiative channel",
         "- D discriminative predictions to separate the top competing mechanisms listed above (or the top hypotheses you propose if none are provided).",
         "- step_name must be chosen from: ct_family, torsion_access, aIE_bridge, neighbor_priors, discriminators, limits",
+        "- Use ct_family only as the legacy schema key for the electronic redistribution axis; legacy schema key: ct_family; it is not privileged support for any mechanism label.",
         "If constraints cannot be satisfied, set status=insufficient_evidence and still return predictions.",
         "When citing evidence, use only evidence_id keys (E1, E2, ..., E31..E34, plus legacy E_ATB_TREND_1..4 if present).",
-        "Additional cache-derived aTB evidence IDs may appear as E35..E39; prefer these summaries over raw field-by-field narration when they are present.",
+        "Additional cache-derived evidence IDs may appear as E35..E63; prefer these summaries over raw field-by-field narration when they are present.",
         "Never output case_path anywhere in the JSON (including evidence_used, supporting_chain, competing_hypotheses, predictions).",
         f"PRIMARY_LABEL must be exactly one mechanism token from this set: {', '.join(allowed_labels)}. Do not add explanation text in PRIMARY_LABEL.",
         "Hard output budgets:",
@@ -1852,8 +3173,9 @@ def build_master_prompt_bundle(reasoning_pack: Dict[str, Any], reasoning_config:
         f"- competing_hypotheses max {MASTER_MAX_COMPETING_ITEMS} items.",
         f"- evidence_used max {MASTER_MAX_EVIDENCE_USED_ITEMS} items.",
         f"- each evidence note max {MASTER_NOTE_MAX_CHARS} chars.",
-        "Top-level evidence_used should stay compact and prioritize: uncertainty bounds (E2,E4,E6), aTB cues (E11,E12,[E14]), and missing discriminators (E19,E20,[E10]) when available.",
+        "Top-level evidence_used should stay compact and prioritize uncertainty bounds plus the active-profile aTB/structure IDs that are present in evidence_registry.",
         "When profile is R2/R3 and E21/E22 exist, cite at least one of them in supporting_chain to ground comparative neighbor-vs-target interpretation.",
+        "When profile is R2/R3 and any of E60..E63 are present, cite at least one compact .aop transition cue in evidence_used.",
         "natural_language_mechanism should be a three-paragraph narrative in one string: best hypothesis, unresolved boundary among top competing mechanisms, and falsifiable next tests.",
         "Do not cite neighbors_topk fields directly.",
         "Hard rule: DO NOT invent numeric thresholds/bands. If threshold mention is necessary, reference reasoning_config.thresholds key/value exactly.",
@@ -1863,18 +3185,30 @@ def build_master_prompt_bundle(reasoning_pack: Dict[str, Any], reasoning_config:
         instructions.extend(
             [
                 "Round contract (R0 prior-only):",
-                "- Treat this as a prior round from neighbor/similarity/novelty signals.",
+                "- Read the R0 prior stack in this order: structure facts (E50..E54 when present), prior reliability (E55), then candidate slate (E56).",
+                "- Treat neighbor/similarity/novelty signals as prior reliability context, not as a direct verdict.",
+                "- Focus on a ranked candidate slate, not a final verdict.",
+                "- Structure facts describe phenomena only; they do not directly determine mechanism labels.",
+                "- Candidate slate is a suggestion layer synthesized from multiple priors; do not treat it as ground truth.",
+                "- Do not restate raw feature/murcko/ECFP disagreements unless they are already summarized by prior reliability or candidate slate.",
+                "- Keep at least two competing mechanisms visible unless the candidate set is genuinely empty.",
+                "- If prior reliability is low or ambiguity is high, keep at least three competing mechanisms visible and avoid a high-confidence top1.",
                 "- Do NOT output a high-confidence final verdict; keep status=insufficient_evidence if uncertainty remains.",
-                "- Focus on candidate mechanism set and explicit discriminators needed for later rounds.",
+                "- Explicitly state what target-specific evidence would move the leading candidate up or down in later rounds.",
             ]
         )
+        if allow_other_label:
+            instructions.append("- Do not use 'other' as the top primary label in R0; treat it as a residual late-round outcome only.")
     elif active_profile == "R1":
         instructions.extend(
             [
                 "Round contract (R1 target-constraint):",
-                "- Use E31..E34 as primary aTB evidence when present.",
-                "- Use E35/E36 to express CT-proxy gain or loss of support when available.",
-                "- Use E37 to express structural-relaxation gain or loss of support when available.",
+                f"- Use target observation IDs first when present: {', '.join(available_emission_ids) if available_emission_ids else 'none'}.",
+                f"- Use self-trend IDs as primary target aTB evidence when present: {', '.join(available_trend_ids) if available_trend_ids else 'none'}.",
+                f"- Use available target-aTB enrichment IDs for gain/loss updates: {', '.join(available_enrichment_ids) if available_enrichment_ids else 'none'}.",
+                f"- Use available structure-prior IDs for gain/loss updates: {', '.join(available_structure_prior_ids) if available_structure_prior_ids else 'none'}.",
+                "- Interpret target observations before target aTB when both are available.",
+                "- If E70..E73 are present, cite at least one of them in supporting_chain or top-level evidence_used.",
                 "- Explain which candidate mechanisms gain/lose weight under target self-trend evidence.",
                 "- Prefer bucket/direction/percentile_global wording; do not make absolute-value threshold verdicts.",
             ]
@@ -1883,11 +3217,18 @@ def build_master_prompt_bundle(reasoning_pack: Dict[str, Any], reasoning_config:
         instructions.extend(
             [
                 "Round contract (R2 comparative-control):",
-                "- Use comparative evidence (E21/E22/E23/E24) to assess neighbor transferability vs outlier behavior.",
-                "- Keep target-only evidence (E35..E39) in view when comparative neighbor evidence is weak or mixed.",
+                f"- Keep target observation IDs ({', '.join(available_emission_ids) if available_emission_ids else 'none'}) in view as the target-side observation anchor when available.",
+                f"- Use comparative evidence IDs ({', '.join(available_comparative_ids) if available_comparative_ids else 'none'}) to assess neighbor transferability vs outlier behavior.",
+                f"- Keep target-only enrichment IDs ({', '.join(available_enrichment_ids) if available_enrichment_ids else 'none'}) and structure-prior IDs ({', '.join(available_structure_prior_ids) if available_structure_prior_ids else 'none'}) in view when comparative evidence is weak or mixed.",
+                f"- If compact .aop transition IDs are present ({', '.join(available_aop_compact_ids) if available_aop_compact_ids else 'none'}), cite at least one to ground excited-state transition context.",
+                "- Comparative evidence can refine but must not override target observation evidence when target observations are available.",
                 "- If comparative evidence is weak/unavailable, state limited information gain and avoid over-updating claims.",
             ]
         )
+        if allow_other_label:
+            instructions.append("- If standard-label support remains single-axis and residual ambiguity persists, keep a residual outcome in play instead of force-fitting to a standard label.")
+        else:
+            instructions.append("- If evidence stays ambiguous after target-side and comparative review, keep the leading standard label provisional or output unknown instead of inventing an out-of-pool label.")
     elif active_profile == "R3":
         instructions.extend(
             [
@@ -1896,6 +3237,10 @@ def build_master_prompt_bundle(reasoning_pack: Dict[str, Any], reasoning_config:
                 "- Distinguish plausible narrative from externally verifiable support.",
             ]
         )
+        if allow_other_label:
+            instructions.append("- A late-round residual outcome ('other') remains valid when standard labels stay weakened or unresolved under target-side evidence.")
+        else:
+            instructions.append("- If no standard label closes under the available evidence, use unknown to signal unresolved mechanism attribution.")
     if output_mode != MASTER_OUTPUT_MODE_STRICT_SCHEMA:
         instructions.extend(
             [
@@ -2375,6 +3720,11 @@ def validate_master_output(
         for eid in (*ATB_TREND_EVIDENCE_IDS, *ATB_TREND_PROFILE_EVIDENCE_IDS)
         if eid in evidence_registry
     }
+    emission_ids_in_registry = {
+        eid
+        for eid in TARGET_OBSERVATION_EVIDENCE_IDS
+        if eid in evidence_registry
+    }
     schema_version = str(reasoning_config.get("master_output_schema_version") or "v3").lower()
 
     # Phase A: structural validation (hard fail).
@@ -2527,7 +3877,7 @@ def validate_master_output(
     atb_support_citations = 0
     step_semantics = {
         "A": ("excited", "struct", "geometry", "dihedral", "atb"),
-        "B": ("nonradiative", "channel", "torsion", "ict", "tict", "ct"),
+        "B": ("nonradiative", "channel", "redistribution", "electronic", "torsion", "relax"),
         "C": ("aggregation", "rigid", "rim", "suppress", "packing"),
         "D": ("discrimin", "test", "measure", "compare", "separate", "prediction"),
     }
@@ -2610,8 +3960,117 @@ def validate_master_output(
                 if isinstance(ev, dict):
                     _validate_and_collect(ev, f"/predictions/{i}/evidence_used/{j}")
 
-    # Round-specific evidence discipline.
+    # Ensure compact .aop transition cues participate in R2/R3 reasoning when available.
+    aop_ids_in_registry = [eid for eid in AOP_COMPACT_EVIDENCE_IDS if eid in evidence_registry]
+    if active_profile in {"R2", "R3"} and aop_ids_in_registry:
+        used_ids_snapshot = {str(x) for x in used_evidence_ids if str(x)}
+        if used_ids_snapshot.isdisjoint(aop_ids_in_registry):
+            selected_eid = aop_ids_in_registry[0]
+            auto_row = {
+                "evidence_id": selected_eid,
+                "role": "context",
+                "note": "compact aop transition cue from target aTB cache",
+            }
+            ev_list = out.get("evidence_used")
+            if not isinstance(ev_list, list):
+                ev_list = []
+            ev_list.insert(0, auto_row)
+            out["evidence_used"] = ev_list[:MASTER_MAX_EVIDENCE_USED_ITEMS]
+            _validate_and_collect(out["evidence_used"][0], "/evidence_used/0")
+            warnings.append(
+                _warn(
+                    "r2_missing_aop_compact_citation_auto_added",
+                    "/evidence_used",
+                    f"added {selected_eid} because compact .aop evidence is available in this round",
+                )
+            )
+
+    # Uniform multi-axis governance.
     used_ids_set = {str(x) for x in used_evidence_ids}
+    governing_ids = _collect_governing_evidence_ids(out)
+    axis_support_summary = _axis_support_summary(governing_ids)
+    axis_role_summary = _merge_axis_role_summary(
+        _axis_role_summary(out.get("evidence_used")),
+        *[
+            _axis_role_summary((row or {}).get("evidence_used"))
+            for row in (out.get("supporting_chain") or [])
+            if isinstance(row, dict)
+        ],
+    )
+    primary_axes = [
+        axis_name
+        for axis_name in GOVERNING_PRIMARY_AXES
+        if axis_role_summary.get(axis_name, {}).get("support")
+    ]
+    weakening_axes = [
+        axis_name
+        for axis_name in GOVERNING_PRIMARY_AXES
+        if axis_role_summary.get(axis_name, {}).get("weakening")
+    ]
+    axis_count = len(primary_axes)
+    single_axis_penalty_applied = False
+    conflict_penalty_applied = False
+    comparative_only_adjust_applied = False
+    other_residual_support_applied = False
+    r0_prior_only_penalty_applied = False
+
+    def _apply_confidence_rule(*, factor: float = 1.0, cap: Optional[float] = None) -> None:
+        mech = out.get("mechanism_claim")
+        if not isinstance(mech, dict):
+            return
+        conf_val = _to_float(mech.get("confidence"))
+        if conf_val is None:
+            return
+        new_conf = conf_val * float(factor)
+        if cap is not None:
+            new_conf = min(float(cap), new_conf)
+        mech["confidence"] = max(0.05, min(0.95, new_conf))
+
+    if bool(policy.get("comparative_axis_can_only_adjust")) and active_profile in {"R2", "R3"}:
+        if axis_support_summary.get("comparative_transferability") and not primary_axes:
+            warnings.append(
+                _warn(
+                    "comparative_only_support_not_allowed",
+                    "/supporting_chain",
+                    "comparative evidence can refine but cannot independently determine the mechanism label",
+                )
+            )
+            out["status"] = "insufficient_evidence"
+            if str(out.get("template_used") or "").strip().lower() == "stable":
+                out["template_used"] = "mixture"
+            _apply_confidence_rule(
+                factor=float(policy.get("comparative_only_support_penalty_factor") or 0.85)
+            )
+            limits = _normalize_limits(out.get("limits"))
+            msg = "Comparative evidence can refine but cannot independently determine the mechanism label."
+            if msg not in limits:
+                limits.append(msg)
+            out["limits"] = limits
+            comparative_only_adjust_applied = True
+
+    if axis_count == 1:
+        warnings.append(
+            _warn(
+                "single_axis_support_only",
+                "/supporting_chain",
+                f"winning claim is supported by one primary evidence axis only: {primary_axes[0]}",
+            )
+        )
+        if str(out.get("status") or "").strip().lower() == "ok":
+            out["status"] = "insufficient_evidence"
+        if str(out.get("template_used") or "").strip().lower() == "stable":
+            out["template_used"] = "mixture"
+        _apply_confidence_rule(
+            factor=float(policy.get("single_axis_penalty_factor") or 0.80),
+            cap=float(policy.get("single_axis_confidence_cap") or 0.38),
+        )
+        limits = _normalize_limits(out.get("limits"))
+        msg = "Primary claim is supported by only one evidence axis, so mechanism resolution remains underdetermined."
+        if msg not in limits:
+            limits.append(msg)
+        out["limits"] = limits
+        single_axis_penalty_applied = True
+
     if active_profile == "R1" and trend_ids_in_registry and used_ids_set.isdisjoint(trend_ids_in_registry):
         warnings.append(
             _warn(
@@ -2626,6 +4085,249 @@ def validate_master_output(
         if msg not in limits:
             limits.append(msg)
         out["limits"] = limits
+
+    if active_profile == "R1" and emission_ids_in_registry and used_ids_set.isdisjoint(emission_ids_in_registry):
+        warnings.append(
+            _warn(
+                "r1_missing_emission_observation_citation",
+                "/supporting_chain",
+                "R1 requires at least one emission observation evidence citation (E70..E73) when available",
+            )
+        )
+        out["status"] = "insufficient_evidence"
+        limits = _normalize_limits(out.get("limits"))
+        msg = "R1 output lacks emission observation citation; target observation remains unused."
+        if msg not in limits:
+            limits.append(msg)
+        out["limits"] = limits
+
+    warning_codes = {str(row.get("code") or "") for row in warnings if isinstance(row, dict)}
+    unresolved_codes = {
+        "single_axis_support_only",
+        "comparative_only_support_not_allowed",
+        "r1_missing_atb_self_trend_citation",
+        "r1_missing_emission_observation_citation",
+    }
+    active_conflict_count = 0
+    mech = out.get("mechanism_claim")
+    primary_confidence = _to_float((mech or {}).get("confidence")) if isinstance(mech, dict) else None
+    if primary_confidence is not None:
+        for row in out.get("competing_hypotheses") or []:
+            if not isinstance(row, dict):
+                continue
+            rival_conf = _to_float(row.get("confidence"))
+            if rival_conf is None:
+                continue
+            if rival_conf >= max(0.30, primary_confidence - 0.15):
+                active_conflict_count += 1
+    conflict_factor = 1.0
+    if active_conflict_count >= 2:
+        conflict_factor *= float(policy.get("multi_active_conflict_penalty") or 0.80)
+    elif active_conflict_count == 1:
+        conflict_factor *= float(policy.get("one_active_conflict_penalty") or 0.90)
+    if str(out.get("template_used") or "").strip().lower() == "mixture":
+        conflict_factor *= float(policy.get("mixture_conflict_penalty") or 0.92)
+    if warning_codes.intersection(unresolved_codes):
+        conflict_factor *= float(policy.get("unresolved_warning_penalty") or 0.90)
+    if conflict_factor < 0.999:
+        _apply_confidence_rule(factor=conflict_factor)
+        conflict_penalty_applied = True
+
+    claim = out.get("mechanism_claim") if isinstance(out.get("mechanism_claim"), dict) else {}
+    primary = claim.get("primary_hypothesis") if isinstance(claim.get("primary_hypothesis"), dict) else {}
+    llm_primary_label = str(primary.get("mechanism_label") or "").strip()
+    primary_label = llm_primary_label
+    normalization_reason_codes: List[str] = []
+    standard_candidate_names = [
+        str((row or {}).get("name") or "").strip()
+        for row in (out.get("competing_hypotheses") or [])
+        if isinstance(row, dict) and str((row or {}).get("name") or "").strip() not in {"", "other", "unknown"}
+    ]
+    standard_candidates_in_play = list(standard_candidate_names)
+    if primary_label and primary_label not in {"other", "unknown"} and primary_label not in standard_candidates_in_play:
+        standard_candidates_in_play.insert(0, primary_label)
+    target_side_support_ids = {
+        *TARGET_OBSERVATION_EVIDENCE_IDS,
+        *ATB_TREND_PROFILE_EVIDENCE_IDS,
+        *ATB_ENRICHMENT_EVIDENCE_IDS,
+        *AOP_COMPACT_EVIDENCE_IDS,
+    }
+    has_target_side_support = bool(used_ids_set.intersection(target_side_support_ids))
+    standard_label_closure = None
+    residual_other_admissible = False
+
+    if active_profile == "R0":
+        if str(out.get("template_used") or "").strip().lower() == "stable":
+            warnings.append(
+                _warn(
+                    "r0_stable_template_forbidden",
+                    "/template_used",
+                    "R0 is a candidate-generation round; template changed from stable to mixture",
+                )
+            )
+            out["template_used"] = "mixture"
+        out["status"] = "insufficient_evidence"
+        r0_cap = float(policy.get("r0_candidate_confidence_cap") or 0.30)
+        _apply_confidence_rule(cap=r0_cap)
+        if primary_label == "other":
+            warnings.append(
+                _warn(
+                    "r0_other_primary_forbidden",
+                    "/mechanism_claim/primary_hypothesis/mechanism_label",
+                    "R0 cannot use 'other' as the primary label; converted to unknown",
+                )
+            )
+            primary["mechanism_label"] = "unknown"
+            primary_label = "unknown"
+        competing = out.get("competing_hypotheses")
+        if not isinstance(competing, list):
+            competing = []
+        existing_names = {
+            str((row or {}).get("name") or "").strip()
+            for row in competing
+            if isinstance(row, dict)
+        }
+        candidate_fill = _candidate_pool_from_context(reasoning_pack, out, max_items=5)
+        next_rank = len(competing) + 1
+        for row in candidate_fill:
+            cand_label = str(row.get("label") or "").strip()
+            if not cand_label or cand_label in existing_names or cand_label == primary_label:
+                continue
+            competing.append(
+                {
+                    "name": cand_label,
+                    "confidence": max(0.08, min(0.28, float(_to_float(row.get("probability")) or 0.18))),
+                    "atb_support_level": str(primary.get("atb_support_level") or "none"),
+                    "evidence_used": [],
+                }
+            )
+            existing_names.add(cand_label)
+            next_rank += 1
+            if len(competing) >= 2:
+                break
+        out["competing_hypotheses"] = competing[:MASTER_MAX_COMPETING_ITEMS]
+        limits = _normalize_limits(out.get("limits"))
+        msg = "R0 is prior-only and keeps multiple candidates open until target-specific evidence arrives."
+        if msg not in limits:
+            limits.append(msg)
+        out["limits"] = limits[:6]
+        r0_prior_only_penalty_applied = True
+
+    if primary_label not in {"", "unknown", "other"}:
+        closure_eval = evaluate_standard_label_closure(
+            primary_axes=primary_axes,
+            min_positive_axes=int(policy.get("standard_label_min_positive_axes") or 2),
+            requires_target_axis=bool(policy.get("standard_label_requires_target_axis", True)),
+        )
+        standard_label_closure = str(closure_eval.get("status") or "unsupported")
+    residual_eval = evaluate_residual_other_admissibility(
+        active_profile=active_profile,
+        has_target_side_support=has_target_side_support,
+        standard_candidates_in_play=standard_candidates_in_play,
+        standard_label_closed=bool(standard_label_closure == "closed"),
+        primary_axes=primary_axes,
+        weakening_axes=weakening_axes,
+        active_conflict_count=active_conflict_count,
+        min_standard_candidates=int(policy.get("residual_other_min_standard_candidates") or 2),
+        min_conflicts=int(policy.get("residual_other_min_conflicts") or 2),
+    )
+    residual_other_admissible = bool(residual_eval.get("admissible"))
+    novelty_eval = evaluate_novelty_candidate(
+        reasoning_pack=reasoning_pack,
+        residual_other_admissible=residual_other_admissible,
+        active_conflict_count=active_conflict_count,
+    )
+    novelty_candidate = bool(novelty_eval.get("is_novelty_candidate"))
+    novelty_basis = [str(x) for x in (novelty_eval.get("basis") or []) if str(x)]
+    normalized_primary_label = primary_label or "unknown"
+    canonical_pool_closed = bool(standard_label_closure == "closed")
+    if active_profile == "R0" and primary_label not in {"", "unknown", "other"}:
+        decision_state = "provisional_known"
+        normalization_reason_codes.append("r0_prior_only_decision")
+    elif primary_label == "other":
+        if active_profile in {"R2", "R3"} and residual_other_admissible:
+            decision_state = "residual_supported"
+        else:
+            decision_state = "insufficient_evidence"
+            normalization_reason_codes.append("other_without_residual_admissibility")
+    elif primary_label in {"", "unknown"}:
+        decision_state = "insufficient_evidence"
+        normalization_reason_codes.append("llm_unknown_retained" if primary_label == "unknown" else "missing_primary_label")
+    elif standard_label_closure == "closed":
+        decision_state = "closed_known"
+    elif standard_label_closure == "provisional":
+        decision_state = "provisional_known"
+        normalization_reason_codes.append("standard_label_provisional")
+    else:
+        decision_state = "insufficient_evidence"
+        normalization_reason_codes.append("standard_label_unsupported")
+
+    if decision_state == "provisional_known":
+        if str(out.get("status") or "").strip().lower() == "ok":
+            out["status"] = "insufficient_evidence"
+        if str(out.get("template_used") or "").strip().lower() == "stable":
+            out["template_used"] = "mixture"
+        _apply_confidence_rule(
+            cap=float(
+                policy.get("late_round_provisional_standard_confidence_cap")
+                or policy.get("late_round_single_axis_standard_confidence_cap")
+                or 0.32
+            ),
+        )
+        limits = _normalize_limits(out.get("limits"))
+        msg = "Current standard-label lead remains provisional until at least two primary axes close on the same mechanism."
+        if msg not in limits:
+            limits.append(msg)
+        out["limits"] = limits[:6]
+    elif decision_state == "insufficient_evidence":
+        if str(out.get("status") or "").strip().lower() == "ok":
+            out["status"] = "insufficient_evidence"
+        if str(out.get("template_used") or "").strip().lower() == "stable":
+            out["template_used"] = "mixture"
+        if primary_label == "other":
+            limits = _normalize_limits(out.get("limits"))
+            msg = "Residual 'other' remains provisional until late-round admissibility is confirmed."
+            if msg not in limits:
+                limits.append(msg)
+            out["limits"] = limits[:6]
+            _apply_confidence_rule(cap=0.18)
+            other_residual_support_applied = True
+        elif primary_label not in {"", "unknown"}:
+            limits = _normalize_limits(out.get("limits"))
+            msg = "Current lead remains unsupported under the available evidence; final adjudication may still resolve to unknown."
+            if msg not in limits:
+                limits.append(msg)
+            out["limits"] = limits[:6]
+            _apply_confidence_rule(cap=0.18)
+
+    out_meta = out.get("__meta") if isinstance(out.get("__meta"), dict) else {}
+    out_meta["axis_support_summary"] = {k: list(v) for k, v in axis_support_summary.items() if v}
+    out_meta["axis_support_polarity_summary"] = {
+        axis_name: {bucket: list(values) for bucket, values in buckets.items() if values}
+        for axis_name, buckets in axis_role_summary.items()
+        if any(buckets.get(bucket) for bucket in ("support", "weakening", "context"))
+    }
+    out_meta["axis_count"] = axis_count
+    out_meta["positive_axis_count"] = len(primary_axes)
+    out_meta["weakening_axis_count"] = len(weakening_axes)
+    out_meta["single_axis_penalty_applied"] = single_axis_penalty_applied
+    out_meta["active_conflict_count"] = active_conflict_count
+    out_meta["conflict_penalty_applied"] = conflict_penalty_applied
+    out_meta["comparative_only_adjust_applied"] = comparative_only_adjust_applied
+    out_meta["other_residual_support_applied"] = other_residual_support_applied
+    out_meta["r0_prior_only_penalty_applied"] = r0_prior_only_penalty_applied
+    out_meta["llm_primary_label"] = llm_primary_label or None
+    out_meta["normalized_primary_label"] = normalized_primary_label or None
+    out_meta["standard_label_closure"] = standard_label_closure
+    out_meta["decision_state"] = decision_state
+    out_meta["canonical_pool_closed"] = canonical_pool_closed
+    out_meta["residual_other_admissible"] = residual_other_admissible
+    out_meta["novelty_candidate"] = novelty_candidate
+    out_meta["novelty_basis"] = novelty_basis
+    out_meta["normalization_reason_codes"] = list(dict.fromkeys(normalization_reason_codes))
+    out_meta["residual_other_reasons"] = list(residual_eval.get("reasons") or [])
+    out_meta["residual_other_qualifying_signals"] = list(residual_eval.get("qualifying_signals") or [])
+    out["__meta"] = out_meta
 
     def _prune_evidence_list(rows: Any) -> List[Dict[str, Any]]:
         out_rows: List[Dict[str, Any]] = []
@@ -2679,10 +4381,6 @@ def validate_master_output(
         )
         if isinstance(out.get("mechanism_claim"), dict):
             out["mechanism_claim"]["confidence"] = 0.05
-
-    # R0 stays prior-only: status remains conservative, but no hard confidence cut.
-    if active_profile == "R0" and isinstance(out.get("mechanism_claim"), dict):
-        out["status"] = "insufficient_evidence"
 
     # Conservative constraints
     gate_mode = str((reasoning_pack.get("gate") or {}).get("reasoning_mode") or "").lower()

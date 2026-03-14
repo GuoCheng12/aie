@@ -1,3 +1,4 @@
+from src.reasoning import master_reasoner
 from src.reasoning.master_reasoner import build_reasoning_pack
 
 
@@ -85,3 +86,19 @@ def test_master_pack_profile_r2_includes_neighbor_stats_and_evidence_ids():
     assert "E24" in registry_ids
     # by_label is data-dependent but this fixture should satisfy the emission condition.
     assert "E23" in registry_ids
+
+
+def test_master_pack_profile_r2_keeps_comparative_ids_after_pack_shrink(monkeypatch):
+    case = _case_fixture()
+    monkeypatch.setattr(master_reasoner, "MAX_PACK_BYTES", 1)
+    pack = build_reasoning_pack(
+        case,
+        {
+            "run_lane": "atb_cache_only",
+            "evidence_profiles": {"active_profile": "R2"},
+        },
+    )
+    registry_ids = [str(x.get("evidence_id")) for x in (pack.get("evidence_registry") or []) if isinstance(x, dict)]
+    assert len(registry_ids) <= 20
+    for eid in ("E21", "E22", "E23", "E24"):
+        assert eid in registry_ids

@@ -4,9 +4,11 @@ Conversationless multi-agent orchestrator with patch-scoped writes.
 
 from __future__ import annotations
 
+import json
 import traceback
 from copy import deepcopy
 from pathlib import Path
+from time import perf_counter
 from typing import Any, Dict, List, Optional, Sequence, Tuple
 
 from src.agents.base import CaseAgent
@@ -22,6 +24,7 @@ from src.core.types import (
     SKIPPED_REASON_NOT_APPLICABLE,
 )
 from src.orchestration.policies import gate_allows_reasoning
+from src.orchestration.run_status import atomic_write_json, emit_progress_event, now_iso8601
 
 
 FINAL_STATUSES = {"success", "partial", "stubbed"}
@@ -101,6 +104,69 @@ class Orchestrator:
         if not path.exists():
             return None
         return sha256_file(path)
+
+    def _progress_stage(self, agent_name: str) -> str:
+        return f"agent:{agent_name}"
+
+    def _emit_agent_progress(
+        self,
+        *,
+        agent_name: str,
+        status: str,
+        elapsed_ms: int,
+        agent_index: int,
+        agent_total: int,
+    ) -> None:
+        emit_progress_event(
+            round_index=int(getattr(self.ctx, "progress_round_index", 0) or 0),
+            max_rounds=int(getattr(self.ctx, "progress_max_rounds", 1) or 1),
+            active_profile=str(getattr(self.ctx, "progress_active_profile", "single") or "single"),
+            stage=self._progress_stage(agent_name),
+            status=str(status),
+            elapsed_ms=int(elapsed_ms),
+            extra={
+                "agent_index": int(agent_index),
+                "agent_total": int(agent_total),
+            },
+        )
+
+    def _write_status(
+        self,
+        *,
+        agent_name: str,
+        last_event: str,
+        errors: Optional[List[Dict[str, str]]] = None,
+    ) -> None:
+        status_path = getattr(self.ctx, "status_path", None)
+        if not status_path:
+            return
+        p = Path(status_path)
+        prev_errors: List[Dict[str, str]] = []
+        prev_eval_report: Optional[str] = None
+        if p.exists():
+            try:
+                prev = json.loads(p.read_text(encoding="utf-8"))
+                if isinstance(prev, dict):
+                    if isinstance(prev.get("errors"), list):
+                        prev_errors = list(prev.get("errors") or [])
+                    prev_eval_report = prev.get("latest_eval_report")
+            except Exception:
+                pass
+        payload = {
+            "run_id": self.ctx.run_id,
+            "case_id": str(self.ctx.case_path.stem or ""),
+            "round_index": int(getattr(self.ctx, "progress_round_index", 0) or 0),
+            "max_rounds": int(getattr(self.ctx, "progress_max_rounds", 1) or 1),
+            "active_profile": str(getattr(self.ctx, "progress_active_profile", "single") or "single"),
+            "round_runner_mode": "setup_or_default",
+            "stage": self._progress_stage(agent_name),
+            "last_event": last_event,
+            "last_updated_at": now_iso8601(),
+            "errors": list(prev_errors if errors is None else (errors or [])),
+            "round_dir": str(self.ctx.run_dir),
+            "latest_eval_report": prev_eval_report,
+        }
+        atomic_write_json(p, payload)
 
     def _execute_agent(
         self,
@@ -265,6 +331,15 @@ class Orchestrator:
 
         summaries: List[Dict[str, Any]] = []
         for idx, agent in enumerate(self.agents, start=1):
+            t_agent = perf_counter()
+            self._emit_agent_progress(
+                agent_name=agent.name,
+                status="running",
+                elapsed_ms=0,
+                agent_index=idx,
+                agent_total=len(self.agents),
+            )
+            self._write_status(agent_name=agent.name, last_event=f"{agent.name}_start", errors=None)
             if agent.name == "reasoning_agent" and not gate_allows_reasoning(cur):
                 cur, step_summary, hard_fail = self._execute_agent(
                     idx=idx,
@@ -275,6 +350,27 @@ class Orchestrator:
             else:
                 cur, step_summary, hard_fail = self._execute_agent(idx=idx, case=cur, agent=agent)
             summaries.append(step_summary)
+            err_rows: Optional[List[Dict[str, str]]] = None
+            if str(step_summary.get("status") or "") == "failed":
+                err_rows = [
+                    {
+                        "code": "agent_failed",
+                        "path": f"/agent_runs/{idx - 1}",
+                        "detail": "; ".join(str(x) for x in (step_summary.get("warnings") or []) if str(x)),
+                    }
+                ]
+            self._emit_agent_progress(
+                agent_name=agent.name,
+                status=str(step_summary.get("status") or "completed"),
+                elapsed_ms=int((perf_counter() - t_agent) * 1000),
+                agent_index=idx,
+                agent_total=len(self.agents),
+            )
+            self._write_status(
+                agent_name=agent.name,
+                last_event=f"{agent.name}_{step_summary.get('status') or 'completed'}",
+                errors=err_rows,
+            )
             if hard_fail:
                 break
 

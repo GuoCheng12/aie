@@ -118,6 +118,18 @@ def _dedupe_keep_order(items: list[Any]) -> list[Any]:
     return out
 
 
+def _is_temperature_unsupported_error(exc: Exception) -> bool:
+    text = str(exc).lower()
+    if "temperature" not in text:
+        return False
+    return ("unsupported parameter" in text) or ("not supported" in text)
+
+
+def _is_generic_invalid_request_error(exc: Exception) -> bool:
+    text = str(exc).lower()
+    return ("invalid_request_error" in text) or ("there was an issue with your request" in text)
+
+
 class ResponsesLLMClient:
     def __init__(
         self,
@@ -266,8 +278,18 @@ class ResponsesLLMClient:
             try:
                 resp = client.chat.completions.create(**req)
             except Exception as exc:
-                errors.append(f"chat_create_failed:json_object={use_json_object}:{exc}")
-                continue
+                if "temperature" in req and _is_temperature_unsupported_error(exc):
+                    req_no_temp = dict(req)
+                    req_no_temp.pop("temperature", None)
+                    try:
+                        resp = client.chat.completions.create(**req_no_temp)
+                        req = req_no_temp
+                    except Exception as retry_exc:
+                        errors.append(f"chat_create_failed:json_object={use_json_object}:temperature_removed:{retry_exc}")
+                        continue
+                else:
+                    errors.append(f"chat_create_failed:json_object={use_json_object}:{exc}")
+                    continue
             resp_json = _to_json_obj(resp)
             last_response = resp_json
             text = _extract_chat_text(resp_json)
@@ -319,11 +341,24 @@ class ResponsesLLMClient:
         try:
             resp = client.chat.completions.create(**req)
         except Exception as exc:
-            raise LLMClientError(
-                f"chat_text_failed:chat_create_failed:{exc}",
-                code="llm_call_failed",
-                details={"last_request": req, "last_response": None, "last_text": None},
-            ) from exc
+            if "temperature" in req and _is_temperature_unsupported_error(exc):
+                req_no_temp = dict(req)
+                req_no_temp.pop("temperature", None)
+                try:
+                    resp = client.chat.completions.create(**req_no_temp)
+                    req = req_no_temp
+                except Exception as retry_exc:
+                    raise LLMClientError(
+                        f"chat_text_failed:chat_create_failed:temperature_removed:{retry_exc}",
+                        code="llm_call_failed",
+                        details={"last_request": req_no_temp, "last_response": None, "last_text": None},
+                    ) from retry_exc
+            else:
+                raise LLMClientError(
+                    f"chat_text_failed:chat_create_failed:{exc}",
+                    code="llm_call_failed",
+                    details={"last_request": req, "last_response": None, "last_text": None},
+                ) from exc
         resp_json = _to_json_obj(resp)
         text = _extract_chat_text(resp_json)
         if text:
@@ -346,7 +381,12 @@ class ResponsesLLMClient:
         text = " || ".join(str(e) for e in errors)
         text = f"{exc} || {text}"
         lowered = text.lower()
-        return "unsupported model" in lowered
+        return (
+            ("unsupported model" in lowered)
+            or ("temperature" in lowered and "unsupported parameter" in lowered)
+            or ("invalid_request_error" in lowered)
+            or ("there was an issue with your request" in lowered)
+        )
 
     def responses_json(
         self,
@@ -380,8 +420,20 @@ class ResponsesLLMClient:
                 try:
                     resp = client.responses.create(**req)
                 except Exception as exc:
-                    errors.append(f"responses_create_failed:effort={effort}:{exc}")
-                    continue
+                    if "temperature" in req and _is_temperature_unsupported_error(exc):
+                        req_no_temp = dict(req)
+                        req_no_temp.pop("temperature", None)
+                        try:
+                            resp = client.responses.create(**req_no_temp)
+                            req = req_no_temp
+                        except Exception as retry_exc:
+                            errors.append(
+                                f"responses_create_failed:effort={effort}:temperature_removed:{retry_exc}"
+                            )
+                            continue
+                    else:
+                        errors.append(f"responses_create_failed:effort={effort}:{exc}")
+                        continue
 
                 resp_json = _to_json_obj(resp)
                 last_response = resp_json
@@ -494,8 +546,20 @@ class ResponsesLLMClient:
                 try:
                     resp = client.responses.create(**req)
                 except Exception as exc:
-                    errors.append(f"responses_create_failed:effort={effort}:{exc}")
-                    continue
+                    if "temperature" in req and _is_temperature_unsupported_error(exc):
+                        req_no_temp = dict(req)
+                        req_no_temp.pop("temperature", None)
+                        try:
+                            resp = client.responses.create(**req_no_temp)
+                            req = req_no_temp
+                        except Exception as retry_exc:
+                            errors.append(
+                                f"responses_create_failed:effort={effort}:temperature_removed:{retry_exc}"
+                            )
+                            continue
+                    else:
+                        errors.append(f"responses_create_failed:effort={effort}:{exc}")
+                        continue
                 resp_json = _to_json_obj(resp)
                 last_response = resp_json
                 text = _extract_text(resp_json)

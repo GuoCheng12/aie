@@ -38,7 +38,7 @@ def load_ecfp_data(rdkit_features_path: str = "data/rdkit_features.parquet") -> 
     Load rdkit_features.parquet and filter to valid InChIKeys.
 
     Returns:
-        DataFrame with columns: inchikey, ecfp_2048
+        DataFrame with columns: inchikey, canonical_smiles, ecfp_2048
     """
     logger.info(f"Loading ECFP data from {rdkit_features_path}")
     df = pd.read_parquet(rdkit_features_path)
@@ -57,7 +57,10 @@ def load_ecfp_data(rdkit_features_path: str = "data/rdkit_features.parquet") -> 
 
     logger.info(f"Valid molecules: {n_valid}")
 
-    result = df_valid[["inchikey", "ecfp_2048"]].copy()
+    selected_cols = ["inchikey", "ecfp_2048"]
+    if "canonical_smiles" in df_valid.columns:
+        selected_cols.insert(1, "canonical_smiles")
+    result = df_valid[selected_cols].copy()
     result.attrs["skipped_invalid_inchikey_count"] = int(n_invalid)
     result.attrs["total_molecules_input"] = int(n_total)
     result.attrs["valid_molecules"] = int(n_valid)
@@ -133,6 +136,11 @@ def compute_all_neighbors(
 
     # Extract data as lists for faster iteration
     inchikeys = df["inchikey"].tolist()
+    canonical_smiles = (
+        df["canonical_smiles"].fillna("").astype(str).str.strip().tolist()
+        if "canonical_smiles" in df.columns
+        else ["" for _ in range(n)]
+    )
 
     # Precompute binary fingerprints
     logger.info("Converting fingerprints to binary...")
@@ -161,7 +169,10 @@ def compute_all_neighbors(
         # Compute similarity to all other molecules
         similarities = []
         for j in range(n):
-            if i == j:  # Skip self
+            if i == j:  # Skip self index
+                continue
+            # Extra self-exclusion guard for deduplicated canonical molecules.
+            if canonical_smiles[i] and canonical_smiles[i] == canonical_smiles[j]:
                 continue
             fp_j = fingerprints[j]
             if fp_j is None:

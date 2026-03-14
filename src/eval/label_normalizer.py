@@ -2,6 +2,8 @@
 Evaluation-only mechanism label normalization.
 
 This module is intentionally isolated from runtime reasoning output logic.
+Ground-truth and predicted labels share the same canonical mapping for
+benchmark alignment, but the call sites are split to keep intent explicit.
 """
 
 from __future__ import annotations
@@ -44,3 +46,10 @@ def normalize_label(raw: str | None) -> str:
         return "unknown"
     return _ALIASES.get(key, "unknown")
 
+
+def normalize_ground_truth_label(raw: str | None) -> str:
+    return normalize_label(raw)
+
+
+def normalize_prediction_label(raw: str | None) -> str:
+    return normalize_label(raw)

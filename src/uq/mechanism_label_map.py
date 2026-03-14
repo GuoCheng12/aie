@@ -9,7 +9,7 @@ Rule: MODE of non-null mechanism_id per inchikey; ties -> "unknown"
 import argparse
 import logging
 from pathlib import Path
-from typing import Dict, List, Tuple
+from typing import Dict, Iterable, List, Optional, Tuple
 
 import pandas as pd
 import numpy as np
@@ -19,7 +19,12 @@ logging.basicConfig(level=logging.INFO, format='%(asctime)s - %(levelname)s - %(
 logger = logging.getLogger(__name__)
 
 
-def build_mechanism_label_map(private_clean: pd.DataFrame) -> pd.DataFrame:
+def build_mechanism_label_map(
+    private_clean: pd.DataFrame,
+    *,
+    source_view: str | None = None,
+    allowed_labels: Optional[Iterable[str]] = None,
+) -> pd.DataFrame:
     """
     Build molecule-level mechanism label map from record-level data.
     
@@ -68,16 +73,28 @@ def build_mechanism_label_map(private_clean: pd.DataFrame) -> pd.DataFrame:
                 label_source = "mode"
                 is_tied = False
         
+        difficulty_levels: List[int] = []
+        if "difficulty_level" in group.columns:
+            raw_levels = pd.to_numeric(group["difficulty_level"], errors="coerce").dropna().astype(int).tolist()
+            difficulty_levels = sorted(set(raw_levels))
+
         results.append({
             'inchikey': inchikey,
             'mechanism_label': mechanism_label,
             'label_source': label_source,
             'n_records': n_records,
             'n_nonnull': n_nonnull,
-            'is_tied': is_tied
+            'is_tied': is_tied,
+            'difficulty_levels': difficulty_levels,
+            'source_view': source_view,
         })
     
     label_map = pd.DataFrame(results)
+    if allowed_labels is not None:
+        allowed = {str(label).strip().lower() for label in allowed_labels if str(label).strip()}
+        label_map = label_map[
+            label_map["mechanism_label"].astype(str).str.strip().str.lower().isin(allowed)
+        ].copy()
     
     # Log statistics
     logger.info(f"  Total molecules: {len(label_map)}")
@@ -96,7 +113,9 @@ def build_mechanism_label_map(private_clean: pd.DataFrame) -> pd.DataFrame:
 
 def run_build_label_map(
     private_clean_path: str = "data/private_clean.parquet",
-    output_path: str = "data/mechanism_label_map.parquet"
+    output_path: str = "data/mechanism_label_map.parquet",
+    source_view: str | None = None,
+    allowed_labels: Optional[Iterable[str]] = None,
 ) -> pd.DataFrame:
     """Build and save mechanism label map."""
     
@@ -110,7 +129,11 @@ def run_build_label_map(
     logger.info(f"  Loaded {len(private_clean)} records")
     
     # Build label map
-    label_map = build_mechanism_label_map(private_clean)
+    label_map = build_mechanism_label_map(
+        private_clean,
+        source_view=source_view,
+        allowed_labels=allowed_labels,
+    )
     
     # Save
     logger.info(f"Saving label map to {output_path}")
@@ -129,9 +152,23 @@ def main():
                        help='Path to private_clean.parquet')
     parser.add_argument('--output', type=str, default='data/mechanism_label_map.parquet',
                        help='Output path')
+    parser.add_argument('--source-view', type=str, default=None,
+                       help='Optional source view name for audit fields')
+    parser.add_argument(
+        '--allowed-labels',
+        type=str,
+        default="",
+        help='Optional comma-separated allowed labels; when set, other labels are excluded from the output map.',
+    )
     
     args = parser.parse_args()
-    run_build_label_map(args.private_clean, args.output)
+    allowed = [v.strip() for v in str(args.allowed_labels).split(",") if v.strip()]
+    run_build_label_map(
+        args.private_clean,
+        args.output,
+        source_view=args.source_view,
+        allowed_labels=allowed or None,
+    )
 
 
 if __name__ == "__main__":

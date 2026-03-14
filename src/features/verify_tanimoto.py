@@ -17,13 +17,7 @@ from typing import List, Tuple
 import numpy as np
 import pandas as pd
 from rdkit import Chem, DataStructs
-from rdkit.Chem import AllChem
-
-try:
-    from rdkit.Chem import rdFingerprintGenerator
-    USE_NEW_API = True
-except ImportError:
-    USE_NEW_API = False
+from rdkit.Chem import rdFingerprintGenerator
 
 from src.utils.logging import get_logger
 from src.features.anchor_ecfp import (
@@ -86,11 +80,8 @@ def compute_ecfp_from_smiles(smiles: str, n_bits: int = 2048, radius: int = 2) -
     if mol is None:
         return None
     
-    if USE_NEW_API:
-        generator = rdFingerprintGenerator.GetMorganGenerator(radius=radius, fpSize=n_bits)
-        fp = generator.GetFingerprint(mol)
-    else:
-        fp = AllChem.GetMorganFingerprintAsBitVect(mol, radius=radius, nBits=n_bits)
+    generator = rdFingerprintGenerator.GetMorganGenerator(radius=radius, fpSize=n_bits)
+    fp = generator.GetFingerprint(mol)
     
     # Convert to numpy array
     fp_array = np.zeros(n_bits, dtype=np.int8)
@@ -110,13 +101,9 @@ def get_rdkit_tanimoto_direct(smiles1: str, smiles2: str, n_bits: int = 2048, ra
     if mol1 is None or mol2 is None:
         return None
     
-    if USE_NEW_API:
-        generator = rdFingerprintGenerator.GetMorganGenerator(radius=radius, fpSize=n_bits)
-        fp1 = generator.GetFingerprint(mol1)
-        fp2 = generator.GetFingerprint(mol2)
-    else:
-        fp1 = AllChem.GetMorganFingerprintAsBitVect(mol1, radius=radius, nBits=n_bits)
-        fp2 = AllChem.GetMorganFingerprintAsBitVect(mol2, radius=radius, nBits=n_bits)
+    generator = rdFingerprintGenerator.GetMorganGenerator(radius=radius, fpSize=n_bits)
+    fp1 = generator.GetFingerprint(mol1)
+    fp2 = generator.GetFingerprint(mol2)
     
     return DataStructs.TanimotoSimilarity(fp1, fp2)
 

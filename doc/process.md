@@ -3,6 +3,262 @@
 ## Goal
 Build the Evidence Layer + Light KG + Chem Agent literature evidence loop, while keeping SMILES-first case file as the shared artifact.
 
+## Current task: export two deterministic structure-prior snapshots for collaborator review
+
+Problem:
+- collaborators need the exact current rule-generated prior objects for one `neutral aromatic` example and one `ESIPT` example;
+- these values should live in a tracked folder in the repo so they can be reviewed without rerunning the full pipeline;
+- the export must capture the exact `structure_prior_profile`, `structure_motif_profile`, `structure_fact_sheet`, `prior_reliability_profile`, and `candidate_slate_v2` objects under the current `split_levels_v2` / `leave_level_1` setup.
+
+Implementation scope for this patch:
+1. create a small tracked folder under `doc/examples/structure_prior_snapshots/`;
+2. export deterministic JSON snapshots for:
+   - `o-TPEPh` (`neutral aromatic` example),
+   - `BTPETTD` (`ESIPT` example);
+3. include a short README with:
+   - source SMILES,
+   - source split file,
+   - reference view used,
+   - a list of the exported JSON objects;
+4. keep the export data-only; do not touch the main reasoning logic in this patch;
+5. after export, add a short implementation note in `doc/process_summary.md` and prepare a minimal git commit containing only the new snapshot folder plus the two doc updates.
+
+Locked decisions:
+- the tracked folder is `doc/examples/structure_prior_snapshots/`;
+- snapshots include five JSON objects per molecule:
+  - `structure_prior_profile.json`,
+  - `structure_motif_profile.json`,
+  - `structure_fact_sheet.json`,
+  - `prior_reliability_profile.json`,
+  - `candidate_slate_v2.json`;
+- export context is fixed to:
+  - main benchmark data source `data/split_list/1_level.csv`,
+  - reference view `data/reference_indices/split_levels_v2/views/leave_level_1`;
+- this patch should stage only the new snapshot folder and doc updates, without touching the existing dirty worktree.
+
+## Current task: R0 prior stack refactor
+
+Problem:
+- current failures are now dominated by low-quality `R0` priors rather than `R2/R3` adjudication;
+- three prior sources are being exposed too directly and often conflict:
+  - feature retrieval,
+  - Murcko scaffold retrieval,
+  - ECFP neighbor priors;
+- `structure_motif_profile` is still too homogeneous for large conjugated systems;
+- non-main labels such as `clusterluminescence` and `ESIPT+ICT/TICT` still contaminate label-bearing prior artifacts even though the main benchmark only evaluates the standard mechanism pool.
+
+Implementation scope for this patch:
+1. split R0 priors into three explicit layers:
+   - `structure_fact_sheet`,
+   - `prior_reliability_profile`,
+   - `candidate_slate_v2`;
+2. keep raw/full reference space for geometry/density calculations, but create prior-clean label-bearing artifacts limited to:
+   - `ICT`,
+   - `TICT`,
+   - `ESIPT`,
+   - `neutral aromatic`;
+3. make `StructureAgent` prefer prior-clean structure reference artifacts and make `DataAgent` prefer prior-clean label maps;
+4. keep `R1/R2/R3` ordering unchanged, but make `R0` prompt and candidate generation consume only the new three-layer prior view instead of raw feature/scaffold/ECFP summaries;
+5. strengthen `structure_motif_profile` with more discriminative phenomenon-level fields for conjugated/aromatic systems without adding mechanism-specific verdict text.
+
+Locked decisions:
+- `R0` candidate pool is restricted to:
+  - `ICT`,
+  - `TICT`,
+  - `ESIPT`,
+  - `neutral aromatic`;
+- `unknown` remains a terminal unresolved output label, but does not participate in label-bearing R0 prior generation;
+- feature retrieval is the main candidate source, Murcko retrieval is corroboration, and ECFP priors contribute only weakly through reliability and candidate smoothing;
+- non-main labels remain in raw split/source data and geometric reference space, but do not enter main-prior artifacts used for R0 candidate generation.
+
+## Current task: final adjudicator for `other / unknown / standard` labels
+
+Problem:
+- current iterative runs still let three layers disagree:
+  - Master raw label,
+  - master-side normalization hints,
+  - final sidecar / case label;
+- `other` and `unknown` are still being over-shaped by Master post-processing, which is the wrong ownership boundary;
+- the user wants final category adjudication to come from Evaluator in the last round, not from Master normalization rules.
+
+Implementation scope for this patch:
+1. keep Master responsible for:
+   - parsed/validated master output,
+   - confidence soft penalty,
+   - candidate scorecard,
+   - closure / residual / novelty hints only;
+2. stop using Master normalization as the authoritative final label source;
+3. add a final adjudicator step in the iterative round runner:
+   - deterministic admissibility gate first,
+   - evaluator LLM final adjudication second when evaluator LLM is enabled,
+   - deterministic fallback when evaluator LLM is disabled;
+4. write final adjudication into sidecars/meta:
+   - `final_label_adjudication`
+   - `decision_state`
+   - `canonical_pool_closed`
+   - `residual_other_admissible`
+   - `novelty_candidate`
+   - `novelty_basis`
+   - `reason_codes`;
+5. make final case label come from evaluator adjudication only on the terminal round;
+6. keep `master_output_schema_v3` unchanged and preserve the existing orchestrator / patch / no-touch constraints.
+
+Locked decisions:
+- candidate set for final adjudication is:
+  - master primary label,
+  - master competing standard labels,
+  - `other`,
+  - `unknown`;
+- evaluator may not invent a new standard label that Master did not surface;
+- `R0/R1` still cannot finalize `other`;
+- `R2/R3` may finalize `other` when residual admissibility is satisfied;
+- `unknown` means unresolved epistemic state, not “new mechanism”;
+- `novelty_candidate` is sidecar/meta only and does not become a new output label.
+
+## Current task: remove the TPENp ESIPT row from `1_level` and keep split-level-v2 data artifacts consistent
+
+Problem:
+- the current `data/split_list/1_level.csv` still contains the TPENp ESIPT row with SMILES:
+  - `C1(/C(C2=CC=CC=C2)=C(C3=CC=C(C4=CC=CC5=C4C=CC=C5)C=C3)\C6=CC=CC=C6)=CC=CC=C1`
+- this row also appears as row 0 in recent `ds_level1_smoke_v2` outputs, so future level-1 runs and reference views need to stop surfacing it.
+
+Implementation scope for this patch:
+1. remove the TPENp row from `data/split_list/1_level.csv`;
+2. rebuild the split-level-v2 reference source / views so future structure-retrieval and ECFP neighbor spaces match the edited split;
+3. keep the rest of `1_level/2_level/3_level` intact; do not reintroduce `other`;
+4. record the row removal and rebuilt view paths in `doc/process_summary.md`.
+
+## Current task: CSV emission observations as R1 target-side evidence
+
+Problem:
+- `emission_solid` / `emission_aggr` currently exist in dataset rows and gate/readiness logic, but they do not enter master reasoning as auditable evidence IDs.
+- The current round order therefore skips the highest-priority target-side experimental observation and jumps from structure prior to target aTB.
+
+Implementation scope for this patch:
+1. write dataset-row emission values into `/target_fields/*` and `/target_fields_provenance/*` during initial case creation for CSV-backed runs;
+2. add a compact `emission_observation_profile` for R1+ reasoning packs;
+3. register `E70..E73` as target-observation evidence IDs and add a new `target_observation` reasoning axis;
+4. make R1 prompt and governance use target observation before target aTB, while keeping R0 structure-only and R2 comparative-only semantics;
+5. update scorecard/evaluator/tests so emission evidence counts as real target-side incremental information.
+
+## Current task: late-round `other` residual support relaxation
+
+Problem:
+- the new balanced-loop governance correctly blocks early-round `other`, but it is now too strict for genuine late-round residual cases;
+- real `other` molecules can reach a coherent late-round `other` consensus and still be demoted to `unknown` because the current rule requires two positive primary axes;
+- this is over-constraining the negotiated output and suppresses legitimate residual outcomes.
+
+Implementation scope for this patch:
+1. keep the early-round guard intact:
+   - `R0` still cannot emit `other` as the primary label;
+   - `R1` still treats `other` as provisional and prefers `unknown`/`mixture`;
+2. relax late-round residual support for `other` in `R2/R3`:
+   - allow `other` to survive normalization when there is at least one non-comparative primary support axis,
+   - target-side evidence is actually present in the used evidence set,
+   - and at least two standard candidates remain in the negotiated set;
+3. keep elimination-only protection:
+   - comparative-only or context-only evidence must still not validate `other`;
+4. add regression tests proving:
+   - a genuine late-round `other` case is preserved as `other`,
+   - `R0/R1` still cannot finalize `other`.
+
+## Current task: balanced-loop multi-agent candidate negotiation
+
+Problem:
+- current iterative reasoning is still too close to a single-label correction loop:
+  - `R0` structure priors can anchor the later rounds too strongly;
+  - `other` is still acting like a default residual sink;
+  - later rounds often add exclusionary evidence without maintaining a clear candidate-level negotiation record.
+- this weakens the actual multi-agent character of the system: later rounds tend to justify or slightly adjust an early label instead of visibly updating a competing candidate set.
+
+Implementation scope for this patch:
+1. make `R0` explicitly candidate-generation only:
+   - structure evidence proposes a ranked candidate slate,
+   - `R0` prompt and post-processing keep conclusions provisional,
+   - `R1/R2` are allowed to reorder or replace the leading candidate;
+2. add a per-round sidecar `candidate_scorecard` written into round sidecars (not master schema):
+   - each candidate records prior rank/confidence,
+   - support / weakening / unresolved axes,
+   - newly added supporting / weakening evidence IDs,
+   - net direction (`up|down|flat`) and short commentary;
+3. shift governance from hard vetoes toward candidate-update semantics:
+   - keep logic guards that block invalid shortcuts,
+   - but store candidate movement explicitly instead of silently collapsing to a single label;
+4. redefine `other` as a residual-only late-stage outcome:
+   - not allowed as `R0` top primary,
+   - discouraged in `R1` when target-side evidence is still incomplete,
+   - only allowed in `R2/R3` when multiple standard candidates have been weakened and residual commentary remains;
+5. strengthen `structure_motif_profile` as neutral factual structure evidence:
+   - add richer structure facts (H-bond geometry, proton-transfer topology candidate, rigidity / planarity / conjugation compactness),
+   - keep all wording phenomenon-level only,
+   - do not add mechanism-specific verdict text.
+
+Locked decisions:
+- `master_output_schema_v3` remains unchanged;
+- `candidate_scorecard` is a sidecar object only, written into round artifacts / eval sidecars;
+- comparative evidence still cannot independently flip the primary label;
+- the main short-term benchmark target is improved `ACC(no_other)` and reduced `other` collapse, not cosmetic `ACC(all)` gains.
+
+## Current task: level-specific evaluation UX for `split_list` benchmarks
+
+Problem:
+- the existing evaluation runner can execute arbitrary CSVs, but it still uses the older plain-text progress path and does not forward the new split-reference selection knobs;
+- for `split_list/1_level.csv` evaluation we need:
+  - visible `tqdm` progress,
+  - running accuracy in the progress bar,
+  - explicit `reference_index_root` / `reference_view` forwarding so level-safe views are used during runtime.
+
+Implementation scope for this patch:
+1. update `src/eval/evaluate_testset.py` to use `tqdm` progress when available, while keeping other runtime logs muted;
+2. forward `--reference-index-root` and `--reference-view` from the evaluation CLI into `run_one`;
+3. keep the progress payload compact:
+   - current sample index,
+   - truncated SMILES,
+   - current round,
+   - running accuracy,
+   - overall total progress;
+4. add/update focused tests to prove:
+   - parser accepts the new reference-view arguments,
+   - runtime args inherit them correctly,
+   - the smoke evaluation path still writes predictions/report artifacts.
+5. suppress all runtime structured progress/error JSON during evaluation mode so stdout shows only the evaluation progress bar.
+6. expose two accuracy views for evaluation:
+   - accuracy including `other`,
+   - accuracy excluding rows whose ground-truth label is `other`,
+   so benchmark reads can separate "fully strict" performance from the ambiguous catch-all class effect.
+
+## Hotfix task: gate compact `.aop` evidence IDs to aTB-enabled rounds only
+
+Problem:
+- compact `.aop` evidence IDs (`E60..E63`) were wired into registry generation,
+- but they should only appear when target aTB evidence is enabled for the active profile (same round family as other target aTB evidence).
+
+Implementation scope:
+1. gate `E60..E63` behind `include_target_atb_signals` in `master_reasoner` registry builder;
+2. add a regression test proving:
+   - `R0` (target aTB summary disabled) does not expose `E60..E63`,
+   - `R1` (target aTB summary enabled) does expose `E60..E63` when fields exist.
+
+## Current task: remove runtime StructureAgent classifier, keep top-5 structure candidates
+
+Problem:
+- the newly added structure classifier is now the dominant uncertainty source in `R0`;
+- recent runs show the classifier can pull candidate distributions toward `other` even after the broader structure-layer improvements;
+- the user wants to stop spending iteration budget on classifier optimization and go back to a simpler, more auditable structure-prior path.
+
+Implementation scope for this patch:
+1. remove the trained classifier from the runtime `StructureAgent` decision path;
+2. keep `StructureAgent` itself, but force `structure_candidate_distribution` to be produced from retrieval + motif/scaffold priors only;
+3. keep `top_candidates` as the primary propagated candidate list, with default `topk = 5`;
+4. ensure downstream reasoning uses top-5 candidate context wherever candidate sets are read from the reasoning pack;
+5. keep existing classifier training utilities on disk for possible offline experiments, but they are no longer used by runtime reasoning.
+
+Locked decisions:
+- runtime `StructureAgent` must not load or score a trained classifier bundle;
+- `structure_candidate_distribution.calibration.method` should report retrieval fallback semantics;
+- `candidate_mechanisms_topk` remains the main structure-candidate source for reasoning, while `candidate_mechanisms_top3` is retained only for backward compatibility;
+- no schema changes, no evidence-table writes, no orchestrator path changes.
+
 ## Current execution mode (multi-agent refactor, authoritative)
 
 This repo now treats the production path as a **multi-agent orchestrator loop** (not CLI-first glue code):
@@ -19,6 +275,325 @@ All writes must be RFC6902 patch writes with:
 - append-only path enforcement
 - per-step idempotency key
 - replay artifacts (input snapshot, raw outputs, patch, case before/after/diff, manifest)
+
+## Current task: atomwise `delta_dipole` compression for reasoning
+
+Problem:
+- current `delta_dipole` is not reliably a scalar dipole-like value; in many cache/demo artifacts it is a dict with:
+  - `element[]`
+  - `charge_variation[]`
+- current reasoning path treats `delta_dipole` as if it were a scalar, so:
+  - dict-format cache rows are dropped from `features_summary`,
+  - `charge_redistribution_profile` often collapses to gap-only behavior,
+  - LLM is exposed to a misleading semantic label if we treat this as a true dipole change.
+
+Implementation scope for this patch:
+1. keep raw `features.json["delta_dipole"]` unchanged;
+2. derive compact atomwise charge-redistribution summary fields in `features_summary` and numeric parquet rows:
+   - `charge_redis_total_abs`
+   - `charge_redis_max_abs_atom`
+   - `charge_redis_top3_abs_share`
+   - `charge_redis_heteroatom_abs_share`
+   - `charge_redis_n_atoms_ge_0p01`
+   - `charge_redis_n_atoms_ge_0p02`
+3. upgrade `charge_redistribution_profile` to a v2 compact profile that prefers:
+   - atomwise summary,
+   - then scalar `delta_dipole`,
+   - then gap-only fallback;
+4. keep `atb_ct_proxy_profile` as a one-version compatibility alias only;
+5. update `E35/E36` and prompt wording so LLM only sees compact electronic-redistribution summaries, never raw atom arrays and never "true dipole moment" wording.
+
+Locked thresholds for atomwise summary buckets (from current cache scan):
+- `charge_redis_total_abs`
+  - low `< 0.2190`
+  - mid `[0.2190, 0.4805)`
+  - high `>= 0.4805`
+- `charge_redis_top3_abs_share`
+  - distributed `< 0.1908`
+  - mixed `[0.1908, 0.3195)`
+  - localized `>= 0.3195`
+- `charge_redis_heteroatom_abs_share`
+  - low `< 0.1046`
+  - mid `[0.1046, 0.2620)`
+  - high `>= 0.2620`
+
+Design constraints:
+- raw `charge_variation` / `element` arrays must not enter reasoning pack or evidence previews;
+- profile text remains phenomenon-level only (`electronic redistribution`), not mechanism-level;
+- no schema bump, no evidence_table writeback, no new quantum calculations.
+
+## Current task: `.aop` compact extractor for transition-level signals
+
+Problem:
+- the cache now contains full `.aop` outputs with transition electric/magnetic dipoles, rotatory strengths, oscillator strengths, and permanent dipoles;
+- current runtime mainly consumes `features.json` and misses most transition-level signals;
+- raw `.aop` blocks are too verbose and repeated across optimization cycles, so they must be reduced to compact final-iteration fields.
+
+Implementation scope for this patch:
+1. add `src/chem/atb_aop_compact.py` to parse `opt/opt_run.aop` and `excit/excit_run.aop` using final-block extraction;
+2. add `cache/atb/<prefix>/<inchikey>/aop_compact.json` (`aop_compact_v1`) with:
+   - S0/S1 permanent dipole (Debye),
+   - S1 transition electric dipole (Au),
+   - S1 transition magnetic dipole (Au),
+   - S1 rotatory strength,
+   - S1 excitation state-1 tuple (`energy_ev`, `wavelength_nm`, `wavenumber_cm1`, `oscillator_strength_f`),
+   - convergence fail flags + compact reliability (`low|medium|high`);
+3. wire `src/chem/atb_cache.py` to lazy-read/build `aop_compact.json` and merge compact scalar fields into:
+   - `evidence_readiness.atb.features_summary`,
+   - `data/atb_features.parquet` numeric rows;
+4. add `src/chem/build_aop_compact_cache.py` for batch precompute/refresh;
+5. extend reasoning evidence registry with compact IDs:
+   - `E60`: S1 transition electric dipole cue,
+   - `E61`: S1 oscillator + excitation wavelength cue,
+   - `E62`: S0/S1 permanent dipole delta cue,
+   - `E63`: S1 rotatory-strength cue.
+
+Design constraints:
+- parse only `state 1` in v1 to keep payload compact;
+- always take last occurrence (final iteration) for repeated sections;
+- keep raw `.aop` text out of reasoning prompts and evidence previews;
+- no schema bump, no evidence_table writeback, no mechanism-specific rule.
+
+## Current task: StructureAgent for SMILES-first structure priors
+
+Problem:
+- `R0` still uses an over-compressed structure prior and ECFP-only neighborhood cues.
+- zero-shot can often recover plausible `ESIPT` / `neutral aromatic` candidates directly from `SMILES`, while the current release runtime cannot express those structural motifs explicitly.
+- the first iterative round should start from an auditable structure-candidate distribution, then let aTB/comparative evidence update it.
+
+Implementation scope for this patch:
+1. add a new `StructureAgent` that runs before `DataAgent` and writes only under `/risk_scores/*` plus `/agent_runs/-`;
+2. compute four structure blocks:
+   - `structure_prior_profile`
+   - `structure_motif_profile`
+   - `structure_retrieval_profile`
+   - `structure_candidate_distribution`
+3. build the structure layer from:
+   - Morgan count fingerprints,
+   - Feature Morgan count fingerprints,
+   - Murcko scaffold retrieval,
+   - deterministic motif detection,
+   - calibrated classifier probabilities when a trained artifact exists,
+   - retrieval-derived fallback candidate distribution otherwise;
+4. extend `R0`/`R1` reasoning packs and evidence registry with `E50..E56` so master reasoning can cite structure priors explicitly;
+5. keep all structure outputs generic and auditable:
+   - no mechanism verdict text inside profile notes,
+   - no mechanism-specific if/else shortcuts,
+   - no changes to `master_output_schema_v3`,
+   - no evidence_table writeback.
+
+Locked design decisions:
+- `StructureAgent` is a new agent, not a hidden `DataAgent` subroutine.
+- runtime must remain usable if no trained structure-classifier artifact is present; in that case, `structure_candidate_distribution` falls back to retrieval-based probabilities with low calibration reliability.
+- initial label space is aligned to benchmark canonical labels:
+  - `ICT`, `TICT`, `ESIPT`, `neutral aromatic`, `other`, `unknown`
+- structure priors remain phenomenon-level:
+  - donor/acceptor topology,
+  - intramolecular H-bond motifs,
+  - tautomerizable motifs,
+  - aromatic/conjugation scaffold,
+  - flexibility/rigidity,
+  - scaffold/feature retrieval consensus.
+
+Planned files:
+- new:
+  - `src/structure/feature_morgan.py`
+  - `src/structure/scaffold_retrieval.py`
+  - `src/structure/motif_detector.py`
+  - `src/structure/structure_classifier.py`
+  - `src/structure/train_structure_classifier.py`
+  - `src/agents/structure_agent.py`
+- modified:
+  - `src/agents/data_agent.py`
+  - `src/orchestration/registry.py`
+  - `src/reasoning/evidence_profiles.py`
+  - `src/reasoning/master_reasoner.py`
+  - `doc/schemas.md`
+
+Validation plan:
+- unit tests for feature fingerprints, scaffold retrieval, motif detection, classifier I/O, and StructureAgent patch scope;
+- reasoning-pack tests verifying `R0` includes `structure_candidate_distribution` and registry IDs `E50..E56`;
+- smoke integration on representative `ICT`, `ESIPT`, and `neutral aromatic` rows to ensure those labels remain in top-k structure candidates.
+
+## Current task: supervised StructureAgent training visibility + wider candidate propagation
+
+Problem:
+- the first supervised `StructureAgent` bundle still trains unstably: epoch losses oscillate, probabilities can become numerically invalid, and the fallback SGD setup is not trustworthy yet;
+- training now exposes loss history, but we still need a stable supervised optimizer so those curves are meaningful and so the classifier can be used as a real R0 prior;
+- later reasoning rounds mostly consume `structure_candidate_distribution.top3`, which can prematurely hide boundary classes such as `neutral aromatic` even when they retain non-trivial posterior mass.
+
+Implementation scope for this patch:
+1. replace the unstable SGD proof-of-concept with a stable supervised training stack that still exposes train/validation loss every epoch and saves the full history to artifacts;
+2. keep the runtime classifier interpretable and lightweight:
+   - sparse dictionary features stay the same,
+   - training remains supervised and probability-producing,
+   - feature scaling is allowed if required for convergence,
+   - calibration remains enabled after the base classifier is fitted;
+3. widen propagated structure candidates:
+   - keep `top3` for backward compatibility,
+   - add `top_candidates` (default top-5),
+   - make reasoning packs prefer `top_candidates` so later rounds can still see plausible fourth/fifth-place labels;
+4. preserve compatibility:
+   - no `master_output_schema_v3` change,
+   - old bundles still load,
+   - `E56` continues to represent structure candidate distribution, but now points to `top_candidates` when available.
+
+Locked design decisions:
+- supervised training will expose at least:
+  - `epoch`
+  - `train_loss`
+  - `valid_loss`
+  - `train_accuracy`
+  - `valid_accuracy`
+- validation split is deterministic and stratified whenever class counts allow it;
+- calibration is applied after the supervised base model is trained, using held-out validation data when available;
+- the base trainer may change implementation as long as it remains deterministic, lightweight, and fully auditable;
+- runtime will default to `candidate_topk = 5`;
+- reasoning still keeps a compact candidate set, but compact now means top-5 rather than top-3.
+
+Planned files:
+- modified:
+  - `src/structure/structure_classifier.py`
+  - `src/structure/train_structure_classifier.py`
+  - `src/agents/structure_agent.py`
+  - `src/reasoning/master_reasoner.py`
+- tests:
+  - `tests/test_structure_classifier.py`
+  - `tests/test_structure_agent.py`
+  - `tests/test_structure_agent_r0_pack.py`
+  - new focused tests for loss history and wider candidate propagation
+
+Validation plan:
+- confirm training writes `train_history.json` and exposes visible epoch losses;
+- confirm `StructureAgent` now outputs both `top3` and `top_candidates`;
+- confirm `master_reasoner` consumes `top_candidates` when present;
+- confirm focused pytest covers both supervised training history and top-5 propagation.
+
+## Current task: split-level reference indices and leakage-safe feature spaces
+
+Problem:
+- the runtime still relies on legacy train-era parquet artifacts for:
+  - `StructureAgent` reference rows,
+  - `DataAgent` / ECFP neighbor search,
+  - `R0` structure candidate generation,
+  - `R1+` similarity / neighbor context;
+- the new authoritative source is no longer `train.csv`, but:
+  - `data/split_list/1_level.csv`
+  - `data/split_list/2_level.csv`
+  - `data/split_list/3_level.csv`
+  - `data/split_list/4_level.csv`;
+- benchmark/split-list evaluation must not leak same-level labels or same-molecule neighbors into the reference pool.
+
+Execution checklist for this patch:
+1. add split-level source/view builders under `src/data/*` and `src/structure/*`;
+2. extend `src/data/pipeline.py` to accept parquet input and preserve split provenance columns;
+3. materialize five leakage-safe views (`all_levels_full`, `leave_level_{1..4}`) with full runtime artifacts;
+4. wire `run_one`/`case-run` to explicit `reference_view` selection, with `auto -> leave_level_N` for split rows;
+5. ensure `StructureAgent` + `DataAgent` both resolve to the same selected view directory at runtime;
+6. keep exact self exclusion (`inchikey` + `canonical_smiles`) as second-layer guard even with leave-level views;
+7. add tests for source merge, view selection, level exclusion, and agent/view wiring.
+
+Implementation scope for this patch:
+1. build a unified split-level source parquet:
+   - `data/reference_indices/split_levels_v1/sources/all_levels_reference.parquet`
+   - with `difficulty_level`, `source_split_file`, `source_row_index`;
+2. materialize five reference views under:
+   - `data/reference_indices/split_levels_v1/views/`
+   - `all_levels_full`
+   - `leave_level_1`
+   - `leave_level_2`
+   - `leave_level_3`
+   - `leave_level_4`;
+3. each view must contain:
+   - `private_clean.parquet`
+   - `molecule_table.parquet`
+   - `rdkit_features.parquet`
+   - `mechanism_label_map.parquet`
+   - `anchor_neighbors_ecfp.parquet`
+   - `structure_reference_pool.parquet`
+   - `run_manifest.json`;
+4. wire both `StructureAgent` and `DataAgent` to a selected view directory rather than legacy top-level `data/*.parquet`;
+5. add runtime view selection:
+   - `--reference-index-root`
+   - `--reference-view`
+   - `reference_view=auto` resolves split-list rows to matching `leave_level_N`;
+6. preserve exact self-exclusion (`inchikey`, `canonical_smiles`) as a second guard even when leave-level-out views are used.
+
+Locked leakage-safe decisions:
+- split-list benchmark rows must never use `all_levels_full`;
+- `leave_level_N` means:
+  - merge all four split files,
+  - remove every record with `difficulty_level == N`,
+  - build the entire reference space from the remaining rows;
+- ad-hoc external `case-run --smiles ...` defaults to `all_levels_full`;
+- legacy top-level `data/*.parquet` remain untouched and act as fallback/legacy artifacts only.
+
+Runtime intent:
+- `R0` structure priors and `R1+` ECFP neighbor context must come from the same selected reference view;
+- `StructureAgent` should prefer `<view>/structure_reference_pool.parquet`;
+- `DataAgent` / neighbor search should use `<view>/rdkit_features.parquet` and sibling artifacts, not the legacy train-only files.
+
+Validation plan:
+- test source merge row count and split metadata preservation;
+- test reference-view materialization for `all_levels_full` and `leave_level_{1..4}`;
+- test exact self-exclusion by both `inchikey` and `canonical_smiles`;
+- test runtime `reference_view=auto` resolution for split-list rows;
+- verify `StructureAgent` and `DataAgent` both read from the same selected reference view.
+
+Execution order for this implementation:
+1. build the merged split-level source and materialized views first;
+2. switch runtime agents and CLI onto explicit reference views;
+3. add leakage-focused tests before running smoke validation on split rows.
+
+Locked implementation details:
+- new versioned reference root:
+  - `data/reference_indices/split_levels_v1/`
+- unified source file:
+  - `sources/all_levels_reference.parquet`
+- materialized views:
+  - `views/all_levels_full`
+  - `views/leave_level_1`
+  - `views/leave_level_2`
+  - `views/leave_level_3`
+  - `views/leave_level_4`
+- each view must contain:
+  - `private_clean.parquet`
+  - `molecule_table.parquet`
+  - `rdkit_features.parquet`
+  - `mechanism_label_map.parquet`
+  - `anchor_neighbors_ecfp.parquet`
+  - `structure_reference_pool.parquet`
+  - `run_manifest.json`
+- leakage-safe runtime policy:
+  - split-list benchmark rows never use `all_levels_full`
+  - `reference_view=auto` maps `difficulty_level=N` to `leave_level_N`
+  - ad-hoc `case-run --smiles ...` defaults to `all_levels_full`
+  - runtime retrieval/search keeps exact self exclusion on both `inchikey` and `canonical_smiles`
+
+Planned implementation files:
+- new:
+  - `src/data/build_split_reference_source.py`
+  - `src/data/build_split_reference_views.py`
+  - `src/structure/build_structure_reference_pool.py`
+- modified:
+  - `src/data/standardizer.py`
+  - `src/data/canonicalizer.py`
+  - `src/data/pipeline.py`
+  - `src/data/rdkit_descriptors.py`
+  - `src/uq/mechanism_label_map.py`
+  - `src/features/anchor_ecfp.py`
+  - `src/agents/data_agent.py`
+  - `src/cases/create_case_from_smiles.py`
+  - `src/agents/structure_agent.py`
+  - `src/structure/structure_classifier.py`
+  - `src/orchestration/registry.py`
+  - `src/orchestration/run_one.py`
+  - `src/cli.py`
+- test view materialization for all five views;
+- test `leave_level_N` exclusion is complete;
+- test runtime `reference_view=auto` selects the correct leave-level-out view;
+- test self-exclusion still prevents same-`inchikey` / same-`canonical_smiles` neighbors;
+- smoke-test one row from each level to confirm `R0` and `R1` both read the same leakage-safe reference space.
 
 ### Final v3 lock (this cycle)
 
@@ -76,6 +651,25 @@ Plan for this patch:
 - keep evaluator output schema contract unchanged (`eval_llm_output_schema_v1` keys), but parse from tagged sections:
   - `CRITIQUE_POINTS`, `CONFLICTS`, `VOI_RANKED_ACTIONS`, `CONFIDENCE_DELTA_SUGGESTION`, `NEXT_ROUND_PROFILE_SUGGESTION`.
 - preserve orchestrator behavior (rule evaluator remains base; LLM layer only augments ranking/notes).
+
+### Hotfix plan (current task): temperature-compat retry for Responses/Chat calls
+
+Problem observed in recent runs:
+- some gateway/model combinations reject requests when `temperature` is present and return:
+  - `Unsupported parameter: 'temperature' is not supported with this model.`
+- this causes both master and evaluator LLM calls to fail early (`llm_error`) even when the rest of payload is valid.
+
+Plan for this patch:
+- in `src/tools/llm_client.py`, add compatibility retry:
+  - if a call fails with temperature-unsupported error and request includes `temperature`,
+  - retry once with the same request minus `temperature`.
+- apply to both APIs:
+  - `responses.create` paths (`responses_text`, `responses_json`)
+  - `chat.completions.create` paths (text/json helpers)
+- keep existing fallback behavior unchanged otherwise.
+- add focused unit tests in `tests/test_llm_client.py`:
+  - `responses_text` retries without temperature and succeeds,
+  - `responses_json` retries without temperature and succeeds.
 
 ### Hotfix plan (current task): DeepSeek runtime compatibility in multi-agent LLM client
 
@@ -238,7 +832,54 @@ New CLI knobs:
 Objective for this cycle:
 - improve mechanism discrimination using only the current aTB cache, without adding new quantum workflows,
 - strengthen positive structured evidence before designing any new external computation lanes,
+
+### Current task: neutral multi-axis evidence governance
+
+Objective for this patch:
+- neutralize `structure_prior_profile` wording so it only describes structural facts,
+- remove all direct axis-to-mechanism wording from prompt, trace, and evidence helper text,
+- replace axis-specific special handling with uniform multi-axis governance:
+  - single-axis insufficiency,
+  - dual-axis support,
+  - conflict down-confidence,
+  - comparative axis can only adjust and cannot flip a label by itself,
+- keep `master_output_schema_v3` unchanged and preserve the current no-touch evidence-table/runtime contracts.
+
+Implementation focus:
+1. `src/reasoning/structure_prior_profile.py`
+   - make `overall_structure_prior` and `notes` purely structural and mechanism-agnostic.
+2. `src/reasoning/master_reasoner.py`
+   - remove remaining axis->mechanism wording,
+   - add axis classification and validator/scoring rules for single-axis insufficiency, dual-axis support, and conflict penalties,
+   - keep `ct_family` only as a legacy schema token explanation.
+3. `src/orchestration/round_runner.py`
+   - enforce that comparative-only evidence in `R2/R3` can refine confidence/template but cannot flip the primary label by itself.
+4. `src/tools/llm_trace_store.py`
+   - ensure fallback summaries remain axis-generic.
+5. tests
+   - add focused coverage for neutral structure-prior text,
+   - single-axis/dual-axis/conflict behavior,
+   - comparative-only adjustment,
+   - no-aTB fallback remaining low-confidence and conservative.
 - keep orchestrator semantics unchanged (patch/whitelist/idempotency/replay/no-touch evidence_table).
+
+### Current task: preserve comparative evidence IDs in R2 registry compaction
+
+Objective for this patch:
+- fix the R2 reasoning-pack registry so `E21-E24` survive compaction and are actually visible to the master prompt,
+- keep the existing compact-pack contract (`registry_max_items`) while making comparative evidence first-class in `R2/R3`,
+- avoid any change to chemistry logic or schema; this is a registry-order / trimming bug fix.
+
+Implementation focus:
+1. `src/reasoning/master_reasoner.py`
+   - inspect `_build_evidence_registry(...)` trimming order,
+   - make protected IDs deterministic by priority instead of relying on append order,
+   - ensure `E21-E24` are retained in `R2/R3` when comparative stats exist, even after pack shrinking.
+2. tests
+   - add focused coverage showing that `neighbor_atb_stats_by_label` present in `R2` yields `E21-E24` in `evidence_registry`,
+   - cover the compacted (`max_items=20`) path specifically so regression is prevented.
+3. verification
+   - rerun focused reasoning-pack tests in the `aie` environment and confirm the affected case shape now matches the intended registry contents.
 
 Scope locked for this batch:
 1. Expand `evidence_readiness.atb.features_summary` with additional cache-derived fields that already exist in `features.json`:
@@ -256,6 +897,39 @@ Scope locked for this batch:
    - CT proxy evidence (`delta_dipole` + `delta_gap`)
    - structural relaxation evidence (`delta_dihedral` + `delta_bonds` + `delta_angles` + `delta_volume`)
    instead of relying on `delta_dihedral` alone.
+
+### Current task: de-privilege CT proxy into generic evidence axes
+
+Objective for this cycle:
+- remove the current "CT-family privilege" from target-only aTB interpretation,
+- make the reasoning stack operate on generic evidence axes instead of mechanism-biased axes,
+- recover no-aTB benchmark rows by falling back to a conservative structure-prior path instead of `missing_pred`,
+- keep `master_output_schema_v3` and orchestrator constraints unchanged.
+
+Locked implementation policy:
+1. Keep one-version compatibility aliases:
+   - `risk_scores.atb_ct_proxy_profile` stays, but becomes a deprecated alias over a new generic profile.
+   - `E35/E36` stay, but their labels/notes become generic.
+   - `supporting_chain.step_name=ct_family` stays only as a legacy schema token; prompt text must explain it as the electronic-redistribution axis.
+2. Add a new generic structure prior axis in `DataAgent`:
+   - `risk_scores.structure_prior_profile`
+   - derived from canonical SMILES + existing RDKit descriptors only
+   - no mechanism-specific wording inside the profile.
+3. Add a new generic electronic redistribution axis:
+   - `risk_scores.charge_redistribution_profile`
+   - `atb_ct_proxy_profile` remains as a compatibility alias to the same underlying data.
+4. Reasoning rounds now have explicit generic evidence emphasis:
+   - `R0`: neighbor priors + novelty/entropy + structure prior
+   - `R1`: add target-only axes (electronic redistribution, structural relaxation, shape/rigidity, self-trend)
+   - `R2`: add comparative transferability (`neighbor_atb_stats_by_label`)
+5. Hard reasoning guardrails:
+   - no single axis may decide the mechanism label,
+   - electronic redistribution alone cannot strongly determine a label,
+   - comparative evidence cannot overturn target-only evidence by itself.
+6. No-aTB fallback:
+   - when `run_lane=atb_cache_only` and target aTB is missing/failed/partial,
+   - keep the case benchmarkable by reasoning from `structure_prior_profile + neighbor prior`,
+   - output remains conservative and auditable; do not route to `missing_pred` just because target aTB is absent.
 
 Implementation plan:
 - `src/chem/atb_cache.py`
@@ -487,19 +1161,31 @@ Validation target for this batch:
 
 ---
 
-## Data Refresh (train-only facts, current migration)
-- **Fact source**: `data/train.csv` is now the only source for `data/private_clean.parquet`.
+## Data Refresh (legacy train-only facts)
+- **Legacy note**: the old train-only path (`data/train.csv` -> top-level `data/*.parquet`) remains as a backward-compatible baseline only.
+- **Active reference-index path**: split-level reference indices now come from:
+  - `data/split_list/1_level.csv`
+  - `data/split_list/2_level.csv`
+  - `data/split_list/3_level.csv`
+  - `data/split_list/4_level.csv`
+- **Active runtime fact/reference views** live under:
+  - `data/reference_indices/split_levels_v1/views/all_levels_full`
+  - `data/reference_indices/split_levels_v1/views/leave_level_1`
+  - `data/reference_indices/split_levels_v1/views/leave_level_2`
+  - `data/reference_indices/split_levels_v1/views/leave_level_3`
+  - `data/reference_indices/split_levels_v1/views/leave_level_4`
 - **Business columns (authoritative)**: `id`, `code`, `SMILES`, `reference`, `molecular_weight`, `emission_solid`, `emission_aggr`, `features_id`, `mechanism_id`, `doi`.
 - **Allowed derived columns in private_clean**: `canonical_smiles`, `inchikey`, and explicit missing flags (`emission_solid_missing`, `emission_aggr_missing`).
-- **Explicitly excluded from facts**: `data/test.csv` (used only for simulated user input / evaluation; never merged into private_clean or private_observation evidence).
+- **Benchmark-safe rule**: `split_list/N_level.csv` rows must use `leave_level_N` views; only ad-hoc `--smiles` runs may use `all_levels_full`.
+- **Legacy evaluation note**: `data/test.csv` remains a legacy evaluation file and is not merged into the new split-level reference indices.
 - **Compatibility rule**: downstream V1/V0 scripts must not assume legacy private fields (`absorption/qy/tau/tested_solvent`); when encountered, they must be removed or explicitly skipped.
 
-### Rebuild order after train-only migration
-1. P1 ingestion: `private_clean.parquet` -> `molecule_table.parquet` -> `rdkit_features.parquet`
-2. Anchor space: `anchor_neighbors_ecfp.parquet` (structure-only)
-3. UQ (pre-aTB): `mechanism_label_map.parquet` -> `mechanism_entropy_pre_atb.parquet` -> `uq_scores_pre_atb.parquet` -> `uq_scores_pre_atb_p5b.parquet`
-4. Reports/queues: `reports/*.json` + `queue_*_pre_atb_p5b.parquet` + dashboard
-5. V1 evidence/graph: `evidence_table.parquet` -> `graph_nodes.parquet` + `graph_edges.parquet` (retrieval consumes updated graph directly)
+### Rebuild order after split-level migration
+1. Source merge: `all_levels_reference.parquet`
+2. Per-view ingestion: `private_clean.parquet` -> `molecule_table.parquet` -> `rdkit_features.parquet`
+3. Per-view indices: `mechanism_label_map.parquet` -> `anchor_neighbors_ecfp.parquet` -> `structure_reference_pool.parquet`
+4. Runtime: `StructureAgent` + `DataAgent` read the same selected reference view
+5. Legacy V1 evidence/graph paths remain unchanged and are not rebuilt in this task
 
 ---
 
@@ -1184,9 +1870,448 @@ Computed on full set:
 - `coverage = (run succeeded and prediction extracted) / total_rows`
 - `unknown_rate = predicted_unknown / covered_rows`
 
+## 2026-03 Addendum: Mechanism Benchmark Compare (multi-agent vs zero-shot)
+
+This addendum introduces a fair comparison benchmark between the current
+release multi-agent runtime and a strict zero-shot baseline on `data/test.csv`.
+
+### Goal
+
+- Compare the same model under two protocols:
+  1. `multi_agent`: release `case-run` / `run_one` path
+  2. `zero_shot`: only `SMILES + canonical label set`
+- Main headline metric: **strict top1 accuracy over all rows**
+
+### Ground truth and labels
+
+- Ground truth column: `mechanism_id`
+- Canonical evaluation labels:
+  - `TICT`, `ICT`, `ESIPT`, `neutral aromatic`, `other`, `unknown`
+- Locked normalization:
+  - `clusterluminescence` -> `unknown`
+  - `ESIPT+ICT/TICT` -> `unknown`
+
+### Strict accuracy contract
+
+- Denominator is the full testset (excluding only rows with missing GT).
+- `failed_run`, `missing_pred`, and parse failures all count as wrong.
+- Coverage and unknown-rate are reported as diagnostics only, not as the headline metric.
+
+### Zero-shot fairness contract
+
+The zero-shot arm must receive only:
+- `SMILES`
+- canonical label set
+- minimal output contract
+
+It must not receive:
+- aTB
+- neighbors
+- novelty/entropy
+- candidate mechanisms
+- literature/PDF/experiment context
+- mechanism definitions
+- examples / few-shot exemplars
+
+### Zero-shot prompt contract
+
+System prompt:
+- choose exactly one label from the canonical set
+- output exactly one line: `LABEL: <label>`
+- use `unknown` when SMILES alone is insufficient
+
+User prompt:
+- `SMILES: <SMILES>`
+- `Allowed labels: ...`
+
+### CLI
+
+Official compare entrypoint:
+
+```bash
+python -m src.cli eval-mechanism-benchmark \
+  --test-csv data/test.csv \
+  --protocol compare \
+  --model gpt-5.2 \
+  --base-url http://35.220.164.252:3888/v1 \
+  --reasoning-effort medium \
+  --temperature 0.0 \
+  --run-lane atb_cache_only \
+  --iterative \
+  --max-rounds 4 \
+  --round-start-profile R0 \
+  --neighbor-topk 50 \
+  --evaluator-use-llm \
+  --outdir artifacts/eval_compare
+```
+
+### Output layout
+
+Outputs are written under:
+
+- `artifacts/eval_compare/<eval_id>/multi_agent/`
+- `artifacts/eval_compare/<eval_id>/zero_shot/`
+- `artifacts/eval_compare/<eval_id>/comparison/`
+
+Key artifacts:
+- per-arm `predictions.csv`
+- zero-shot raw traces under `zero_shot/traces/`
+- merged compare table `comparison/predictions_merged.csv`
+- `comparison/evaluation_report.json`
+- `comparison/evaluation_report.md`
+
 ### Output artifacts
 
 - `artifacts/eval/<timestamp>/predictions.csv`
 - `artifacts/eval/<timestamp>/evaluation_report.json`
 - `artifacts/eval/<timestamp>/evaluation_report.md`
 - Optional: `failed_cases_index.json` (path index only, no large-file copy)
+
+## Split-level reference indices (implementation update)
+- Replace train-only reference builds with split_list/1~4_level.csv as the canonical reference source for new feature-space indices.
+- Materialize versioned reference views under data/reference_indices/split_levels_v1/views: all_levels_full and leave_level_1..4.
+- Keep old top-level data/*.parquet untouched as legacy artifacts.
+- Route StructureAgent and DataAgent through the same selected reference view; benchmark rows must use leave_level_N, ad-hoc smiles default to all_levels_full.
+- Preserve provenance columns (difficulty_level, source_split_file, source_row_index) through private_clean/molecule_table/rdkit_features/label map/build manifests.
+- Enforce exact self-exclusion by inchikey and canonical_smiles in structure retrieval and ECFP neighbor search.
+
+## 2026-03 Hotfix plan: LLM gateway diagnosis script
+
+Goal:
+- Add a small standalone script to quickly determine whether `failed_llm` is due to:
+  - API key/auth,
+  - quota/billing (`insufficient_quota`),
+  - model routing/unsupported-model,
+  - `temperature` incompatibility,
+  - generic gateway `invalid_request_error`.
+
+Planned implementation:
+- Add `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/src/tools/diagnose_llm_gateway.py`.
+- Script will run minimal probes per model:
+  - `chat.completions` probe
+  - `responses` probe (without temperature)
+  - `responses` probe (with temperature=0.2)
+  - runtime-like probe through `ResponsesLLMClient.responses_text(...)`
+- Output one compact JSON report with:
+  - per-probe `ok/failed`,
+  - latency,
+  - normalized error class,
+  - likely root-cause summary.
+- Keep it read-only and safe (no case writeback, no evidence table access).
+
+## 2026-03 Hotfix plan: diagnostics classification + output path robustness
+
+Goal:
+- Improve diagnosis quality for relay-side internal inference failures currently wrapped as `invalid_request`.
+- Make diagnostics script robust when `--out` parent directory does not exist.
+
+Planned changes:
+- In `src/tools/diagnose_llm_gateway.py`:
+  - classify messages containing `"unable to complete inference due to an internal error"` as `model_internal_error`.
+  - include this in root-cause summarization (distinguish from quota/auth).
+  - create parent directories automatically before writing `--out` JSON.
+- Add focused unit assertions in `tests/test_diagnose_llm_gateway.py`.
+
+## 2026-03 Hotfix plan: iterative evidence alignment (E60..E63 + effective gain consistency)
+
+Goal:
+- Remove three runtime inconsistencies observed in iterative runs:
+  1) `eval_report.information_gain.count_effective_added` falls back to `count_added` when effective count is `0`.
+  2) R1 prompt still nudges unavailable IDs (e.g., E35/E37/E39) and can trigger `evidence_id_not_found`.
+  3) E60..E63 may be present in R2/R3 registry but never cited in model output.
+
+Planned implementation:
+- `src/agents/judge_agent.py`
+  - treat `count_effective_added=0` as a valid value (no `or` fallback to `count_added`);
+  - in atb-only lane stop rules, use `count_effective_added` instead of `count_added`.
+- `src/reasoning/master_reasoner.py`
+  - make prompt evidence-ID guidance dynamic from current `evidence_registry` (round-available IDs only);
+  - remove stale fixed-ID guidance that references non-present IDs;
+  - add R2/R3 semantic autofix: when AOP compact IDs (E60..E63) are available but uncited, auto-add one compact citation to top-level `evidence_used` with warning audit code.
+- tests:
+  - add judge regression for `count_effective_added=0` behavior;
+  - add validation regression that R2/R3 auto-inserts one E60..E63 citation when available and missing.
+
+## 2026-03 Hotfix plan: restore visible case progress during setup/default orchestration
+
+Goal:
+- Restore immediate stage visibility while a single `case-run` is executing, especially during pre-round setup agents where runtime currently appears silent.
+
+Planned implementation:
+- `src/orchestration/orchestrator.py`
+  - emit progress events before and after each agent execution:
+    - `agent:structure_agent`
+    - `agent:data_agent`
+    - `agent:chem_agent`
+    - `agent:ready_agent`
+    - and later default-agent runs as applicable
+  - mirror the same stage into `run_status.json` when a status path is available.
+- `src/core/types.py`
+  - add optional progress/status metadata on `AgentContext` so orchestrator can write coherent stage updates without changing agent business logic.
+- `src/orchestration/run_one.py`
+  - populate those context fields for:
+    - iterative setup orchestrator (`active_profile=setup`)
+    - non-iterative default orchestrator (`active_profile=single`)
+- tests:
+  - add regression that `Orchestrator.run(...)` emits agent-stage progress and updates `run_status.json`.
+
+## 2026-03 Hotfix plan: emission provenance compatibility + registry rebuild call sync
+
+Goal:
+- Remove two follow-up bugs uncovered after wiring CSV emission observations into R1:
+  1) dataset-row emission provenance used `identity_confidence` while `ReadyAgent` validates `identity_match_confidence`;
+  2) the pack shrink/rebuild path in `master_reasoner` omitted the new `emission_observation_profile` argument and could fail before reasoning.
+
+Planned changes:
+- `src/orchestration/run_one.py`
+  - write `identity_match_confidence` in dataset-row emission provenance.
+- `src/agents/ready_agent.py`
+  - accept legacy `identity_confidence` as a fallback so older cases do not fail gating.
+- `src/reasoning/master_reasoner.py`
+  - pass `emission_observation_profile` in every `_build_evidence_registry(...)` call path, including pack-size shrink rebuild.
+- tests:
+  - extend targeted orchestration/reasoning regressions to cover dataset-row emission provenance and R1 emission wiring.
+
+## 2026-03 Hotfix plan: relax residual `other` gating and stop single-axis standard-label fallback
+
+Goal:
+- Reduce over-strict late-round demotion of genuine residual `other` outcomes.
+- Stop `neutral aromatic` or other standard labels from winning late rounds on only one weak positive axis after `other` has been suppressed.
+- Keep the balanced-loop style: LLM still negotiates candidates; validator only prevents obvious logic collapse.
+
+Planned changes:
+- `src/reasoning/master_reasoner.py`
+  - relax the late-round `other` eligibility rule:
+    - keep `R0/R1` prohibition,
+    - but allow `R2/R3` `other` when target-side evidence exists and residual support is shown either by a primary support axis or by repeated weakening/conflict against standard candidates.
+  - add a late-round standard-label guard:
+    - if a standard label wins on only one primary axis while residual competition remains active, keep the label provisional and cap confidence harder instead of letting it absorb residual cases too easily.
+  - tighten prompt wording so `other` remains available as a valid late-round residual outcome and standard labels should not be forced from a single weak axis.
+  - make `candidate_scorecard` attribute `new_support_evidence_ids` / `new_weakening_evidence_ids` from role-aligned evidence only, so axis summaries and evidence IDs stay consistent.
+- tests:
+  - extend `tests/test_balanced_loop_candidate_scorecard.py`
+    - genuine late-round `other` survives with weakened standard candidates,
+    - single-axis late-round standard labels get marked provisional under residual competition,
+    - candidate scorecard role attribution stays aligned with axis labels.
+
+## 2026-03 Refactor plan: residual `other` admissibility as an explicit end-state decision
+
+Goal:
+- Remove the chained normalization behavior:
+  - `single-axis standard label -> other -> unknown`
+- Make `other` a valid late-round residual outcome chosen by one explicit admissibility decision.
+- Keep standard labels and `other` governed symmetrically:
+  - standard labels win only when they close positively,
+  - `other` wins when target-side evidence is present but the standard label set still fails to close.
+
+Planned changes:
+- `src/reasoning/master_reasoner.py`
+  - add internal helpers:
+    - `evaluate_standard_label_closure(...)`
+    - `evaluate_residual_other_admissibility(...)`
+  - replace the current chained fallback with a single decision flow:
+    - if standard label is `closed`, keep it;
+    - if standard label is `provisional` and residual `other` is admissible, normalize to `other`;
+    - if standard label is `provisional` and residual `other` is not admissible, keep the standard label but mark it provisional;
+    - if raw primary is `other`, keep it only when residual admissibility passes, else normalize to `unknown`.
+  - record normalization audit fields:
+    - `llm_primary_label`
+    - `normalized_primary_label`
+    - `standard_label_closure`
+    - `residual_other_admissible`
+    - `normalization_reason_codes`
+  - prepend a short normalization note to `natural_language_mechanism` when normalized label differs from the LLM's original primary label.
+- `src/orchestration/round_runner.py`
+  - build `candidate_scorecard` from normalized output rather than raw LLM output so sidecars align with final labels.
+- `src/agents/judge_agent.py`
+  - carry the new closure/admissibility audit summary into `eval_report.json`.
+- `src/reasoning/reasoning_config.py`
+  - add defaults for:
+    - `standard_label_min_positive_axes`
+    - `standard_label_requires_target_axis`
+    - `residual_other_min_standard_candidates`
+    - `residual_other_min_conflicts`
+    - `late_round_provisional_standard_confidence_cap`
+- tests:
+  - extend `tests/test_balanced_loop_candidate_scorecard.py` and `tests/test_master_output_validation.py` to cover:
+    - genuine late-round `other` surviving,
+    - single-axis `neutral aromatic` normalizing to `other` when residual is admissible,
+    - provisional standard labels remaining provisional when residual is inadmissible,
+    - scorecard/final-label alignment,
+    - normalization note insertion only when labels differ.
+
+## 2026-03 Refactor plan: split category semantics from epistemic state (`other / unknown / novelty`)
+
+Goal:
+- Stop mixing category judgment, evidence sufficiency, and novelty suspicion inside `mechanism_label`.
+- Keep `master_output_schema_v3` unchanged while moving the missing semantics into normalized meta/sidecar fields.
+
+Semantic decisions:
+- `other` = residual category outcome:
+  - the current canonical label pool does not close,
+  - but late-round target-side evidence is sufficient to support a residual interpretation.
+- `unknown` = epistemic state:
+  - current evidence is still insufficient to close either a canonical label or residual `other`.
+- `novelty_candidate` = independent sidecar/meta flag:
+  - potential pool-outside / new-mechanism behavior,
+  - never written as the structured `mechanism_label`.
+
+Planned changes:
+- `src/reasoning/master_reasoner.py`
+  - keep `evaluate_standard_label_closure(...)` and `evaluate_residual_other_admissibility(...)`, but route them through one explicit resolver:
+    - `resolve_final_label_and_decision_state(...)`.
+  - remove the chained fallback:
+    - `standard -> other -> unknown`.
+  - use one-pass rules:
+    - standard label + `closed` -> keep label, `decision_state=closed_known`;
+    - standard label + `provisional` -> keep label, `decision_state=provisional_known`, force `insufficient_evidence`, `mixture`, and a late-round provisional confidence cap;
+    - raw `other` + admissible residual -> keep `other`, `decision_state=residual_supported`;
+    - raw `other` + inadmissible residual -> normalize to `unknown`, `decision_state=insufficient_evidence`;
+    - unsupported standard label + inadmissible residual -> `unknown`.
+  - add normalization/meta audit fields:
+    - `decision_state`
+    - `canonical_pool_closed`
+    - `residual_other_admissible`
+    - `novelty_candidate`
+    - `novelty_basis`
+    - `llm_primary_label`
+    - `normalized_primary_label`
+    - `normalization_reason_codes`
+  - keep the normalization note in `natural_language_mechanism`, but only when the final structured label differs from the LLM raw label.
+- `src/reasoning/reasoning_config.py`
+  - add thresholds for:
+    - `novelty_candidate_entropy_threshold`
+    - `novelty_candidate_struct_threshold`
+  - retain the existing closure / residual knobs.
+- `src/orchestration/round_runner.py`
+  - carry the normalized decision summary into:
+    - `master_round_report.json`
+    - `round_state.json`
+    - `candidate_scorecard`
+  - make sidecars reflect normalized outcome rather than raw LLM label.
+- `src/agents/judge_agent.py`
+  - propagate the same normalization summary into `eval_report.json`
+  - key round-continuation heuristics off `decision_state`, not only the surface label.
+
+Testing targets:
+- standard `closed` remains a standard label with `decision_state=closed_known`
+- standard `provisional` remains provisional and does not auto-convert to `other`
+- raw `other` survives in `R2/R3` only when residual admissibility is satisfied
+- raw `other` becomes `unknown` when residual admissibility fails
+- `candidate_scorecard`, `round_state`, `eval_report`, and case meta agree on:
+  - `normalized_primary_label`
+  - `decision_state`
+  - `residual_other_admissible`
+  - `novelty_candidate`
+- `novelty_candidate` appears only in meta/sidecar, never as a mechanism label
+
+## 2026-03 Refactor plan: reshape split levels and remove `other` from the main reference space
+
+Goal:
+- collapse the current `split_list` difficulty layout from four levels to three:
+  - keep `1_level.csv`
+  - merge old `2_level.csv` + `3_level.csv` into the new `2_level.csv`
+  - map old `4_level.csv` to the new `3_level.csv`
+- remove every row with `mechanism_id == "other"` from the main split levels so `other` never appears in:
+  - the evaluation CSVs,
+  - the reference-space source parquet,
+  - leave-level reference views,
+  - StructureAgent / DataAgent feature space.
+- move every removed `other` row into a dedicated benchmark dataset:
+  - `data/other_benchmark.csv`
+
+Decisions:
+- preserve the old four-level source rows only as an input to a rebuild script; runtime should move to the new three-level contract.
+- keep all non-`other` labels unchanged, including:
+  - `ICT`
+  - `TICT`
+  - `ESIPT`
+  - `neutral aromatic`
+  - `clusterluminescence`
+  - `ESIPT+ICT/TICT`
+- update the leakage-safe reference views to:
+  - `all_levels_full`
+  - `leave_level_1`
+  - `leave_level_2`
+  - `leave_level_3`
+- remove `leave_level_4` from the active runtime / CLI / evaluation path.
+
+Planned data changes:
+- add a reproducible rebuild script that:
+  - reads the current `data/split_list/{1,2,3,4}_level.csv`,
+  - writes the reshaped three-level CSVs back to `data/split_list/`,
+  - writes all removed `other` rows to `data/other_benchmark.csv`,
+  - records provenance columns on the benchmark export:
+    - `original_level`
+    - `new_level`
+    - `source_row_index`
+- expected new split layout:
+  - `1_level.csv` = old level 1 without `other`
+  - `2_level.csv` = old levels 2+3 merged, without `other`
+  - `3_level.csv` = old level 4 without `other`
+
+Planned runtime / feature-space changes:
+- `src/data/build_split_reference_source.py`
+  - default source files become `1_level.csv`, `2_level.csv`, `3_level.csv`
+  - merged source parquet no longer includes `other` rows.
+- `src/data/build_split_reference_views.py`
+  - materialize only:
+    - `all_levels_full`
+    - `leave_level_1`
+    - `leave_level_2`
+    - `leave_level_3`
+- `src/orchestration/run_one.py`
+  - `reference_view=auto` resolves only levels `1..3`
+  - `difficulty_level` parsing no longer expects level 4.
+- `src/cli.py` and `src/eval/evaluate_testset.py`
+  - remove `leave_level_4` from CLI choices.
+- tests/docs
+  - update split/reference-view tests and schemas from 4-level assumptions to the new 3-level contract
+  - add coverage for the `other_benchmark.csv` export.
+
+Validation targets:
+- `data/split_list/1_level.csv`, `2_level.csv`, `3_level.csv` contain zero `other` rows
+- `data/other_benchmark.csv` contains every removed `other` row exactly once
+- new reference source / views build successfully with only three leave-level views
+- runtime `reference_view=auto` maps split rows to `leave_level_{1,2,3}`
+- no active feature-space artifact still includes `other` rows from the main split benchmark
+
+## 2026-03 Refactor plan: remove `other` from the active label pool for split-level benchmarking
+
+Goal:
+- keep the main split benchmark focused on the standard mechanism labels plus `unknown`
+- stop the current rule/adjudication layer from emitting `other` during `split_list` / `split_levels_v2` runs
+- preserve `unknown` only as the unresolved-evidence outcome
+- keep the door open for a future `other_benchmark`, without keeping `other` in the active main-benchmark label pool
+
+Decisions:
+- the active split-level benchmark uses a **no-`other`** label pool:
+  - `ICT`
+  - `TICT`
+  - `ESIPT`
+  - `neutral aromatic`
+  - `unknown`
+- this restriction is tied to the active split/reference-space contract:
+  - `data/split_list/*.csv`
+  - `data/reference_indices/split_levels_v2/views/*`
+- `other` remains available only for future dedicated workflows (for example `other_benchmark`), not for the active split benchmark
+
+Planned code changes:
+- propagate a runtime flag such as `allow_other_label=false` for the active split benchmark
+- build `allowed_mechanism_labels` without `other` whenever the run uses the split-level-v2 reference space
+- remove `other` from:
+  - Master prompt contracts
+  - Final adjudication legal candidate sets
+  - Evaluator final-label reasoning for split-level-v2 runs
+- keep `unknown` as the only unresolved fallback label
+- preserve the current multi-round structure:
+  - `R0`: structure prior
+  - `R1`: target observation + target aTB
+  - `R2`: comparative
+  - `R3`: external / closure
+
+Validation targets:
+- no `split_list` / `split_levels_v2` run emits final `mechanism_label = other`
+- `unknown` is emitted only when the legal standard-label pool does not close
+- final adjudication sidecars stay internally consistent after removing `other`
+- benchmark/eval CLI defaults for the split-level-v2 workflow inherit the no-`other` label pool automatically

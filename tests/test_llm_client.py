@@ -227,3 +227,97 @@ def test_responses_json_falls_back_to_chat_when_responses_api_rejects_model(monk
     assert holder["responses"].calls
     assert holder["chat"].calls
     assert out["request"]["api"] == "chat.completions"
+
+
+def test_responses_text_retries_without_temperature_when_unsupported(monkeypatch):
+    holder = {}
+    payloads = [
+        RuntimeError("Error code: 400 - {'error': {'message': \"Unsupported parameter: 'temperature' is not supported with this model.\"}}"),
+        {"output_text": "PRIMARY_LABEL: ICT"},
+    ]
+    client = ResponsesLLMClient(base_url="http://x", model="gpt-5.2", temperature=0.2)
+    monkeypatch.setattr(client, "_build_client", lambda: _FakeClient(payloads, holder))
+    out = client.responses_text(instructions="i", input_text="u")
+    assert "PRIMARY_LABEL" in out["text"]
+    assert len(holder["responses"].calls) == 2
+    assert holder["responses"].calls[0].get("temperature") == 0.2
+    assert "temperature" not in holder["responses"].calls[1]
+
+
+def test_responses_json_retries_without_temperature_when_unsupported(monkeypatch):
+    holder = {}
+    payloads = [
+        RuntimeError("Error code: 400 - {'error': {'message': \"Unsupported parameter: 'temperature' is not supported with this model.\"}}"),
+        {"output_text": json.dumps({"status": "ok"})},
+    ]
+    client = ResponsesLLMClient(base_url="http://x", model="gpt-5.2", temperature=0.2)
+    monkeypatch.setattr(client, "_build_client", lambda: _FakeClient(payloads, holder))
+    out = client.responses_json(
+        instructions="i",
+        input_text="u",
+        schema_name="s",
+        schema={"type": "object", "properties": {"status": {"type": "string"}}, "required": ["status"]},
+    )
+    assert out["parsed"]["status"] == "ok"
+    assert len(holder["responses"].calls) == 2
+    assert holder["responses"].calls[0].get("temperature") == 0.2
+    assert "temperature" not in holder["responses"].calls[1]
+
+
+def test_responses_text_falls_back_to_chat_on_generic_invalid_request(monkeypatch):
+    holder = {}
+    chat_payload = {
+        "choices": [
+            {
+                "message": {
+                    "content": "TEMPLATE_USED: mixture\nSTATUS: ok\nPRIMARY_LABEL: ICT\nPRIMARY_CONFIDENCE: 0.5"
+                }
+            }
+        ]
+    }
+    payloads = [
+        RuntimeError(
+            "Error code: 400 - {'error': {'message': 'There was an issue with your request. Please check your inputs and try again', 'type': 'invalid_request_error'}}"
+        )
+    ]
+    client = ResponsesLLMClient(base_url="http://x", model="gpt-5.2")
+    monkeypatch.setattr(client, "_build_client", lambda: _FakeClient(payloads, holder, chat_payload=chat_payload))
+    out = client.responses_text(instructions="i", input_text="u")
+    assert "PRIMARY_LABEL" in out["text"]
+    assert holder["responses"].calls
+    assert holder["chat"].calls
+    assert out["request"]["api"] == "chat.completions"
+
+
+def test_responses_json_falls_back_to_chat_on_generic_invalid_request(monkeypatch):
+    holder = {}
+    chat_payload = {
+        "choices": [
+            {
+                "message": {
+                    "content": json.dumps({"status": "ok", "limits": []})
+                }
+            }
+        ]
+    }
+    payloads = [
+        RuntimeError(
+            "Error code: 400 - {'error': {'message': 'There was an issue with your request. Please check your inputs and try again', 'type': 'invalid_request_error'}}"
+        )
+    ]
+    client = ResponsesLLMClient(base_url="http://x", model="gpt-5.2")
+    monkeypatch.setattr(client, "_build_client", lambda: _FakeClient(payloads, holder, chat_payload=chat_payload))
+    out = client.responses_json(
+        instructions="i",
+        input_text="u",
+        schema_name="s",
+        schema={
+            "type": "object",
+            "properties": {"status": {"type": "string"}, "limits": {"type": "array", "items": {"type": "string"}}},
+            "required": ["status", "limits"],
+        },
+    )
+    assert out["parsed"]["status"] == "ok"
+    assert holder["responses"].calls
+    assert holder["chat"].calls
+    assert out["request"]["api"] == "chat.completions"

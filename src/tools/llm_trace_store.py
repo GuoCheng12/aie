@@ -156,8 +156,8 @@ def build_reasoning_five_signals(
         ("E6", "context", "Mechanism entropy indicates ambiguity in neighbor-label evidence.", False),
         # aTB cues
         ("E11", "support", "aTB torsional cue directly affects discrimination among top competing mechanisms.", False),
-        ("E12", "context", "aTB gap shift provides CT-family context but is not standalone mechanism proof.", False),
-        ("E14", "context", "Excitation-energy cue refines plausibility across competing CT-family hypotheses.", True),
+        ("E12", "context", "aTB gap shift provides electronic-redistribution context but is not standalone mechanism proof.", False),
+        ("E14", "context", "Excitation-energy cue refines plausibility across competing hypotheses without privileging a single label outcome.", True),
         # missing discriminators
         ("E19", "context", "Missing literature validation keeps mechanism assignment provisional.", False),
         ("E20", "context", "Missing experimental discriminator prevents decisive hypothesis separation.", False),

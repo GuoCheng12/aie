@@ -104,7 +104,7 @@ def compute_atb_shape_rigidity_profile(
         "reliability": _reliability(asym_change, rot_changes),
         "notes": [
             "Rigidity proxy treats smaller asymmetry and rotational-constant changes as higher rigidity.",
-            "This profile is auxiliary and should not dominate CT or structural relaxation evidence.",
+            "This profile is an auxiliary axis and is interpreted alongside the other evidence axes.",
         ],
     }
     return _trim(profile)
