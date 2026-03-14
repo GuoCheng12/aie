@@ -1,0 +1,17 @@
+{
+  "version": "prior_reliability_v1",
+  "feature_consensus_strength": "mid",
+  "scaffold_consensus_strength": "high",
+  "neighbor_consensus_strength": "mid",
+  "cross_source_agreement": "mid",
+  "prior_reliability": "low",
+  "ambiguity_level": "high",
+  "feature_top_label": "ESIPT",
+  "scaffold_top_label": "ESIPT",
+  "neighbor_top_label": "ICT",
+  "notes": [
+    "Feature consensus is mid, scaffold consensus is high, and neighbor consensus is mid.",
+    "Cross-source agreement is mid; prior reliability is low and ambiguity is high.",
+    "Neighbor-label entropy is 0.901 and structural novelty is 0.617."
+  ]
+}

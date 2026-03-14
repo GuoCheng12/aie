@@ -4,14 +4,19 @@
   "reference_view": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/data/reference_indices/split_levels_v2/views/leave_level_1",
   "examples": [
     {
-      "code": "o-TPEPh",
-      "expected_label": "neutral aromatic",
-      "path": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/doc/examples/structure_prior_snapshots/o-TPEPh"
+      "code": "2N-DPAS",
+      "expected_label": "ESIPT",
+      "path": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/doc/examples/structure_prior_snapshots/2N-DPAS"
     },
     {
       "code": "BTPETTD",
       "expected_label": "ESIPT",
       "path": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/doc/examples/structure_prior_snapshots/BTPETTD"
+    },
+    {
+      "code": "o-TPEPh",
+      "expected_label": "neutral aromatic",
+      "path": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/doc/examples/structure_prior_snapshots/o-TPEPh"
     }
   ]
 }

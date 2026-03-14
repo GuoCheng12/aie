@@ -1,0 +1,14 @@
+{
+  "code": "2N-DPAS",
+  "expected_label": "ESIPT",
+  "smiles": "OC(C=CC=C1)=C1/C=N/N=C(C2=CC=C(N(CC)CC)C=C2)/C3=CC=C(N(CC)CC)C=C3",
+  "source_split": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/data/split_list/1_level.csv",
+  "source_row_index": 61,
+  "reference_view": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/data/reference_indices/split_levels_v2/views/leave_level_1",
+  "reference_topk": {
+    "structure_retrieval_topk": 10,
+    "ecfp_neighbor_topk": 50
+  },
+  "canonical_smiles": "CCN(CC)c1ccc(C(=N/N=C/c2ccccc2O)c2ccc(N(CC)CC)cc2)cc1",
+  "inchikey": "LILDBGQLEFIGPQ-XHLNEMQHSA-N"
+}

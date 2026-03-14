@@ -5699,3 +5699,21 @@ python -m unittest -v tests.test_graph_retrieval_v1_p3
   - `candidate_slate_v2.json`
 - Added `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/doc/examples/structure_prior_snapshots/README.md` and `index.json` so collaborators can inspect the exact current prior values without rerunning the pipeline.
 - This patch is data-only for collaborator inspection; it does not change reasoning behavior.
+
+## 2026-03-14: add one more ESIPT structure-prior snapshot
+
+- Added a third tracked structure-prior snapshot under `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/doc/examples/structure_prior_snapshots/2N-DPAS`.
+- Source context is unchanged:
+  - split file: `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/data/split_list/1_level.csv`
+  - reference view: `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/data/reference_indices/split_levels_v2/views/leave_level_1`
+- Exported files for `2N-DPAS` (`ESIPT`):
+  - `context.json`
+  - `structure_prior_profile.json`
+  - `structure_motif_profile.json`
+  - `structure_fact_sheet.json`
+  - `prior_reliability_profile.json`
+  - `candidate_slate_v2.json`
+- Updated `/Users/wuguocheng/workshop/Uncertainty_aware_AIE/doc/examples/structure_prior_snapshots/index.json` and `README.md` so collaborator-facing snapshot docs now enumerate three molecules:
+  - `o-TPEPh`
+  - `BTPETTD`
+  - `2N-DPAS`

@@ -6,7 +6,7 @@ Build the Evidence Layer + Light KG + Chem Agent literature evidence loop, while
 ## Current task: export two deterministic structure-prior snapshots for collaborator review
 
 Problem:
-- collaborators need the exact current rule-generated prior objects for one `neutral aromatic` example and one `ESIPT` example;
+- collaborators need the exact current rule-generated prior objects for one `neutral aromatic` example and multiple `ESIPT` examples;
 - these values should live in a tracked folder in the repo so they can be reviewed without rerunning the full pipeline;
 - the export must capture the exact `structure_prior_profile`, `structure_motif_profile`, `structure_fact_sheet`, `prior_reliability_profile`, and `candidate_slate_v2` objects under the current `split_levels_v2` / `leave_level_1` setup.
 
@@ -14,7 +14,8 @@ Implementation scope for this patch:
 1. create a small tracked folder under `doc/examples/structure_prior_snapshots/`;
 2. export deterministic JSON snapshots for:
    - `o-TPEPh` (`neutral aromatic` example),
-   - `BTPETTD` (`ESIPT` example);
+   - `BTPETTD` (`ESIPT` example),
+   - one additional `ESIPT` example selected from `data/split_list/1_level.csv`;
 3. include a short README with:
    - source SMILES,
    - source split file,
@@ -25,7 +26,7 @@ Implementation scope for this patch:
 
 Locked decisions:
 - the tracked folder is `doc/examples/structure_prior_snapshots/`;
-- snapshots include five JSON objects per molecule:
+- snapshots include five JSON objects per molecule (plus `context.json`):
   - `structure_prior_profile.json`,
   - `structure_motif_profile.json`,
   - `structure_fact_sheet.json`,

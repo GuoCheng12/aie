@@ -1,0 +1,24 @@
+{
+  "version": "structure_prior_v1",
+  "descriptor_snapshot": {
+    "n_rotatable_bonds": 10,
+    "n_hbd": 1,
+    "n_hba": 5,
+    "n_rings": 3,
+    "n_aromatic_rings": 3,
+    "tpsa": 51.43,
+    "logp": 5.956100000000006
+  },
+  "donor_acceptor_topology": "strong",
+  "intramolecular_hbond_candidates": "possible",
+  "aromatic_core_density": "high",
+  "flexibility_proxy": "high",
+  "conjugation_proxy": "high",
+  "overall_structure_prior": "Conjugation is high; aromatic-core density is high; flexibility is high; donor/acceptor topology is strong; intramolecular H-bond candidates are possible; reliability is high.",
+  "reliability": "high",
+  "notes": [
+    "Donor/acceptor topology is strong under the current topology heuristic.",
+    "Aromatic-core density is high, flexibility is high, and conjugation is high.",
+    "Intramolecular H-bond candidates are possible as structural context."
+  ]
+}

@@ -1,0 +1,67 @@
+{
+  "version": "candidate_slate_v2",
+  "candidate_labels": [
+    "ESIPT",
+    "TICT",
+    "ICT",
+    "neutral aromatic"
+  ],
+  "candidate_scores": {
+    "ICT": 0.209515,
+    "TICT": 0.262813,
+    "ESIPT": 0.363806,
+    "neutral aromatic": 0.163866
+  },
+  "top_candidates": [
+    {
+      "label": "ESIPT",
+      "prob": 0.363806
+    },
+    {
+      "label": "TICT",
+      "prob": 0.262813
+    },
+    {
+      "label": "ICT",
+      "prob": 0.209515
+    },
+    {
+      "label": "neutral aromatic",
+      "prob": 0.163866
+    }
+  ],
+  "top3": [
+    {
+      "label": "ESIPT",
+      "prob": 0.363806
+    },
+    {
+      "label": "TICT",
+      "prob": 0.262813
+    },
+    {
+      "label": "ICT",
+      "prob": 0.209515
+    }
+  ],
+  "consensus_source_breakdown": {
+    "feature_retrieval": {
+      "ESIPT": 0.403543,
+      "TICT": 0.30895,
+      "neutral aromatic": 0.193201,
+      "ICT": 0.094306
+    },
+    "murcko_retrieval": {
+      "ESIPT": 0.600546,
+      "ICT": 0.202824,
+      "TICT": 0.19663
+    },
+    "ecfp_prior": {
+      "ICT": 0.372622,
+      "TICT": 0.289458,
+      "ESIPT": 0.288705,
+      "neutral aromatic": 0.049215
+    }
+  },
+  "slate_confidence": "low"
+}

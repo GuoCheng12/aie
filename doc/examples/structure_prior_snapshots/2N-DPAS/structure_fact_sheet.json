@@ -1,0 +1,27 @@
+{
+  "version": "structure_fact_sheet_v1",
+  "donor_acceptor_topology": "strong",
+  "intramolecular_hbond_geometry": "none",
+  "proton_transfer_topology_candidate": "none",
+  "tautomerizable_subgraph_strength": "high",
+  "donor_acceptor_fragment_balance": "low",
+  "donor_acceptor_path_multiplicity": "low",
+  "donor_acceptor_separation_regime": "unknown",
+  "aromatic_rigidity_signature": "mid",
+  "fused_aromatic_core_strength": "none",
+  "aromatic_core_connectivity": "extended",
+  "global_flexibility_vs_core_rigidity": "mixed",
+  "planarity_proxy": "low",
+  "planarity_break_count": 10,
+  "conjugation_compactness": "mid",
+  "conjugation_continuity": "segmented",
+  "heteroatom_cluster_pattern": "mixed",
+  "proton_transfer_local_geometry": "none",
+  "reliability": "high",
+  "notes": [
+    "Detected 1 donor site(s) and 1 acceptor site(s) with unknown donor-acceptor separation.",
+    "Intramolecular H-bond geometry is none; tautomerizable subgraph strength is high.",
+    "Aromatic scaffold is extended with mid rigidity and low planarity proxy.",
+    "Matched structural motif families: imine_acceptor, phenol_donor."
+  ]
+}
