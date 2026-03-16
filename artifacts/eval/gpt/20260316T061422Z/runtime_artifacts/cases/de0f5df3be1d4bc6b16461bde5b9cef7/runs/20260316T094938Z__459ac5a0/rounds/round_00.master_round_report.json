@@ -1,0 +1,56 @@
+{
+  "round_index": 0,
+  "active_profile": "R0",
+  "status": "failed_schema_validation",
+  "hypothesis": {
+    "mechanism_label": "ICT",
+    "aie_rationale_type": "mixture",
+    "atb_support_level": "none",
+    "template_used": "mixture"
+  },
+  "claim_set": [
+    {
+      "step_id": "A",
+      "step_name": "torsion_access",
+      "claim": "Excited-state structural access is inferred from available aTB cues."
+    },
+    {
+      "step_id": "B",
+      "step_name": "ct_family",
+      "claim": "An electronic redistribution or nonradiative-channel hypothesis is updated from current target cues."
+    },
+    {
+      "step_id": "C",
+      "step_name": "aIE_bridge",
+      "claim": "Aggregation/rigidification may suppress nonradiative pathways."
+    },
+    {
+      "step_id": "D",
+      "step_name": "discriminators",
+      "claim": "Discriminator tests are needed to separate top competing hypotheses."
+    }
+  ],
+  "conflict_points": [
+    {
+      "code": "enum_violation",
+      "path": "$/status",
+      "detail": "value 'invalid' not in enum"
+    }
+  ],
+  "confidence": 0.468,
+  "used_evidence_ids": [],
+  "used_case_paths": [],
+  "normalization_summary": {
+    "llm_primary_label": null,
+    "normalized_primary_label": null,
+    "decision_state": null,
+    "canonical_pool_closed": false,
+    "standard_label_closure": null,
+    "residual_other_admissible": false,
+    "novelty_candidate": false,
+    "novelty_basis": [],
+    "normalization_reason_codes": []
+  },
+  "llm_failure_reason": null,
+  "updated_at": "2026-03-16T09:50:04Z"
+}

@@ -1,0 +1,102 @@
+{
+  "round_index": 1,
+  "active_profile": "R1",
+  "status": "completed",
+  "hypothesis": {
+    "mechanism_label": "neutral aromatic",
+    "aie_rationale_type": "mixture",
+    "atb_support_level": "none",
+    "template_used": "mixture"
+  },
+  "claim_set": [
+    {
+      "step_id": "A",
+      "step_name": "torsion_access",
+      "claim": "Excited-state structural access is inferred from available aTB cues."
+    },
+    {
+      "step_id": "B",
+      "step_name": "ct_family",
+      "claim": "An electronic redistribution or nonradiative-channel hypothesis is updated from current target cues."
+    },
+    {
+      "step_id": "C",
+      "step_name": "aIE_bridge",
+      "claim": "Aggregation/rigidification may suppress nonradiative pathways."
+    },
+    {
+      "step_id": "D",
+      "step_name": "discriminators",
+      "claim": "Discriminator tests are needed to separate top competing hypotheses."
+    }
+  ],
+  "conflict_points": [
+    {
+      "code": "supporting_chain_atb_citations_insufficient",
+      "path": "/supporting_chain",
+      "detail": "found 1, require >=2"
+    },
+    {
+      "code": "supporting_chain_atb_support_citations_insufficient",
+      "path": "/supporting_chain",
+      "detail": "found 0, require >=1 support citation"
+    },
+    {
+      "code": "supporting_chain_step_a_missing_atb_citation",
+      "path": "/supporting_chain/0",
+      "detail": "step A requires at least one aTB citation"
+    },
+    {
+      "code": "single_axis_support_only",
+      "path": "/supporting_chain",
+      "detail": "winning claim is supported by one primary evidence axis only: target_observation"
+    }
+  ],
+  "confidence": 0.25171200000000005,
+  "used_evidence_ids": [
+    "E31",
+    "E32",
+    "E35",
+    "E36",
+    "E37",
+    "E50",
+    "E51",
+    "E52",
+    "E72",
+    "E73"
+  ],
+  "used_case_paths": [
+    "/evidence_readiness/atb/features_summary/charge_redis_heteroatom_abs_share",
+    "/evidence_readiness/atb/features_summary/charge_redis_top3_abs_share",
+    "/evidence_readiness/atb/features_summary/charge_redis_total_abs",
+    "/evidence_readiness/atb/features_summary/delta_angles",
+    "/evidence_readiness/atb/features_summary/delta_bonds",
+    "/evidence_readiness/atb/features_summary/delta_dihedral",
+    "/evidence_readiness/atb/features_summary/delta_gap",
+    "/evidence_readiness/atb/features_summary/delta_volume",
+    "/risk_scores/structure_motif_profile/donor_acceptor_path_strength",
+    "/risk_scores/structure_motif_profile/intramolecular_hbond_motif",
+    "/risk_scores/structure_motif_profile/tautomerizable_motif",
+    "/target_fields/emission_aggr_nm",
+    "/target_fields/emission_solid_or_film_nm",
+    "/target_fields_provenance/emission_aggr_nm",
+    "/target_fields_provenance/emission_solid_or_film_nm"
+  ],
+  "normalization_summary": {
+    "llm_primary_label": "neutral aromatic",
+    "normalized_primary_label": "neutral aromatic",
+    "decision_state": "provisional_known",
+    "canonical_pool_closed": false,
+    "standard_label_closure": "provisional",
+    "residual_other_admissible": false,
+    "novelty_candidate": true,
+    "novelty_basis": [
+      "mechanism_entropy_high"
+    ],
+    "normalization_reason_codes": [
+      "standard_label_provisional"
+    ]
+  },
+  "llm_failure_reason": null,
+  "updated_at": "2026-03-16T09:00:41Z"
+}

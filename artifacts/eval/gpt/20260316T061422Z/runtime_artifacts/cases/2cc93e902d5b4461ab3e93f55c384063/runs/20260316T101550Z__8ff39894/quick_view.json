@@ -1,0 +1,33 @@
+{
+  "case_id": "2cc93e902d5b4461ab3e93f55c384063",
+  "run_id": "8ff398948e2741e5a5bfdae6c4782f2d",
+  "run_time": "2026-03-16T10:15:50Z",
+  "final_label": "ICT",
+  "final_confidence": 0.193306,
+  "final_gate": {
+    "state": "ready_for_reasoning",
+    "reasoning_mode": "normal"
+  },
+  "rounds_executed": 4,
+  "stop_recommendation": {
+    "should_stop": false,
+    "reason_code": "continue",
+    "explanation": "active_profile=R2; next_profile=R2; feasibility=0.25"
+  },
+  "used_evidence_ids_top": [
+    "E21",
+    "E22",
+    "E23",
+    "E31",
+    "E36",
+    "E37",
+    "E39",
+    "E60"
+  ],
+  "paths": {
+    "case_json": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/artifacts/eval/gpt/20260316T061422Z/runtime_cases/2cc93e902d5b4461ab3e93f55c384063.json",
+    "run_summary_json": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/artifacts/eval/gpt/20260316T061422Z/runtime_artifacts/cases/2cc93e902d5b4461ab3e93f55c384063/runs/20260316T101550Z__8ff39894/run_summary.json",
+    "rounds_dir": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/artifacts/eval/gpt/20260316T061422Z/runtime_artifacts/cases/2cc93e902d5b4461ab3e93f55c384063/runs/20260316T101550Z__8ff39894/rounds",
+    "llm_dir": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/artifacts/eval/gpt/20260316T061422Z/runtime_artifacts/cases/2cc93e902d5b4461ab3e93f55c384063/runs/20260316T101550Z__8ff39894/llm"
+  }
+}

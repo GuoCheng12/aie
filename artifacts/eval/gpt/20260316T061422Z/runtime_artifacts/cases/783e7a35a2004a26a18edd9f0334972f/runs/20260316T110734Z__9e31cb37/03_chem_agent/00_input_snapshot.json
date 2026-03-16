@@ -1,0 +1,14 @@
+{
+  "case_id": "783e7a35a2004a26a18edd9f0334972f",
+  "inchikey": "CIGZGEGICWUXPE-UHFFFAOYSA-N",
+  "smiles": "[C-]#[N+]/C(=C\\c1ccc(/C=C(\\c2ccccc2)c2ccc(N(c3ccccc3)c3ccccc3)cc2)cc1)c1ccc(-c2cc[n+](C)cc2)cc1",
+  "code": "TPA-2Ph-SCP",
+  "aliases": [
+    "TPA-2Ph-SCP"
+  ],
+  "run_lane": "atb_cache_only",
+  "mode": "web_search",
+  "strictness": "relaxed",
+  "extractor_mode": "mineru_llm",
+  "offline_pdfs": []
+}

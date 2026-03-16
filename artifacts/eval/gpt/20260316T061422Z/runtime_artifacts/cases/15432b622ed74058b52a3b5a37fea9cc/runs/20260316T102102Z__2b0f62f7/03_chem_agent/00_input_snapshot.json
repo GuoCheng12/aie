@@ -1,0 +1,14 @@
+{
+  "case_id": "15432b622ed74058b52a3b5a37fea9cc",
+  "inchikey": "GDHUSUCWCDEOBA-UHFFFAOYSA-N",
+  "smiles": "COc1ccc(C(=C(c2ccccc2)c2ccc(-c3ccc(C=C4C(=O)N(C)C(=O)N(C)C4=O)s3)cc2)c2ccc(OC)cc2)cc1",
+  "code": "TPE-Th-B",
+  "aliases": [
+    "TPE-Th-B"
+  ],
+  "run_lane": "atb_cache_only",
+  "mode": "web_search",
+  "strictness": "relaxed",
+  "extractor_mode": "mineru_llm",
+  "offline_pdfs": []
+}

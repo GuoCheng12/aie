@@ -1,0 +1,18 @@
+{
+  "case_id": "e0c4464ab556447dbcd3e6fe52137f15",
+  "retain_runs": 10,
+  "updated_at": "2026-03-16T09:17:03Z",
+  "runs": [
+    {
+      "run_id": "b423cfa20d384c498a2b6fa1d3c4cba6",
+      "run_name": "20260316T091153Z__b423cfa2",
+      "run_time": "2026-03-16T09:11:53Z",
+      "status": "ok",
+      "final_label": "ICT",
+      "final_confidence": 0.31464,
+      "run_dir": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/artifacts/eval/gpt/20260316T061422Z/runtime_artifacts/cases/e0c4464ab556447dbcd3e6fe52137f15/runs/20260316T091153Z__b423cfa2",
+      "run_summary_path": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/artifacts/eval/gpt/20260316T061422Z/runtime_artifacts/cases/e0c4464ab556447dbcd3e6fe52137f15/runs/20260316T091153Z__b423cfa2/run_summary.json",
+      "quick_view_path": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/artifacts/eval/gpt/20260316T061422Z/runtime_artifacts/cases/e0c4464ab556447dbcd3e6fe52137f15/runs/20260316T091153Z__b423cfa2/quick_view.json"
+    }
+  ]
+}

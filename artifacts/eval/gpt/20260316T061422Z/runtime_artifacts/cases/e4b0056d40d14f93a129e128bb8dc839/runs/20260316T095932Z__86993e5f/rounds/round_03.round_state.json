@@ -1,0 +1,323 @@
+{
+  "round_index": 3,
+  "active_profile": "R2",
+  "llm_failure_reason": null,
+  "hypothesis_delta": {
+    "changed": false,
+    "primary_label_before": "ICT",
+    "primary_label_after": "ICT",
+    "confidence_before": 0.25171200000000005,
+    "confidence_after": 0.39059520000000003,
+    "confidence_delta": 0.138883,
+    "template_before": "mixture",
+    "template_after": "mixture"
+  },
+  "new_evidence_used": {
+    "added_ids": [
+      "E21",
+      "E31",
+      "E32",
+      "E35",
+      "E36",
+      "E37",
+      "E39",
+      "E61",
+      "E72"
+    ],
+    "effective_added_ids": [
+      "E21",
+      "E32",
+      "E39",
+      "E61"
+    ],
+    "removed_ids": [
+      "E60"
+    ],
+    "added_paths": [
+      "/evidence_readiness/atb/features_summary/charge_redis_heteroatom_abs_share",
+      "/evidence_readiness/atb/features_summary/charge_redis_top3_abs_share",
+      "/evidence_readiness/atb/features_summary/charge_redis_total_abs",
+      "/evidence_readiness/atb/features_summary/delta_angles",
+      "/evidence_readiness/atb/features_summary/delta_bonds",
+      "/evidence_readiness/atb/features_summary/delta_dihedral",
+      "/evidence_readiness/atb/features_summary/delta_gap",
+      "/evidence_readiness/atb/features_summary/delta_volume",
+      "/evidence_readiness/atb/features_summary/s0_rays_asymmetry_parameter",
+      "/evidence_readiness/atb/features_summary/s0_rotational_constant_a",
+      "/evidence_readiness/atb/features_summary/s1_oscillator_strength_f",
+      "/evidence_readiness/atb/features_summary/s1_rays_asymmetry_parameter",
+      "/evidence_readiness/atb/features_summary/s1_rotational_constant_a",
+      "/risk_scores/atb_neighbor_features_all",
+      "/target_fields/emission_aggr_nm",
+      "/target_fields/emission_solid_or_film_nm"
+    ],
+    "count_added": 9,
+    "count_effective_added": 4
+  },
+  "conflict_delta": {
+    "new_conflicts": [],
+    "resolved_conflicts": [
+      "C2",
+      "C3",
+      "C4",
+      "C5"
+    ],
+    "unresolved_before": 5,
+    "unresolved_after": 1
+  },
+  "feasibility_snapshot": {
+    "overall_score": 0.25,
+    "constraints": [
+      "lane_disabled:literature",
+      "lane_disabled:wetlab",
+      "missing_input:offline_pdf"
+    ],
+    "lane_capabilities": {
+      "atb_available": true,
+      "offline_pdf_available": false,
+      "literature_enabled": false,
+      "wetlab_enabled": false
+    }
+  },
+  "chosen_next_round_profile": "R2",
+  "profile_adjustment_reason": "as_recommended",
+  "candidate_scorecard": [
+    {
+      "label": "ICT",
+      "prior_rank": 1,
+      "prior_confidence": 0.2517,
+      "current_rank": 1,
+      "current_confidence": 0.3906,
+      "support_axes": [
+        "structural_relaxation",
+        "shape_rigidity"
+      ],
+      "weakening_axes": [],
+      "unresolved_axes": [
+        "target_observation",
+        "electronic_redistribution",
+        "structural_relaxation",
+        "comparative_transferability"
+      ],
+      "new_support_evidence_ids": [
+        "E39"
+      ],
+      "new_weakening_evidence_ids": [],
+      "net_direction": "up",
+      "commentary": "Current leading candidate supported by structural_relaxation, shape_rigidity."
+    },
+    {
+      "label": "TICT",
+      "prior_rank": 2,
+      "prior_confidence": 0.2025,
+      "current_rank": 2,
+      "current_confidence": 0.2025,
+      "support_axes": [],
+      "weakening_axes": [],
+      "unresolved_axes": [
+        "target_observation",
+        "electronic_redistribution",
+        "structural_relaxation",
+        "comparative_transferability"
+      ],
+      "new_support_evidence_ids": [],
+      "new_weakening_evidence_ids": [],
+      "net_direction": "flat",
+      "commentary": "Candidate remains unresolved under current evidence and stays in the negotiation set."
+    },
+    {
+      "label": "unknown",
+      "prior_rank": 3,
+      "prior_confidence": 0.1552,
+      "current_rank": 3,
+      "current_confidence": 0.1552,
+      "support_axes": [],
+      "weakening_axes": [],
+      "unresolved_axes": [
+        "target_observation",
+        "electronic_redistribution",
+        "structural_relaxation",
+        "comparative_transferability"
+      ],
+      "new_support_evidence_ids": [],
+      "new_weakening_evidence_ids": [],
+      "net_direction": "flat",
+      "commentary": "Candidate remains unresolved under current evidence and stays in the negotiation set."
+    },
+    {
+      "label": "ESIPT",
+      "prior_rank": 4,
+      "prior_confidence": 0.1516,
+      "current_rank": 4,
+      "current_confidence": 0.1516,
+      "support_axes": [],
+      "weakening_axes": [],
+      "unresolved_axes": [
+        "target_observation",
+        "electronic_redistribution",
+        "structural_relaxation",
+        "comparative_transferability"
+      ],
+      "new_support_evidence_ids": [],
+      "new_weakening_evidence_ids": [],
+      "net_direction": "flat",
+      "commentary": "Candidate remains unresolved under current evidence and stays in the negotiation set."
+    },
+    {
+      "label": "neutral aromatic",
+      "prior_rank": 5,
+      "prior_confidence": 0.0518,
+      "current_rank": 5,
+      "current_confidence": 0.0518,
+      "support_axes": [],
+      "weakening_axes": [],
+      "unresolved_axes": [
+        "target_observation",
+        "electronic_redistribution",
+        "structural_relaxation",
+        "comparative_transferability"
+      ],
+      "new_support_evidence_ids": [],
+      "new_weakening_evidence_ids": [],
+      "net_direction": "flat",
+      "commentary": "Candidate remains unresolved under current evidence and stays in the negotiation set."
+    }
+  ],
+  "master_candidate_scorecard": [
+    {
+      "label": "ICT",
+      "prior_rank": 1,
+      "prior_confidence": 0.2517,
+      "current_rank": 1,
+      "current_confidence": 0.3906,
+      "support_axes": [
+        "structural_relaxation",
+        "shape_rigidity"
+      ],
+      "weakening_axes": [],
+      "unresolved_axes": [
+        "target_observation",
+        "electronic_redistribution",
+        "structural_relaxation",
+        "comparative_transferability"
+      ],
+      "new_support_evidence_ids": [
+        "E39"
+      ],
+      "new_weakening_evidence_ids": [],
+      "net_direction": "up",
+      "commentary": "Current leading candidate supported by structural_relaxation, shape_rigidity."
+    },
+    {
+      "label": "TICT",
+      "prior_rank": 2,
+      "prior_confidence": 0.2025,
+      "current_rank": 2,
+      "current_confidence": 0.2025,
+      "support_axes": [],
+      "weakening_axes": [],
+      "unresolved_axes": [
+        "target_observation",
+        "electronic_redistribution",
+        "structural_relaxation",
+        "comparative_transferability"
+      ],
+      "new_support_evidence_ids": [],
+      "new_weakening_evidence_ids": [],
+      "net_direction": "flat",
+      "commentary": "Candidate remains unresolved under current evidence and stays in the negotiation set."
+    },
+    {
+      "label": "unknown",
+      "prior_rank": 3,
+      "prior_confidence": 0.1552,
+      "current_rank": 3,
+      "current_confidence": 0.1552,
+      "support_axes": [],
+      "weakening_axes": [],
+      "unresolved_axes": [
+        "target_observation",
+        "electronic_redistribution",
+        "structural_relaxation",
+        "comparative_transferability"
+      ],
+      "new_support_evidence_ids": [],
+      "new_weakening_evidence_ids": [],
+      "net_direction": "flat",
+      "commentary": "Candidate remains unresolved under current evidence and stays in the negotiation set."
+    },
+    {
+      "label": "ESIPT",
+      "prior_rank": 4,
+      "prior_confidence": 0.1516,
+      "current_rank": 4,
+      "current_confidence": 0.1516,
+      "support_axes": [],
+      "weakening_axes": [],
+      "unresolved_axes": [
+        "target_observation",
+        "electronic_redistribution",
+        "structural_relaxation",
+        "comparative_transferability"
+      ],
+      "new_support_evidence_ids": [],
+      "new_weakening_evidence_ids": [],
+      "net_direction": "flat",
+      "commentary": "Candidate remains unresolved under current evidence and stays in the negotiation set."
+    },
+    {
+      "label": "neutral aromatic",
+      "prior_rank": 5,
+      "prior_confidence": 0.0518,
+      "current_rank": 5,
+      "current_confidence": 0.0518,
+      "support_axes": [],
+      "weakening_axes": [],
+      "unresolved_axes": [
+        "target_observation",
+        "electronic_redistribution",
+        "structural_relaxation",
+        "comparative_transferability"
+      ],
+      "new_support_evidence_ids": [],
+      "new_weakening_evidence_ids": [],
+      "net_direction": "flat",
+      "commentary": "Candidate remains unresolved under current evidence and stays in the negotiation set."
+    }
+  ],
+  "normalization_summary": {
+    "llm_primary_label": "ICT",
+    "normalized_primary_label": "ICT",
+    "decision_state": "closed_known",
+    "canonical_pool_closed": true,
+    "standard_label_closure": "closed",
+    "residual_other_admissible": false,
+    "novelty_candidate": false,
+    "novelty_basis": [],
+    "normalization_reason_codes": []
+  },
+  "final_label_adjudication": {
+    "llm_primary_label": "ICT",
+    "adjudicated_label": "ICT",
+    "decision_state": "closed_known",
+    "canonical_pool_closed": true,
+    "allow_other_label": false,
+    "residual_other_admissible": false,
+    "novelty_candidate": false,
+    "novelty_basis": [],
+    "reason_codes": [
+      "llm_final_adjudication_failed"
+    ],
+    "confidence_adjustment_delta": 0.0,
+    "adjudicated_confidence": 0.390595,
+    "why_not_other": "The active benchmark label pool disables 'other'; unresolved cases must remain within standard labels or unknown.",
+    "why_not_unknown": "Final adjudication retained a legal non-unknown outcome.",
+    "why_not_top_standard": "A canonical standard label achieved closure.",
+    "legal_candidates": [
+      "ICT"
+    ],
+    "top_standard_label": "ICT",
+    "llm_error": "invalid_final_adjudication_output:invalid_decision_state"
+  },
+  "updated_at": "2026-03-16T10:04:56Z"
+}

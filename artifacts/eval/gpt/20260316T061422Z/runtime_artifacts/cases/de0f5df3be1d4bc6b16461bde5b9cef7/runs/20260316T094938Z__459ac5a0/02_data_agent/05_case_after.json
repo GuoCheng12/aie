@@ -1,0 +1,896 @@
+{
+  "case_id": "de0f5df3be1d4bc6b16461bde5b9cef7",
+  "case_version": "1.1.0-multi-agent",
+  "runtime": {
+    "run_lane": "atb_cache_only",
+    "reference_index_root": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/data/reference_indices/split_levels_v2/views",
+    "reference_view": "leave_level_1",
+    "difficulty_level": 1,
+    "allow_other_label": false,
+    "label_pool_name": "main_no_other"
+  },
+  "query": {
+    "input_smiles": "N#C/C(C#N)=CC1=CC=C(C(C=C2)=CC=C2C3=C(C4=CC=CC=C4)N=C(C5=CC=CC=C5)C(C6=CC=CC=C6)=N3)C=C1",
+    "canonical_smiles": "N#CC(C#N)=Cc1ccc(-c2ccc(-c3nc(-c4ccccc4)c(-c4ccccc4)nc3-c3ccccc3)cc2)cc1",
+    "inchikey": "XXYJCNYNDQRUIT-UHFFFAOYSA-N",
+    "code": "TPP-PDCV",
+    "reference": "Adv.Funct.Mater.2018,28,1704689.",
+    "created_at": "2026-03-16T09:49:38Z",
+    "aliases": [
+      "TPP-PDCV"
+    ]
+  },
+  "inputs": {
+    "offline_pdfs": []
+  },
+  "evidence_acquire": {
+    "emission": {
+      "mode": "web_search",
+      "strictness": "relaxed",
+      "extractor_mode": "mineru_llm"
+    }
+  },
+  "neighbors": [
+    {
+      "neighbor_inchikey": "MZRLCCNGXOWULB-UHFFFAOYSA-N",
+      "sim": 0.6097560975609756,
+      "neighbor_mechanism_label": "ICT",
+      "rank": 1
+    },
+    {
+      "neighbor_inchikey": "RLKXRYJKSORLKX-UHFFFAOYSA-N",
+      "sim": 0.45454545454545453,
+      "neighbor_mechanism_label": "ESIPT",
+      "rank": 2
+    },
+    {
+      "neighbor_inchikey": "VOYHHJPLDCMQFI-UHFFFAOYSA-N",
+      "sim": 0.37142857142857144,
+      "neighbor_mechanism_label": "unknown",
+      "rank": 3
+    },
+    {
+      "neighbor_inchikey": "SKYKWBQBUYKPDJ-UHFFFAOYSA-N",
+      "sim": 0.36538461538461536,
+      "neighbor_mechanism_label": "ICT",
+      "rank": 4
+    },
+    {
+      "neighbor_inchikey": "FAVFDQGTHDPMCR-UHFFFAOYSA-N",
+      "sim": 0.3333333333333333,
+      "neighbor_mechanism_label": "TICT",
+      "rank": 5
+    },
+    {
+      "neighbor_inchikey": "UCNLDCBQWKXZKX-UHFFFAOYSA-N",
+      "sim": 0.3333333333333333,
+      "neighbor_mechanism_label": "ICT",
+      "rank": 6
+    },
+    {
+      "neighbor_inchikey": "YFAYULMOLDYJBX-FXYXWFQZSA-N",
+      "sim": 0.3275862068965517,
+      "neighbor_mechanism_label": "ICT",
+      "rank": 7
+    },
+    {
+      "neighbor_inchikey": "WSTDSGWIVFKSER-UHFFFAOYSA-N",
+      "sim": 0.3220338983050847,
+      "neighbor_mechanism_label": "ICT",
+      "rank": 8
+    },
+    {
+      "neighbor_inchikey": "BXQZGZRSMUITHX-NNFYUIBOSA-N",
+      "sim": 0.3181818181818182,
+      "neighbor_mechanism_label": "ESIPT",
+      "rank": 9
+    },
+    {
+      "neighbor_inchikey": "WVUUWSULLUZGPM-UHFFFAOYSA-N",
+      "sim": 0.31666666666666665,
+      "neighbor_mechanism_label": "ICT",
+      "rank": 10
+    },
+    {
+      "neighbor_inchikey": "GLWJFJKMGBIORU-UHFFFAOYSA-N",
+      "sim": 0.3064516129032258,
+      "neighbor_mechanism_label": "ICT",
+      "rank": 11
+    },
+    {
+      "neighbor_inchikey": "JHSNWPWIKFQXGH-UHFFFAOYSA-N",
+      "sim": 0.30434782608695654,
+      "neighbor_mechanism_label": "ICT",
+      "rank": 12
+    },
+    {
+      "neighbor_inchikey": "YEMDMXIVAJFOJK-UHFFFAOYSA-N",
+      "sim": 0.30434782608695654,
+      "neighbor_mechanism_label": "ICT",
+      "rank": 13
+    },
+    {
+      "neighbor_inchikey": "XUVMGDXYGILIKD-HKOYGPOVSA-N",
+      "sim": 0.30357142857142855,
+      "neighbor_mechanism_label": "ICT",
+      "rank": 14
+    },
+    {
+      "neighbor_inchikey": "ABNRGKSAIONSCC-UHFFFAOYSA-M",
+      "sim": 0.3018867924528302,
+      "neighbor_mechanism_label": "TICT",
+      "rank": 15
+    },
+    {
+      "neighbor_inchikey": "LOGYVHCRHRRPDU-UHFFFAOYSA-N",
+      "sim": 0.2857142857142857,
+      "neighbor_mechanism_label": "TICT",
+      "rank": 16
+    },
+    {
+      "neighbor_inchikey": "VELSZNFPVFDIAX-UHFFFAOYSA-N",
+      "sim": 0.2857142857142857,
+      "neighbor_mechanism_label": "ICT",
+      "rank": 17
+    },
+    {
+      "neighbor_inchikey": "AYYZYPOAOFTMPC-UHFFFAOYSA-N",
+      "sim": 0.2777777777777778,
+      "neighbor_mechanism_label": "ESIPT",
+      "rank": 18
+    },
+    {
+      "neighbor_inchikey": "YEOFUQGJRZFEEB-OPEAEBSCSA-L",
+      "sim": 0.27586206896551724,
+      "neighbor_mechanism_label": "TICT",
+      "rank": 19
+    },
+    {
+      "neighbor_inchikey": "MYCLCAXWUZLTCQ-UHFFFAOYSA-N",
+      "sim": 0.27450980392156865,
+      "neighbor_mechanism_label": "neutral aromatic",
+      "rank": 20
+    },
+    {
+      "neighbor_inchikey": "QOQHPVWNYXEVMN-UHFFFAOYSA-N",
+      "sim": 0.27450980392156865,
+      "neighbor_mechanism_label": "ICT",
+      "rank": 21
+    },
+    {
+      "neighbor_inchikey": "VWRZGWYYEHSKBI-UHFFFAOYSA-N",
+      "sim": 0.2727272727272727,
+      "neighbor_mechanism_label": "ICT",
+      "rank": 22
+    },
+    {
+      "neighbor_inchikey": "RKVIBZJINMZPEH-UHFFFAOYSA-N",
+      "sim": 0.2692307692307692,
+      "neighbor_mechanism_label": "ICT",
+      "rank": 23
+    },
+    {
+      "neighbor_inchikey": "NMJWWRUQBLOGKF-UHFFFAOYSA-N",
+      "sim": 0.2641509433962264,
+      "neighbor_mechanism_label": "ICT",
+      "rank": 24
+    },
+    {
+      "neighbor_inchikey": "LUZNHKCZOIVKHD-UHFFFAOYSA-L",
+      "sim": 0.26229508196721313,
+      "neighbor_mechanism_label": "TICT",
+      "rank": 25
+    },
+    {
+      "neighbor_inchikey": "OBLKGOBAVDMYNY-UHFFFAOYSA-N",
+      "sim": 0.2545454545454545,
+      "neighbor_mechanism_label": "TICT",
+      "rank": 26
+    },
+    {
+      "neighbor_inchikey": "FTZONOACBUXWLP-UHFFFAOYSA-N",
+      "sim": 0.2542372881355932,
+      "neighbor_mechanism_label": "ICT",
+      "rank": 27
+    },
+    {
+      "neighbor_inchikey": "HWIOZWZGNDDAMK-UHFFFAOYSA-N",
+      "sim": 0.25,
+      "neighbor_mechanism_label": "neutral aromatic",
+      "rank": 28
+    },
+    {
+      "neighbor_inchikey": "PBWBVLQNGWZQIM-UHFFFAOYSA-M",
+      "sim": 0.24285714285714285,
+      "neighbor_mechanism_label": "TICT",
+      "rank": 29
+    },
+    {
+      "neighbor_inchikey": "WJFWZYJRMHDWSO-UHFFFAOYSA-N",
+      "sim": 0.23809523809523808,
+      "neighbor_mechanism_label": "ESIPT",
+      "rank": 30
+    },
+    {
+      "neighbor_inchikey": "XEOQVYCNTHHYBT-UHFFFAOYSA-N",
+      "sim": 0.23809523809523808,
+      "neighbor_mechanism_label": "neutral aromatic",
+      "rank": 31
+    },
+    {
+      "neighbor_inchikey": "LPOXLMNPDVECMS-ZMFPCWMMSA-N",
+      "sim": 0.23404255319148937,
+      "neighbor_mechanism_label": "ICT",
+      "rank": 32
+    },
+    {
+      "neighbor_inchikey": "ACOXPTOKQRAWDV-UHFFFAOYSA-N",
+      "sim": 0.23255813953488372,
+      "neighbor_mechanism_label": "ICT",
+      "rank": 33
+    },
+    {
+      "neighbor_inchikey": "OACXYYPXWCBSLG-NBVRZTHBSA-N",
+      "sim": 0.2318840579710145,
+      "neighbor_mechanism_label": "ICT",
+      "rank": 34
+    },
+    {
+      "neighbor_inchikey": "AUOFQSCAINHEGA-UHFFFAOYSA-N",
+      "sim": 0.2222222222222222,
+      "neighbor_mechanism_label": "ICT",
+      "rank": 35
+    },
+    {
+      "neighbor_inchikey": "WGZILBDUSNBZNU-UHFFFAOYSA-N",
+      "sim": 0.22033898305084745,
+      "neighbor_mechanism_label": "TICT",
+      "rank": 36
+    },
+    {
+      "neighbor_inchikey": "QKLLRQGXJKQFJR-UHFFFAOYSA-N",
+      "sim": 0.21666666666666667,
+      "neighbor_mechanism_label": "neutral aromatic",
+      "rank": 37
+    },
+    {
+      "neighbor_inchikey": "QBXYYJOIUQVVML-UHFFFAOYSA-N",
+      "sim": 0.21568627450980393,
+      "neighbor_mechanism_label": "neutral aromatic",
+      "rank": 38
+    },
+    {
+      "neighbor_inchikey": "YAXGOWIIPLUDAT-UHFFFAOYSA-N",
+      "sim": 0.21568627450980393,
+      "neighbor_mechanism_label": "TICT",
+      "rank": 39
+    },
+    {
+      "neighbor_inchikey": "PWGUFNAFOAVZOQ-UHFFFAOYSA-N",
+      "sim": 0.21428571428571427,
+      "neighbor_mechanism_label": "ICT",
+      "rank": 40
+    },
+    {
+      "neighbor_inchikey": "QZXKZZGFFVIPHJ-UHFFFAOYSA-N",
+      "sim": 0.21311475409836064,
+      "neighbor_mechanism_label": "ICT",
+      "rank": 41
+    },
+    {
+      "neighbor_inchikey": "QUIXXPHVESPWFD-UHFFFAOYSA-N",
+      "sim": 0.2127659574468085,
+      "neighbor_mechanism_label": "TICT",
+      "rank": 42
+    },
+    {
+      "neighbor_inchikey": "KXISHCNITVPYFV-UHFFFAOYSA-N",
+      "sim": 0.21153846153846154,
+      "neighbor_mechanism_label": "ESIPT",
+      "rank": 43
+    },
+    {
+      "neighbor_inchikey": "MWEWLGNBUNSQQK-UHFFFAOYSA-N",
+      "sim": 0.21153846153846154,
+      "neighbor_mechanism_label": "TICT",
+      "rank": 44
+    },
+    {
+      "neighbor_inchikey": "KOAIPZXOAYKZRQ-UHFFFAOYSA-N",
+      "sim": 0.20833333333333334,
+      "neighbor_mechanism_label": "ICT",
+      "rank": 45
+    },
+    {
+      "neighbor_inchikey": "SQEFQTLTABVSDW-UHFFFAOYSA-N",
+      "sim": 0.20833333333333334,
+      "neighbor_mechanism_label": "ICT",
+      "rank": 46
+    },
+    {
+      "neighbor_inchikey": "UHSFETSILWWALI-UHFFFAOYSA-L",
+      "sim": 0.20833333333333334,
+      "neighbor_mechanism_label": "TICT",
+      "rank": 47
+    },
+    {
+      "neighbor_inchikey": "KGPONWYMUVSZHF-UHFFFAOYSA-N",
+      "sim": 0.20588235294117646,
+      "neighbor_mechanism_label": "ICT",
+      "rank": 48
+    },
+    {
+      "neighbor_inchikey": "CLRZEHKXGXYIFS-UHFFFAOYSA-M",
+      "sim": 0.2033898305084746,
+      "neighbor_mechanism_label": "TICT",
+      "rank": 49
+    },
+    {
+      "neighbor_inchikey": "BVYLVSBBXHTGRK-UHFFFAOYSA-N",
+      "sim": 0.2,
+      "neighbor_mechanism_label": "neutral aromatic",
+      "rank": 50
+    }
+  ],
+  "risk_scores": {
+    "structure_prior_profile": {
+      "version": "structure_prior_v1",
+      "descriptor_snapshot": {
+        "n_rotatable_bonds": 6,
+        "n_hbd": 0,
+        "n_hba": 4,
+        "n_rings": 6,
+        "n_aromatic_rings": 6,
+        "tpsa": 73.36,
+        "logp": 9.242159999999998
+      },
+      "donor_acceptor_topology": "mixed",
+      "intramolecular_hbond_candidates": "none",
+      "aromatic_core_density": "high",
+      "flexibility_proxy": "high",
+      "conjugation_proxy": "high",
+      "overall_structure_prior": "Conjugation is high; aromatic-core density is high; flexibility is high; donor/acceptor topology is mixed; reliability is high.",
+      "reliability": "high",
+      "notes": [
+        "Donor/acceptor topology is mixed under the current topology heuristic.",
+        "Aromatic-core density is high, flexibility is high, and conjugation is high."
+      ]
+    },
+    "structure_motif_profile": {
+      "version": "structure_motif_v1",
+      "intramolecular_hbond_motif": "none",
+      "intramolecular_hbond_geometry": "none",
+      "tautomerizable_motif": "none",
+      "proton_transfer_topology_candidate": "none",
+      "tautomerizable_subgraph_strength": "low",
+      "donor_acceptor_path_strength": "weak",
+      "donor_acceptor_fragment_balance": "mid",
+      "donor_acceptor_path_multiplicity": "low",
+      "donor_acceptor_separation_regime": "unknown",
+      "aromatic_scaffold_type": "extended",
+      "aromatic_rigidity_signature": "high",
+      "fused_aromatic_core_strength": "none",
+      "aromatic_core_connectivity": "extended",
+      "global_flexibility_vs_core_rigidity": "mixed",
+      "planarity_proxy": "low",
+      "planarity_break_count": 6,
+      "conjugation_compactness": "high",
+      "conjugation_continuity": "segmented",
+      "proton_transfer_local_geometry": "none",
+      "heteroatom_cluster_pattern": "mixed",
+      "flexibility_regime": "high",
+      "motif_density": "mid",
+      "donor_sites": 0,
+      "acceptor_sites": 2,
+      "possible_intramolecular_hbond_pairs": 0,
+      "tautomerizable_motif_candidates": 0,
+      "conjugation_span_bucket": "high",
+      "fused_aromatic_core": false,
+      "reliability": "high",
+      "notes": [
+        "Detected 0 donor site(s) and 2 acceptor site(s) with unknown donor-acceptor separation.",
+        "Intramolecular H-bond geometry is none; tautomerizable subgraph strength is low.",
+        "Aromatic scaffold is extended with high rigidity and low planarity proxy."
+      ]
+    },
+    "structure_fact_sheet": {
+      "version": "structure_fact_sheet_v1",
+      "donor_acceptor_topology": "mixed",
+      "intramolecular_hbond_geometry": "none",
+      "proton_transfer_topology_candidate": "none",
+      "tautomerizable_subgraph_strength": "low",
+      "donor_acceptor_fragment_balance": "mid",
+      "donor_acceptor_path_multiplicity": "low",
+      "donor_acceptor_separation_regime": "unknown",
+      "aromatic_rigidity_signature": "high",
+      "fused_aromatic_core_strength": "none",
+      "aromatic_core_connectivity": "extended",
+      "global_flexibility_vs_core_rigidity": "mixed",
+      "planarity_proxy": "low",
+      "planarity_break_count": 6,
+      "conjugation_compactness": "high",
+      "conjugation_continuity": "segmented",
+      "heteroatom_cluster_pattern": "mixed",
+      "proton_transfer_local_geometry": "none",
+      "reliability": "high",
+      "notes": [
+        "Detected 0 donor site(s) and 2 acceptor site(s) with unknown donor-acceptor separation.",
+        "Intramolecular H-bond geometry is none; tautomerizable subgraph strength is low.",
+        "Aromatic scaffold is extended with high rigidity and low planarity proxy.",
+        "Donor/acceptor topology is mixed under the current topology heuristic."
+      ]
+    },
+    "compact_prior_metrics_v1": {
+      "version": "compact_prior_metrics_v1",
+      "h_donor_acceptor_pairing": 0,
+      "proton_transfer_sites": 0,
+      "proton_transfer_readiness_score": 0,
+      "aromatic_localization_score": 2,
+      "rotatable_potential": 1,
+      "safe_interpretations": {
+        "h_donor_acceptor_pairing": "no donor-acceptor pairing basis",
+        "proton_transfer_sites": "no tautomerizable proton-transfer site",
+        "proton_transfer_readiness_score": "no proton-transfer prerequisite",
+        "aromatic_localization_score": "locally retained aromatic character",
+        "rotatable_potential": "ring-rotor combination present"
+      },
+      "reliability": "high",
+      "notes": [
+        "h_donor_acceptor_pairing=0: no donor-acceptor pairing basis",
+        "proton_transfer_sites=0: no tautomerizable proton-transfer site",
+        "proton_transfer_readiness_score=0: no proton-transfer prerequisite",
+        "aromatic_localization_score=2: locally retained aromatic character",
+        "rotatable_potential=1: ring-rotor combination present"
+      ]
+    },
+    "compact_prior_neighbor_profile_v1": {
+      "version": "compact_prior_neighbor_profile_v1",
+      "top_neighbors": [
+        {
+          "inchikey": "AAHQWSRRIKEFES-UHFFFAOYSA-N",
+          "mechanism_label": "ESIPT",
+          "distance": 0.0,
+          "similarity": 1.0,
+          "compact_metrics": {
+            "proton_transfer_readiness_score": 0,
+            "aromatic_localization_score": 2,
+            "rotatable_potential": 1
+          }
+        },
+        {
+          "inchikey": "AYYZYPOAOFTMPC-UHFFFAOYSA-N",
+          "mechanism_label": "ESIPT",
+          "distance": 0.0,
+          "similarity": 1.0,
+          "compact_metrics": {
+            "proton_transfer_readiness_score": 0,
+            "aromatic_localization_score": 2,
+            "rotatable_potential": 1
+          }
+        },
+        {
+          "inchikey": "JLZUZNKTTIRERF-UHFFFAOYSA-N",
+          "mechanism_label": "ESIPT",
+          "distance": 0.0,
+          "similarity": 1.0,
+          "compact_metrics": {
+            "proton_transfer_readiness_score": 0,
+            "aromatic_localization_score": 2,
+            "rotatable_potential": 1
+          }
+        },
+        {
+          "inchikey": "KXISHCNITVPYFV-UHFFFAOYSA-N",
+          "mechanism_label": "ESIPT",
+          "distance": 0.0,
+          "similarity": 1.0,
+          "compact_metrics": {
+            "proton_transfer_readiness_score": 0,
+            "aromatic_localization_score": 2,
+            "rotatable_potential": 1
+          }
+        },
+        {
+          "inchikey": "NVCHJRFPZDKTDT-UHFFFAOYSA-N",
+          "mechanism_label": "ESIPT",
+          "distance": 0.0,
+          "similarity": 1.0,
+          "compact_metrics": {
+            "proton_transfer_readiness_score": 0,
+            "aromatic_localization_score": 2,
+            "rotatable_potential": 1
+          }
+        },
+        {
+          "inchikey": "OJIJBQXCESZUMR-UHFFFAOYSA-N",
+          "mechanism_label": "ESIPT",
+          "distance": 0.0,
+          "similarity": 1.0,
+          "compact_metrics": {
+            "proton_transfer_readiness_score": 0,
+            "aromatic_localization_score": 2,
+            "rotatable_potential": 1
+          }
+        },
+        {
+          "inchikey": "QISGNQVUAUPEKM-CBSZVXRSSA-N",
+          "mechanism_label": "ESIPT",
+          "distance": 0.0,
+          "similarity": 1.0,
+          "compact_metrics": {
+            "proton_transfer_readiness_score": 0,
+            "aromatic_localization_score": 2,
+            "rotatable_potential": 1
+          }
+        },
+        {
+          "inchikey": "QNCKEBDCKLLOKO-UHFFFAOYSA-N",
+          "mechanism_label": "ESIPT",
+          "distance": 0.0,
+          "similarity": 1.0,
+          "compact_metrics": {
+            "proton_transfer_readiness_score": 0,
+            "aromatic_localization_score": 2,
+            "rotatable_potential": 1
+          }
+        },
+        {
+          "inchikey": "RLKXRYJKSORLKX-UHFFFAOYSA-N",
+          "mechanism_label": "ESIPT",
+          "distance": 0.0,
+          "similarity": 1.0,
+          "compact_metrics": {
+            "proton_transfer_readiness_score": 0,
+            "aromatic_localization_score": 2,
+            "rotatable_potential": 1
+          }
+        },
+        {
+          "inchikey": "SUIDSJCVZBXDAR-UHFFFAOYSA-M",
+          "mechanism_label": "ESIPT",
+          "distance": 0.0,
+          "similarity": 1.0,
+          "compact_metrics": {
+            "proton_transfer_readiness_score": 0,
+            "aromatic_localization_score": 2,
+            "rotatable_potential": 1
+          }
+        }
+      ],
+      "neighbor_majority_label": "ESIPT",
+      "neighbor_label_entropy": 0.0,
+      "proton_transfer_readiness_outlier": "low",
+      "aromatic_localization_outlier": "low",
+      "rotatable_potential_outlier": "low",
+      "overall_prior_outlier": "low",
+      "compact_neighbor_reliability": "high",
+      "notes": [
+        "compact prior neighbor majority is ESIPT with entropy 0.0.",
+        "overall prior outlier is low; compact neighbor reliability is high."
+      ]
+    },
+    "structure_retrieval_profile": {
+      "version": "structure_retrieval_v1",
+      "feature_morgan_topk": [
+        {
+          "case_index": 73,
+          "inchikey": "MZRLCCNGXOWULB-UHFFFAOYSA-N",
+          "sim": 0.814815,
+          "mechanism_label": "ICT",
+          "canonical_smiles": "N#CC(C#N)=Cc1ccc(-c2ccc(-c3nc(-c4ccccc4)c(-c4ccccc4)nc3-c3ccccc3)cc2)s1"
+        },
+        {
+          "case_index": 149,
+          "inchikey": "VOYHHJPLDCMQFI-UHFFFAOYSA-N",
+          "sim": 0.641379,
+          "mechanism_label": "unknown",
+          "canonical_smiles": "c1ccc(-c2nc3cc4nc(-c5ccccc5)c(-c5ccccc5)nc4cc3nc2-c2ccccc2)cc1"
+        },
+        {
+          "case_index": 121,
+          "inchikey": "SKYKWBQBUYKPDJ-UHFFFAOYSA-N",
+          "sim": 0.55,
+          "mechanism_label": "ICT",
+          "canonical_smiles": "C[n+]1ccc(-c2ccc(/C(C#N)=C/c3ccc(-c4ccc(N(c5ccccc5)c5ccccc5)cc4)cc3)cc2)cc1"
+        },
+        {
+          "case_index": 9,
+          "inchikey": "BVYLVSBBXHTGRK-UHFFFAOYSA-N",
+          "sim": 0.537572,
+          "mechanism_label": "neutral aromatic",
+          "canonical_smiles": "COc1ccc(C#Cc2c(-c3ccccc3)c(-c3ccccc3)c(-c3ccccc3)c(-c3ccccc3)c2-c2ccc(OC)cc2)cc1"
+        },
+        {
+          "case_index": 174,
+          "inchikey": "YFVIRJMYKHBXMB-UHFFFAOYSA-N",
+          "sim": 0.534247,
+          "mechanism_label": "neutral aromatic",
+          "canonical_smiles": "CSc1ccc(-c2ccccc2-c2ccccc2-c2ccccc2-c2ccc(SC)cc2)cc1"
+        },
+        {
+          "case_index": 103,
+          "inchikey": "QOQHPVWNYXEVMN-UHFFFAOYSA-N",
+          "sim": 0.533333,
+          "mechanism_label": "ICT",
+          "canonical_smiles": "C[n+]1ccc(-c2ccc(/C(C#N)=C(\\C#N)c3ccc(-c4ccc(N(c5ccccc5)c5ccccc5)cc4)cc3)cc2)cc1"
+        },
+        {
+          "case_index": 136,
+          "inchikey": "UCNLDCBQWKXZKX-UHFFFAOYSA-N",
+          "sim": 0.515152,
+          "mechanism_label": "ICT",
+          "canonical_smiles": "N#C/C(=C\\c1ccc(N(c2ccccc2)c2ccccc2)cc1)c1ccc(-c2cc[n+](Cc3ccccc3)cc2)cc1.[Br]"
+        },
+        {
+          "case_index": 110,
+          "inchikey": "REPYMJXXYAMURK-UHFFFAOYSA-N",
+          "sim": 0.510204,
+          "mechanism_label": "ICT",
+          "canonical_smiles": "Cc1cc(-c2ccccc2)c2c3ccccc3c(-c3ccccc3)c3[n+]2c1-c1ccccc1-3"
+        },
+        {
+          "case_index": 152,
+          "inchikey": "VWRZGWYYEHSKBI-UHFFFAOYSA-N",
+          "sim": 0.503401,
+          "mechanism_label": "ICT",
+          "canonical_smiles": "Cn1c(/C=C(\\c2ccccc2)c2cc[n+](C)cc2)nc(-c2ccccc2)c1-c1ccccc1"
+        },
+        {
+          "case_index": 17,
+          "inchikey": "FAVFDQGTHDPMCR-UHFFFAOYSA-N",
+          "sim": 0.502762,
+          "mechanism_label": "TICT",
+          "canonical_smiles": "N#CC(C#N)=Cc1ccc(-c2ccc(N(c3ccccc3)c3ccc(C(=C(c4ccccc4)c4ccccc4)c4ccccc4)cc3)cc2)o1"
+        }
+      ],
+      "murcko_topk": [
+        {
+          "case_index": 73,
+          "inchikey": "MZRLCCNGXOWULB-UHFFFAOYSA-N",
+          "sim": 0.972222,
+          "mechanism_label": "ICT",
+          "murcko_scaffold_smiles": "c1ccc(-c2nc(-c3ccccc3)c(-c3ccc(-c4cccs4)cc3)nc2-c2ccccc2)cc1",
+          "generic_scaffold_smiles": "C1CCC(C2CC(C3CCCCC3)C(C3CCC(C4CCCC4)CC3)CC2C2CCCCC2)CC1"
+        },
+        {
+          "case_index": 122,
+          "inchikey": "SNCXIQROKQGBES-UHFFFAOYSA-N",
+          "sim": 0.936364,
+          "mechanism_label": "ICT",
+          "murcko_scaffold_smiles": "c1ccc(-c2[nH+]cc3ccc(N(c4ccccc4)c4ccccc4)cc3c2-c2ccccc2)cc1",
+          "generic_scaffold_smiles": "C1CCC(C2CCC3CCC(C(C4CCCCC4)C4CCCCC4)CC3C2C2CCCCC2)CC1"
+        },
+        {
+          "case_index": 138,
+          "inchikey": "UFVIUFDNZJSCON-UHFFFAOYSA-M",
+          "sim": 0.936364,
+          "mechanism_label": "ICT",
+          "murcko_scaffold_smiles": "c1ccc(-c2[nH+]cc3ccc(N(c4ccccc4)c4ccccc4)cc3c2-c2ccccc2)cc1",
+          "generic_scaffold_smiles": "C1CCC(C2CCC3CCC(C(C4CCCCC4)C4CCCCC4)CC3C2C2CCCCC2)CC1"
+        },
+        {
+          "case_index": 184,
+          "inchikey": "ZQTCALHYAWMPHT-UHFFFAOYSA-M",
+          "sim": 0.936364,
+          "mechanism_label": "ICT",
+          "murcko_scaffold_smiles": "c1ccc(-c2[nH+]cc3ccc(N(c4ccccc4)c4ccccc4)cc3c2-c2ccccc2)cc1",
+          "generic_scaffold_smiles": "C1CCC(C2CCC3CCC(C(C4CCCCC4)C4CCCCC4)CC3C2C2CCCCC2)CC1"
+        },
+        {
+          "case_index": 52,
+          "inchikey": "KVGPMOVHGJKZCE-USKKBRKXSA-N",
+          "sim": 0.909091,
+          "mechanism_label": "neutral aromatic",
+          "murcko_scaffold_smiles": "C(=C(c1ccccc1)c1ccccc1)c1ccc(C=C(c2ccccc2)c2ccccc2)cc1",
+          "generic_scaffold_smiles": "C1CCC(C(CC2CCC(CC(C3CCCCC3)C3CCCCC3)CC2)C2CCCCC2)CC1"
+        },
+        {
+          "case_index": 8,
+          "inchikey": "BSWSJMJDJPONFG-UHFFFAOYSA-M",
+          "sim": 0.901786,
+          "mechanism_label": "ICT",
+          "murcko_scaffold_smiles": "C(=Cc1c2ccccc2[nH+]c2ccccc12)c1ccc(N(c2ccccc2)c2ccccc2)cc1",
+          "generic_scaffold_smiles": "C1CCC(C(C2CCCCC2)C2CCC(CCC3C4CCCCC4CC4CCCCC43)CC2)CC1"
+        },
+        {
+          "case_index": 140,
+          "inchikey": "UJWRSXCHRHFDET-UHFFFAOYSA-M",
+          "sim": 0.891892,
+          "mechanism_label": "unknown",
+          "murcko_scaffold_smiles": "c1ccc(N(c2ccccc2)c2ccc(-c3ccc(-c4cc[nH+]cc4)c4nsnc34)cc2)cc1",
+          "generic_scaffold_smiles": "C1CCC(C2CCC(C3CCC(C(C4CCCCC4)C4CCCCC4)CC3)C3CCCC23)CC1"
+        },
+        {
+          "case_index": 187,
+          "inchikey": "ZZFMQHXVVKTABR-UHFFFAOYSA-L",
+          "sim": 0.891892,
+          "mechanism_label": "unknown",
+          "murcko_scaffold_smiles": "c1ccc(N(c2ccccc2)c2ccc(-c3ccc(-c4cc[nH+]cc4)c4nsnc34)cc2)cc1",
+          "generic_scaffold_smiles": "C1CCC(C2CCC(C3CCC(C(C4CCCCC4)C4CCCCC4)CC3)C3CCCC23)CC1"
+        },
+        {
+          "case_index": 18,
+          "inchikey": "FCQQVHNAJPXFJW-UHFFFAOYSA-N",
+          "sim": 0.881356,
+          "mechanism_label": "ICT",
+          "murcko_scaffold_smiles": "C(=Cc1cc[nH+]c2ccccc12)c1ccc2c(c1)[nH]c1cc(N(c3ccccc3)c3ccccc3)ccc12",
+          "generic_scaffold_smiles": "C1CCC(C(C2CCCCC2)C2CCC3C(CC4CC(CCC5CCCC6CCCCC65)CCC43)C2)CC1"
+        },
+        {
+          "case_index": 108,
+          "inchikey": "QXYYUCJCBVHEOC-UHFFFAOYSA-N",
+          "sim": 0.881356,
+          "mechanism_label": "ICT",
+          "murcko_scaffold_smiles": "c1ccc(C(=C(c2ccccc2)c2ccccc2-c2cc[nH+]cc2)c2ccccc2-c2cc[nH+]cc2)cc1",
+          "generic_scaffold_smiles": "C1CCC(C2CCCCC2C(C2CCCCC2)C(C2CCCCC2)C2CCCCC2C2CCCCC2)CC1"
+        }
+      ],
+      "feature_neighbor_label_distribution": {
+        "ICT": 0.607299,
+        "neutral aromatic": 0.189942,
+        "unknown": 0.113662,
+        "TICT": 0.089097
+      },
+      "scaffold_neighbor_label_distribution": {
+        "ICT": 0.705332,
+        "unknown": 0.19519,
+        "neutral aromatic": 0.099477
+      },
+      "retrieval_consensus_strength": "high"
+    },
+    "structure_candidate_distribution": {
+      "version": "structure_candidate_dist_v1",
+      "label_probs": {
+        "TICT": 0.042842,
+        "ICT": 0.658193,
+        "ESIPT": 0.0,
+        "neutral aromatic": 0.142977,
+        "other": 0.0,
+        "unknown": 0.155988
+      },
+      "top_candidates": [
+        {
+          "label": "ICT",
+          "prob": 0.658193
+        },
+        {
+          "label": "unknown",
+          "prob": 0.155988
+        },
+        {
+          "label": "neutral aromatic",
+          "prob": 0.142977
+        },
+        {
+          "label": "TICT",
+          "prob": 0.042842
+        }
+      ],
+      "top3": [
+        {
+          "label": "ICT",
+          "prob": 0.658193
+        },
+        {
+          "label": "unknown",
+          "prob": 0.155988
+        },
+        {
+          "label": "neutral aromatic",
+          "prob": 0.142977
+        }
+      ],
+      "calibration": {
+        "method": "retrieval_fallback",
+        "reliability": "low"
+      }
+    },
+    "top1_sim": 0.609756,
+    "mean_topk_sim": 0.271596,
+    "neighbor_gap": 0.155211,
+    "novelty_struct": 0.390244,
+    "mechanism_entropy": 0.681849,
+    "mechanism_hint": "ICT",
+    "hint_confidence": 0.685296
+  },
+  "evidence_readiness": {
+    "atb": {
+      "cache_status": "absent",
+      "request_status": "not_requested",
+      "missing_fields": [],
+      "last_update": "2026-03-16T09:49:38Z"
+    },
+    "literature": {
+      "status": "not_started",
+      "sources": [],
+      "last_update": "2026-03-16T09:49:38Z",
+      "notes": null
+    },
+    "experiment": {
+      "status": "not_requested",
+      "requested_fields": [],
+      "received_fields": [],
+      "last_update": "2026-03-16T09:49:38Z",
+      "notes": null
+    }
+  },
+  "target_fields": {
+    "emission_aggr_nm": 511.0,
+    "emission_solid_or_film_nm": 545.0
+  },
+  "target_fields_provenance": {
+    "emission_aggr_nm": {
+      "source_type": "dataset_row",
+      "source_ref": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/data/split_list/1_level.csv",
+      "source_locator": "row_index=33; code=TPP-PDCV",
+      "confidence": 1.0,
+      "identity_match": "exact",
+      "identity_match_confidence": 1.0,
+      "condition": "aggregation",
+      "condition_bucket": "aggregation"
+    },
+    "emission_solid_or_film_nm": {
+      "source_type": "dataset_row",
+      "source_ref": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/data/split_list/1_level.csv",
+      "source_locator": "row_index=33; code=TPP-PDCV",
+      "confidence": 1.0,
+      "identity_match": "exact",
+      "identity_match_confidence": 1.0,
+      "condition": "solid_or_film",
+      "condition_bucket": "solid_or_film"
+    }
+  },
+  "evidence_candidates_staging": [],
+  "current_gate": {
+    "state": "needs_manual",
+    "ready_for_reasoning": false,
+    "reason": "not_evaluated",
+    "reasoning_mode": "blocked"
+  },
+  "action_rationale": "",
+  "action_plan": [],
+  "post_uq": {
+    "status": "not_started",
+    "confidence": null,
+    "contradictions": [],
+    "missing_evidence": [],
+    "recommended_actions": []
+  },
+  "agent_runs": [
+    {
+      "agent_name": "structure_agent",
+      "version": "1.0.0",
+      "status": "success",
+      "status_reason_code": null,
+      "started_at": "2026-03-16T09:49:38Z",
+      "ended_at": "2026-03-16T09:49:38Z",
+      "inputs_hash": "19f9a836321cd5307f95b07ead4696d2022f994106bb011367b214c4a907fc87",
+      "idempotency_key": "23b4b832db188829783353db8c2c9cc209c321d71273259d21657ed044953e99",
+      "artifacts": [
+        {
+          "kind": "step_artifacts",
+          "path": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/artifacts/eval/gpt/20260316T061422Z/runtime_artifacts/cases/de0f5df3be1d4bc6b16461bde5b9cef7/runs/20260316T094938Z__459ac5a0/01_structure_agent"
+        }
+      ],
+      "warnings": []
+    },
+    {
+      "agent_name": "data_agent",
+      "version": "1.0.0",
+      "status": "success",
+      "status_reason_code": null,
+      "started_at": "2026-03-16T09:49:38Z",
+      "ended_at": "2026-03-16T09:49:38Z",
+      "inputs_hash": "31d6991416165b732953bb0b26975d28cce2d733dcce9e181c84923d6540ef05",
+      "idempotency_key": "cc130a74c36245dbf87e25a94c7f1f246e6aae3f8d1ed55c3c2d13e23a390ec0",
+      "artifacts": [
+        {
+          "kind": "step_artifacts",
+          "path": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/artifacts/eval/gpt/20260316T061422Z/runtime_artifacts/cases/de0f5df3be1d4bc6b16461bde5b9cef7/runs/20260316T094938Z__459ac5a0/02_data_agent"
+        }
+      ],
+      "warnings": []
+    }
+  ],
+  "history": []
+}

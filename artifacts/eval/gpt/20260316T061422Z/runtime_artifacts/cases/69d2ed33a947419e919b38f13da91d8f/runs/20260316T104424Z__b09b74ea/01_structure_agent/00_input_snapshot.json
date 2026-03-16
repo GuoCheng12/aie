@@ -1,0 +1,8 @@
+{
+  "case_id": "69d2ed33a947419e919b38f13da91d8f",
+  "input_smiles": "OC1=CC=C(CN(CC(O[Na])=O)CC(O[Na])=O)C=C1/C=N/N=C/C2=CC(CN(CC(O[Na])=O)CC(O[Na])=O)=CC=C2O",
+  "classifier_model_root": "artifacts/structure_agent/latest",
+  "retrieval_topk": 10,
+  "candidate_topk": 5,
+  "data_dir": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/data/reference_indices/split_levels_v2/views/leave_level_1"
+}

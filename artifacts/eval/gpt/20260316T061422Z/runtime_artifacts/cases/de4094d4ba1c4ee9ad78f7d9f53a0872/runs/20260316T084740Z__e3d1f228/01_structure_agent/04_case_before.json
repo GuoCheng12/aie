@@ -1,0 +1,100 @@
+{
+  "case_id": "de4094d4ba1c4ee9ad78f7d9f53a0872",
+  "case_version": "1.1.0-multi-agent",
+  "runtime": {
+    "run_lane": "atb_cache_only",
+    "reference_index_root": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/data/reference_indices/split_levels_v2/views",
+    "reference_view": "leave_level_1",
+    "difficulty_level": 1,
+    "allow_other_label": false,
+    "label_pool_name": "main_no_other"
+  },
+  "query": {
+    "input_smiles": "CCN(C1=CC=C(C2=CC=C(/C(C#N)=C(C3=CC=CC=C3)\\C4=CC=CC=C4)C=C2)C=C15)C6=C5C=C(C7=CC=C(/C(C#N)=C(C8=CC=CC=C8)\\C9=CC=CC=C9)C=C7)C=C6",
+    "canonical_smiles": null,
+    "inchikey": null,
+    "code": "CZ2TPAN",
+    "reference": "Chin. Sci. Bull., 2013, 58, 2719-2722",
+    "created_at": "2026-03-16T08:47:40Z",
+    "aliases": [
+      "CZ2TPAN"
+    ]
+  },
+  "inputs": {
+    "offline_pdfs": []
+  },
+  "evidence_acquire": {
+    "emission": {
+      "mode": "web_search",
+      "strictness": "relaxed",
+      "extractor_mode": "mineru_llm"
+    }
+  },
+  "neighbors": [],
+  "risk_scores": {},
+  "evidence_readiness": {
+    "atb": {
+      "cache_status": "absent",
+      "request_status": "not_requested",
+      "missing_fields": [],
+      "last_update": "2026-03-16T08:47:40Z"
+    },
+    "literature": {
+      "status": "not_started",
+      "sources": [],
+      "last_update": "2026-03-16T08:47:40Z",
+      "notes": null
+    },
+    "experiment": {
+      "status": "not_requested",
+      "requested_fields": [],
+      "received_fields": [],
+      "last_update": "2026-03-16T08:47:40Z",
+      "notes": null
+    }
+  },
+  "target_fields": {
+    "emission_aggr_nm": 541.0,
+    "emission_solid_or_film_nm": 504.0
+  },
+  "target_fields_provenance": {
+    "emission_aggr_nm": {
+      "source_type": "dataset_row",
+      "source_ref": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/data/split_list/1_level.csv",
+      "source_locator": "row_index=22; code=CZ2TPAN",
+      "confidence": 1.0,
+      "identity_match": "exact",
+      "identity_match_confidence": 1.0,
+      "condition": "aggregation",
+      "condition_bucket": "aggregation"
+    },
+    "emission_solid_or_film_nm": {
+      "source_type": "dataset_row",
+      "source_ref": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/data/split_list/1_level.csv",
+      "source_locator": "row_index=22; code=CZ2TPAN",
+      "confidence": 1.0,
+      "identity_match": "exact",
+      "identity_match_confidence": 1.0,
+      "condition": "solid_or_film",
+      "condition_bucket": "solid_or_film"
+    }
+  },
+  "evidence_candidates_staging": [],
+  "current_gate": {
+    "state": "needs_manual",
+    "ready_for_reasoning": false,
+    "reason": "not_evaluated",
+    "reasoning_mode": "blocked"
+  },
+  "action_rationale": "",
+  "action_plan": [],
+  "post_uq": {
+    "status": "not_started",
+    "confidence": null,
+    "contradictions": [],
+    "missing_evidence": [],
+    "recommended_actions": []
+  },
+  "agent_runs": [],
+  "history": []
+}

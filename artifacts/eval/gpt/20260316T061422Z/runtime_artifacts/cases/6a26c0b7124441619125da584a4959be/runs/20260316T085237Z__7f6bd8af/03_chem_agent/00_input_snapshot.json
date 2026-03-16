@@ -1,0 +1,14 @@
+{
+  "case_id": "6a26c0b7124441619125da584a4959be",
+  "inchikey": "ZQHPXVBCDSVELO-UHFFFAOYSA-N",
+  "smiles": "CCN(CC)c1ccc(C(=C(c2ccccc2)c2ccccc2)c2ccc(N(CC)CC)cc2)cc1",
+  "code": "DEATPE",
+  "aliases": [
+    "DEATPE"
+  ],
+  "run_lane": "atb_cache_only",
+  "mode": "web_search",
+  "strictness": "relaxed",
+  "extractor_mode": "mineru_llm",
+  "offline_pdfs": []
+}

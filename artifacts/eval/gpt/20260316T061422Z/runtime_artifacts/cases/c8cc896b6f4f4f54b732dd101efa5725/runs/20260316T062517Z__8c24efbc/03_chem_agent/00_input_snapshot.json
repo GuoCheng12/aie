@@ -1,0 +1,14 @@
+{
+  "case_id": "c8cc896b6f4f4f54b732dd101efa5725",
+  "inchikey": "MUOSUYWUAHEMIZ-UHFFFAOYSA-N",
+  "smiles": "c1ccc(C(=C(c2ccccc2)c2ccc(-c3ccc(-c4ccc(-c5ccc(-c6ccc(C(=C(c7ccccc7)c7ccccc7)c7ccccc7)cc6)s5)c5nsnc45)s3)cc2)c2ccccc2)cc1",
+  "code": "BTPEBTTD",
+  "aliases": [
+    "BTPEBTTD"
+  ],
+  "run_lane": "atb_cache_only",
+  "mode": "web_search",
+  "strictness": "relaxed",
+  "extractor_mode": "mineru_llm",
+  "offline_pdfs": []
+}

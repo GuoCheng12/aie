@@ -1,0 +1,87 @@
+{
+  "round_index": 1,
+  "active_profile": "R1",
+  "status": "completed",
+  "hypothesis": {
+    "mechanism_label": "ICT",
+    "aie_rationale_type": "novelty",
+    "atb_support_level": "none",
+    "template_used": "novelty"
+  },
+  "claim_set": [
+    {
+      "step_id": "A",
+      "step_name": "torsion_access",
+      "claim": "Excited-state structural access is inferred from available aTB cues."
+    },
+    {
+      "step_id": "B",
+      "step_name": "ct_family",
+      "claim": "An electronic redistribution or nonradiative-channel hypothesis is updated from current target cues."
+    },
+    {
+      "step_id": "C",
+      "step_name": "aIE_bridge",
+      "claim": "Aggregation/rigidification may suppress nonradiative pathways."
+    },
+    {
+      "step_id": "D",
+      "step_name": "discriminators",
+      "claim": "Discriminator tests are needed to separate top competing hypotheses."
+    }
+  ],
+  "conflict_points": [
+    {
+      "code": "single_axis_support_only",
+      "path": "/supporting_chain",
+      "detail": "winning claim is supported by one primary evidence axis only: electronic_redistribution"
+    },
+    {
+      "code": "r1_missing_emission_observation_citation",
+      "path": "/supporting_chain",
+      "detail": "R1 requires at least one emission observation evidence citation (E70..E73) when available"
+    }
+  ],
+  "confidence": 0.26424000000000003,
+  "used_evidence_ids": [
+    "E31",
+    "E33",
+    "E35",
+    "E36",
+    "E37",
+    "E51",
+    "E52",
+    "E61"
+  ],
+  "used_case_paths": [
+    "/evidence_readiness/atb/features_summary/charge_redis_heteroatom_abs_share",
+    "/evidence_readiness/atb/features_summary/charge_redis_top3_abs_share",
+    "/evidence_readiness/atb/features_summary/charge_redis_total_abs",
+    "/evidence_readiness/atb/features_summary/delta_angles",
+    "/evidence_readiness/atb/features_summary/delta_bonds",
+    "/evidence_readiness/atb/features_summary/delta_dihedral",
+    "/evidence_readiness/atb/features_summary/delta_gap",
+    "/evidence_readiness/atb/features_summary/delta_volume",
+    "/evidence_readiness/atb/features_summary/s1_oscillator_strength_f",
+    "/risk_scores/structure_motif_profile/intramolecular_hbond_motif",
+    "/risk_scores/structure_motif_profile/tautomerizable_motif"
+  ],
+  "normalization_summary": {
+    "llm_primary_label": "ICT",
+    "normalized_primary_label": "ICT",
+    "decision_state": "provisional_known",
+    "canonical_pool_closed": false,
+    "standard_label_closure": "provisional",
+    "residual_other_admissible": false,
+    "novelty_candidate": true,
+    "novelty_basis": [
+      "novelty_struct_high",
+      "mechanism_entropy_high"
+    ],
+    "normalization_reason_codes": [
+      "standard_label_provisional"
+    ]
+  },
+  "llm_failure_reason": null,
+  "updated_at": "2026-03-16T06:38:37Z"
+}

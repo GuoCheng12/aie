@@ -1,0 +1,14 @@
+{
+  "case_id": "de4094d4ba1c4ee9ad78f7d9f53a0872",
+  "inchikey": "PZRZXXLAALPQNS-UHFFFAOYSA-N",
+  "smiles": "CCn1c2ccc(-c3ccc(C(C#N)=C(c4ccccc4)c4ccccc4)cc3)cc2c2cc(-c3ccc(C(C#N)=C(c4ccccc4)c4ccccc4)cc3)ccc21",
+  "code": "CZ2TPAN",
+  "aliases": [
+    "CZ2TPAN"
+  ],
+  "run_lane": "atb_cache_only",
+  "mode": "web_search",
+  "strictness": "relaxed",
+  "extractor_mode": "mineru_llm",
+  "offline_pdfs": []
+}

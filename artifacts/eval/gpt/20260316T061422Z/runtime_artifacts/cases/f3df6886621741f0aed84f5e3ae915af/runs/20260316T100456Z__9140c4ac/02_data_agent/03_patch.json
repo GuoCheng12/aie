@@ -1,0 +1,374 @@
+[
+  {
+    "op": "replace",
+    "path": "/query/canonical_smiles",
+    "value": "N#CC(C#N)=C1Sc2c(F)c(-c3ccc(N(c4ccccc4)c4ccccc4)cc3)c3nsnc3c2S1"
+  },
+  {
+    "op": "replace",
+    "path": "/query/inchikey",
+    "value": "BGFCJGBDTCLPCB-UHFFFAOYSA-N"
+  },
+  {
+    "op": "replace",
+    "path": "/neighbors",
+    "value": [
+      {
+        "neighbor_inchikey": "NOZUFUFMSWCFAL-UHFFFAOYSA-N",
+        "sim": 0.4909090909090909,
+        "neighbor_mechanism_label": "TICT",
+        "rank": 1
+      },
+      {
+        "neighbor_inchikey": "ZGYXFHLWMVKYHB-UHFFFAOYSA-N",
+        "sim": 0.4807692307692308,
+        "neighbor_mechanism_label": "TICT",
+        "rank": 2
+      },
+      {
+        "neighbor_inchikey": "LOGYVHCRHRRPDU-UHFFFAOYSA-N",
+        "sim": 0.46296296296296297,
+        "neighbor_mechanism_label": "TICT",
+        "rank": 3
+      },
+      {
+        "neighbor_inchikey": "VELSZNFPVFDIAX-UHFFFAOYSA-N",
+        "sim": 0.46296296296296297,
+        "neighbor_mechanism_label": "ICT",
+        "rank": 4
+      },
+      {
+        "neighbor_inchikey": "OBLKGOBAVDMYNY-UHFFFAOYSA-N",
+        "sim": 0.4406779661016949,
+        "neighbor_mechanism_label": "TICT",
+        "rank": 5
+      },
+      {
+        "neighbor_inchikey": "VMHIPQHRLMAKQR-UHFFFAOYSA-N",
+        "sim": 0.4126984126984127,
+        "neighbor_mechanism_label": "unknown",
+        "rank": 6
+      },
+      {
+        "neighbor_inchikey": "DMYGLVHRUZIEEV-UHFFFAOYSA-M",
+        "sim": 0.40625,
+        "neighbor_mechanism_label": "unknown",
+        "rank": 7
+      },
+      {
+        "neighbor_inchikey": "XEHAPURQDNPYEA-UHFFFAOYSA-N",
+        "sim": 0.40350877192982454,
+        "neighbor_mechanism_label": "ICT",
+        "rank": 8
+      },
+      {
+        "neighbor_inchikey": "UJWRSXCHRHFDET-UHFFFAOYSA-M",
+        "sim": 0.3548387096774194,
+        "neighbor_mechanism_label": "unknown",
+        "rank": 9
+      },
+      {
+        "neighbor_inchikey": "AUOFQSCAINHEGA-UHFFFAOYSA-N",
+        "sim": 0.34782608695652173,
+        "neighbor_mechanism_label": "ICT",
+        "rank": 10
+      },
+      {
+        "neighbor_inchikey": "KGPONWYMUVSZHF-UHFFFAOYSA-N",
+        "sim": 0.3424657534246575,
+        "neighbor_mechanism_label": "ICT",
+        "rank": 11
+      },
+      {
+        "neighbor_inchikey": "ZGRCORJSLUKCIN-UHFFFAOYSA-M",
+        "sim": 0.3380281690140845,
+        "neighbor_mechanism_label": "unknown",
+        "rank": 12
+      },
+      {
+        "neighbor_inchikey": "JHSNWPWIKFQXGH-UHFFFAOYSA-N",
+        "sim": 0.3333333333333333,
+        "neighbor_mechanism_label": "ICT",
+        "rank": 13
+      },
+      {
+        "neighbor_inchikey": "YEMDMXIVAJFOJK-UHFFFAOYSA-N",
+        "sim": 0.3333333333333333,
+        "neighbor_mechanism_label": "ICT",
+        "rank": 14
+      },
+      {
+        "neighbor_inchikey": "QOQHPVWNYXEVMN-UHFFFAOYSA-N",
+        "sim": 0.32786885245901637,
+        "neighbor_mechanism_label": "ICT",
+        "rank": 15
+      },
+      {
+        "neighbor_inchikey": "LPOXLMNPDVECMS-ZMFPCWMMSA-N",
+        "sim": 0.32142857142857145,
+        "neighbor_mechanism_label": "ICT",
+        "rank": 16
+      },
+      {
+        "neighbor_inchikey": "ZZFMQHXVVKTABR-UHFFFAOYSA-L",
+        "sim": 0.3188405797101449,
+        "neighbor_mechanism_label": "unknown",
+        "rank": 17
+      },
+      {
+        "neighbor_inchikey": "FAVFDQGTHDPMCR-UHFFFAOYSA-N",
+        "sim": 0.31343283582089554,
+        "neighbor_mechanism_label": "TICT",
+        "rank": 18
+      },
+      {
+        "neighbor_inchikey": "KZGPAZKMHWVKPT-UHFFFAOYSA-N",
+        "sim": 0.3088235294117647,
+        "neighbor_mechanism_label": "ICT",
+        "rank": 19
+      },
+      {
+        "neighbor_inchikey": "WJFWZYJRMHDWSO-UHFFFAOYSA-N",
+        "sim": 0.3076923076923077,
+        "neighbor_mechanism_label": "ESIPT",
+        "rank": 20
+      },
+      {
+        "neighbor_inchikey": "SKYKWBQBUYKPDJ-UHFFFAOYSA-N",
+        "sim": 0.29850746268656714,
+        "neighbor_mechanism_label": "ICT",
+        "rank": 21
+      },
+      {
+        "neighbor_inchikey": "MWEWLGNBUNSQQK-UHFFFAOYSA-N",
+        "sim": 0.29508196721311475,
+        "neighbor_mechanism_label": "TICT",
+        "rank": 22
+      },
+      {
+        "neighbor_inchikey": "NQSDENZBMGKTOF-UHFFFAOYSA-N",
+        "sim": 0.2903225806451613,
+        "neighbor_mechanism_label": "ICT",
+        "rank": 23
+      },
+      {
+        "neighbor_inchikey": "OTWOHPXLSDQPRZ-UHFFFAOYSA-N",
+        "sim": 0.2903225806451613,
+        "neighbor_mechanism_label": "TICT",
+        "rank": 24
+      },
+      {
+        "neighbor_inchikey": "WSTDSGWIVFKSER-UHFFFAOYSA-N",
+        "sim": 0.2876712328767123,
+        "neighbor_mechanism_label": "ICT",
+        "rank": 25
+      },
+      {
+        "neighbor_inchikey": "WVUUWSULLUZGPM-UHFFFAOYSA-N",
+        "sim": 0.28378378378378377,
+        "neighbor_mechanism_label": "ICT",
+        "rank": 26
+      },
+      {
+        "neighbor_inchikey": "XEOQVYCNTHHYBT-UHFFFAOYSA-N",
+        "sim": 0.2830188679245283,
+        "neighbor_mechanism_label": "neutral aromatic",
+        "rank": 27
+      },
+      {
+        "neighbor_inchikey": "MSGVUUNRASSGTH-UHFFFAOYSA-N",
+        "sim": 0.28125,
+        "neighbor_mechanism_label": "ICT",
+        "rank": 28
+      },
+      {
+        "neighbor_inchikey": "NPAXZCYYOMJCEC-UHFFFAOYSA-N",
+        "sim": 0.28125,
+        "neighbor_mechanism_label": "ICT",
+        "rank": 29
+      },
+      {
+        "neighbor_inchikey": "UCNLDCBQWKXZKX-UHFFFAOYSA-N",
+        "sim": 0.2777777777777778,
+        "neighbor_mechanism_label": "ICT",
+        "rank": 30
+      },
+      {
+        "neighbor_inchikey": "HYHBQNPYZODWNP-UHFFFAOYSA-N",
+        "sim": 0.273972602739726,
+        "neighbor_mechanism_label": "ICT",
+        "rank": 31
+      },
+      {
+        "neighbor_inchikey": "OCCBAOGVTINSHG-UHFFFAOYSA-M",
+        "sim": 0.2711864406779661,
+        "neighbor_mechanism_label": "ICT",
+        "rank": 32
+      },
+      {
+        "neighbor_inchikey": "JDLDCDDVVULYQK-UHFFFAOYSA-N",
+        "sim": 0.2619047619047619,
+        "neighbor_mechanism_label": "TICT",
+        "rank": 33
+      },
+      {
+        "neighbor_inchikey": "GLWJFJKMGBIORU-UHFFFAOYSA-N",
+        "sim": 0.2597402597402597,
+        "neighbor_mechanism_label": "ICT",
+        "rank": 34
+      },
+      {
+        "neighbor_inchikey": "XXPPXNQPADWBRV-UHFFFAOYSA-N",
+        "sim": 0.25555555555555554,
+        "neighbor_mechanism_label": "TICT",
+        "rank": 35
+      },
+      {
+        "neighbor_inchikey": "FFEFTQJWKUXMLO-UHFFFAOYSA-N",
+        "sim": 0.2535211267605634,
+        "neighbor_mechanism_label": "ICT",
+        "rank": 36
+      },
+      {
+        "neighbor_inchikey": "QNCKEBDCKLLOKO-UHFFFAOYSA-N",
+        "sim": 0.25,
+        "neighbor_mechanism_label": "ESIPT",
+        "rank": 37
+      },
+      {
+        "neighbor_inchikey": "LQVNPTJVKGTPBE-UHFFFAOYSA-M",
+        "sim": 0.2465753424657534,
+        "neighbor_mechanism_label": "ICT",
+        "rank": 38
+      },
+      {
+        "neighbor_inchikey": "VXPFWBAYKWSTTE-UHFFFAOYSA-N",
+        "sim": 0.2465753424657534,
+        "neighbor_mechanism_label": "ICT",
+        "rank": 39
+      },
+      {
+        "neighbor_inchikey": "HLIDJXBBNGGUTN-UHFFFAOYSA-M",
+        "sim": 0.24,
+        "neighbor_mechanism_label": "TICT",
+        "rank": 40
+      },
+      {
+        "neighbor_inchikey": "JWEOTNLMHJLMKX-UHFFFAOYSA-M",
+        "sim": 0.23943661971830985,
+        "neighbor_mechanism_label": "ICT",
+        "rank": 41
+      },
+      {
+        "neighbor_inchikey": "JVKVFYHHBIQOQT-UHFFFAOYSA-N",
+        "sim": 0.2361111111111111,
+        "neighbor_mechanism_label": "ICT",
+        "rank": 42
+      },
+      {
+        "neighbor_inchikey": "SNCXIQROKQGBES-UHFFFAOYSA-N",
+        "sim": 0.2361111111111111,
+        "neighbor_mechanism_label": "ICT",
+        "rank": 43
+      },
+      {
+        "neighbor_inchikey": "WSBBXVMESMNMJZ-UHFFFAOYSA-M",
+        "sim": 0.2328767123287671,
+        "neighbor_mechanism_label": "TICT",
+        "rank": 44
+      },
+      {
+        "neighbor_inchikey": "MZRLCCNGXOWULB-UHFFFAOYSA-N",
+        "sim": 0.22388059701492538,
+        "neighbor_mechanism_label": "ICT",
+        "rank": 45
+      },
+      {
+        "neighbor_inchikey": "YIUCVLUOKLKIGH-UHFFFAOYSA-N",
+        "sim": 0.2222222222222222,
+        "neighbor_mechanism_label": "TICT",
+        "rank": 46
+      },
+      {
+        "neighbor_inchikey": "YAXGOWIIPLUDAT-UHFFFAOYSA-N",
+        "sim": 0.21875,
+        "neighbor_mechanism_label": "TICT",
+        "rank": 47
+      },
+      {
+        "neighbor_inchikey": "UFVIUFDNZJSCON-UHFFFAOYSA-M",
+        "sim": 0.21794871794871795,
+        "neighbor_mechanism_label": "ICT",
+        "rank": 48
+      },
+      {
+        "neighbor_inchikey": "ZQTCALHYAWMPHT-UHFFFAOYSA-M",
+        "sim": 0.21794871794871795,
+        "neighbor_mechanism_label": "ICT",
+        "rank": 49
+      },
+      {
+        "neighbor_inchikey": "RRXNEDXHQJMUSI-KVVVOXFISA-N",
+        "sim": 0.21686746987951808,
+        "neighbor_mechanism_label": "ICT",
+        "rank": 50
+      }
+    ]
+  },
+  {
+    "op": "add",
+    "path": "/risk_scores/top1_sim",
+    "value": 0.490909
+  },
+  {
+    "op": "add",
+    "path": "/risk_scores/mean_topk_sim",
+    "value": 0.303976
+  },
+  {
+    "op": "add",
+    "path": "/risk_scores/neighbor_gap",
+    "value": 0.01014
+  },
+  {
+    "op": "add",
+    "path": "/risk_scores/novelty_struct",
+    "value": 0.509091
+  },
+  {
+    "op": "add",
+    "path": "/risk_scores/mechanism_entropy",
+    "value": 0.620924
+  },
+  {
+    "op": "add",
+    "path": "/risk_scores/mechanism_hint",
+    "value": "ICT"
+  },
+  {
+    "op": "add",
+    "path": "/risk_scores/hint_confidence",
+    "value": 0.500924
+  },
+  {
+    "op": "add",
+    "path": "/agent_runs/-",
+    "value": {
+      "agent_name": "data_agent",
+      "version": "1.0.0",
+      "status": "success",
+      "status_reason_code": null,
+      "started_at": "2026-03-16T10:04:56Z",
+      "ended_at": "2026-03-16T10:04:56Z",
+      "inputs_hash": "41fb22df9ead7c352800549eb8900d3a43cce71f98b99cbed732160152a4113e",
+      "idempotency_key": "9880dae6e1ac03f53767026170b2fb7acb83ac00f9c10d07d3e42dc43d4d4066",
+      "artifacts": [
+        {
+          "kind": "step_artifacts",
+          "path": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/artifacts/eval/gpt/20260316T061422Z/runtime_artifacts/cases/f3df6886621741f0aed84f5e3ae915af/runs/20260316T100456Z__9140c4ac/02_data_agent"
+        }
+      ],
+      "warnings": []
+    }
+  }
+]

@@ -1,0 +1,14 @@
+{
+  "case_id": "123b96fc3f6643958f820474717ea721",
+  "inchikey": "AAAQKTZKLRYKHR-UHFFFAOYSA-N",
+  "smiles": "c1ccc(C(c2ccccc2)c2ccccc2)cc1",
+  "code": "TPM",
+  "aliases": [
+    "TPM"
+  ],
+  "run_lane": "atb_cache_only",
+  "mode": "web_search",
+  "strictness": "relaxed",
+  "extractor_mode": "mineru_llm",
+  "offline_pdfs": []
+}

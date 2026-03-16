@@ -1,0 +1,14 @@
+{
+  "case_id": "93775529478d44e6afee84e061ac5d20",
+  "inchikey": "UINAJYPGEUCHGC-HZQSNCGTSA-N",
+  "smiles": "Cc1cc(C)c(B(c2ccc(-c3ccc(-c4ccc(/C(=C(\\c5ccccc5)c5ccc(-c6ccc(-c7ccc(B(c8c(C)cc(C)cc8C)c8c(C)cc(C)cc8C)cc7)cc6)cc5)c5ccccc5)cc4)cc3)cc2)c2c(C)cc(C)cc2C)c(C)c1",
+  "code": "l-TPEB",
+  "aliases": [
+    "l-TPEB"
+  ],
+  "run_lane": "atb_cache_only",
+  "mode": "web_search",
+  "strictness": "relaxed",
+  "extractor_mode": "mineru_llm",
+  "offline_pdfs": []
+}

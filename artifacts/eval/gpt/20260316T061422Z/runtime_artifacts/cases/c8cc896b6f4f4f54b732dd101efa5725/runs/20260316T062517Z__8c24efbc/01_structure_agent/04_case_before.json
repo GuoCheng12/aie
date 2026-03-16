@@ -1,0 +1,89 @@
+{
+  "case_id": "c8cc896b6f4f4f54b732dd101efa5725",
+  "case_version": "1.1.0-multi-agent",
+  "runtime": {
+    "run_lane": "atb_cache_only",
+    "reference_index_root": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/data/reference_indices/split_levels_v2/views",
+    "reference_view": "leave_level_1",
+    "difficulty_level": 1,
+    "allow_other_label": false,
+    "label_pool_name": "main_no_other"
+  },
+  "query": {
+    "input_smiles": "C1(/C(C2=CC=C(C3=CC=C(C4=CC=C(C5=CC=C(C6=CC=C(/C(C7=CC=CC=C7)=C(C8=CC=CC=C8)\\C9=CC=CC=C9)C=C6)S5)C%10=NSN=C%104)S3)C=C2)=C(C%11=CC=CC=C%11)\\C%12=CC=CC=C%12)=CC=CC=C1",
+    "canonical_smiles": null,
+    "inchikey": null,
+    "code": "BTPEBTTD",
+    "reference": "Chem. Commun., 2011, 47, 8847–8849",
+    "created_at": "2026-03-16T06:25:17Z",
+    "aliases": [
+      "BTPEBTTD"
+    ]
+  },
+  "inputs": {
+    "offline_pdfs": []
+  },
+  "evidence_acquire": {
+    "emission": {
+      "mode": "web_search",
+      "strictness": "relaxed",
+      "extractor_mode": "mineru_llm"
+    }
+  },
+  "neighbors": [],
+  "risk_scores": {},
+  "evidence_readiness": {
+    "atb": {
+      "cache_status": "absent",
+      "request_status": "not_requested",
+      "missing_fields": [],
+      "last_update": "2026-03-16T06:25:17Z"
+    },
+    "literature": {
+      "status": "not_started",
+      "sources": [],
+      "last_update": "2026-03-16T06:25:17Z",
+      "notes": null
+    },
+    "experiment": {
+      "status": "not_requested",
+      "requested_fields": [],
+      "received_fields": [],
+      "last_update": "2026-03-16T06:25:17Z",
+      "notes": null
+    }
+  },
+  "target_fields": {
+    "emission_solid_or_film_nm": 661.0
+  },
+  "target_fields_provenance": {
+    "emission_solid_or_film_nm": {
+      "source_type": "dataset_row",
+      "source_ref": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/data/split_list/1_level.csv",
+      "source_locator": "row_index=2; code=BTPEBTTD",
+      "confidence": 1.0,
+      "identity_match": "exact",
+      "identity_match_confidence": 1.0,
+      "condition": "solid_or_film",
+      "condition_bucket": "solid_or_film"
+    }
+  },
+  "evidence_candidates_staging": [],
+  "current_gate": {
+    "state": "needs_manual",
+    "ready_for_reasoning": false,
+    "reason": "not_evaluated",
+    "reasoning_mode": "blocked"
+  },
+  "action_rationale": "",
+  "action_plan": [],
+  "post_uq": {
+    "status": "not_started",
+    "confidence": null,
+    "contradictions": [],
+    "missing_evidence": [],
+    "recommended_actions": []
+  },
+  "agent_runs": [],
+  "history": []
+}

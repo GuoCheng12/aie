@@ -1,0 +1,192 @@
+{
+  "round_index": 0,
+  "active_profile": "R0",
+  "llm_failure_reason": null,
+  "hypothesis_delta": {
+    "changed": true,
+    "primary_label_before": null,
+    "primary_label_after": "unknown",
+    "confidence_before": 0.468,
+    "confidence_after": 0.468,
+    "confidence_delta": 0.0,
+    "template_before": null,
+    "template_after": "mixture"
+  },
+  "new_evidence_used": {
+    "added_ids": [],
+    "effective_added_ids": [],
+    "removed_ids": [],
+    "added_paths": [],
+    "count_added": 0,
+    "count_effective_added": 0
+  },
+  "conflict_delta": {
+    "new_conflicts": [
+      "C1"
+    ],
+    "resolved_conflicts": [],
+    "unresolved_before": 0,
+    "unresolved_after": 1
+  },
+  "feasibility_snapshot": {
+    "overall_score": 0.25,
+    "constraints": [
+      "lane_disabled:literature",
+      "lane_disabled:wetlab",
+      "missing_input:offline_pdf"
+    ],
+    "lane_capabilities": {
+      "atb_available": true,
+      "offline_pdf_available": false,
+      "literature_enabled": false,
+      "wetlab_enabled": false
+    }
+  },
+  "chosen_next_round_profile": "R2",
+  "profile_adjustment_reason": "pre_r2_failure_recovery_force_r2",
+  "candidate_scorecard": [
+    {
+      "label": "TICT",
+      "prior_rank": 1,
+      "prior_confidence": 0.532,
+      "current_rank": 1,
+      "current_confidence": 0.532,
+      "support_axes": [],
+      "weakening_axes": [],
+      "unresolved_axes": [
+        "structure_prior"
+      ],
+      "new_support_evidence_ids": [],
+      "new_weakening_evidence_ids": [],
+      "net_direction": "flat",
+      "commentary": "Candidate remains unresolved under current evidence and stays in the negotiation set."
+    },
+    {
+      "label": "unknown",
+      "prior_rank": 4,
+      "prior_confidence": 0.468,
+      "current_rank": 1,
+      "current_confidence": 0.468,
+      "support_axes": [],
+      "weakening_axes": [],
+      "unresolved_axes": [
+        "structure_prior"
+      ],
+      "new_support_evidence_ids": [],
+      "new_weakening_evidence_ids": [],
+      "net_direction": "up",
+      "commentary": "Current leading candidate remains provisional; primary support is still limited."
+    },
+    {
+      "label": "neutral aromatic",
+      "prior_rank": 2,
+      "prior_confidence": 0.2697,
+      "current_rank": 2,
+      "current_confidence": 0.2697,
+      "support_axes": [],
+      "weakening_axes": [],
+      "unresolved_axes": [
+        "structure_prior"
+      ],
+      "new_support_evidence_ids": [],
+      "new_weakening_evidence_ids": [],
+      "net_direction": "flat",
+      "commentary": "Candidate remains unresolved under current evidence and stays in the negotiation set."
+    },
+    {
+      "label": "ICT",
+      "prior_rank": 3,
+      "prior_confidence": 0.1038,
+      "current_rank": 3,
+      "current_confidence": 0.1038,
+      "support_axes": [],
+      "weakening_axes": [],
+      "unresolved_axes": [
+        "structure_prior"
+      ],
+      "new_support_evidence_ids": [],
+      "new_weakening_evidence_ids": [],
+      "net_direction": "flat",
+      "commentary": "Candidate remains unresolved under current evidence and stays in the negotiation set."
+    }
+  ],
+  "master_candidate_scorecard": [
+    {
+      "label": "TICT",
+      "prior_rank": 1,
+      "prior_confidence": 0.532,
+      "current_rank": 1,
+      "current_confidence": 0.532,
+      "support_axes": [],
+      "weakening_axes": [],
+      "unresolved_axes": [
+        "structure_prior"
+      ],
+      "new_support_evidence_ids": [],
+      "new_weakening_evidence_ids": [],
+      "net_direction": "flat",
+      "commentary": "Candidate remains unresolved under current evidence and stays in the negotiation set."
+    },
+    {
+      "label": "unknown",
+      "prior_rank": 4,
+      "prior_confidence": 0.468,
+      "current_rank": 1,
+      "current_confidence": 0.468,
+      "support_axes": [],
+      "weakening_axes": [],
+      "unresolved_axes": [
+        "structure_prior"
+      ],
+      "new_support_evidence_ids": [],
+      "new_weakening_evidence_ids": [],
+      "net_direction": "up",
+      "commentary": "Current leading candidate remains provisional; primary support is still limited."
+    },
+    {
+      "label": "neutral aromatic",
+      "prior_rank": 2,
+      "prior_confidence": 0.2697,
+      "current_rank": 2,
+      "current_confidence": 0.2697,
+      "support_axes": [],
+      "weakening_axes": [],
+      "unresolved_axes": [
+        "structure_prior"
+      ],
+      "new_support_evidence_ids": [],
+      "new_weakening_evidence_ids": [],
+      "net_direction": "flat",
+      "commentary": "Candidate remains unresolved under current evidence and stays in the negotiation set."
+    },
+    {
+      "label": "ICT",
+      "prior_rank": 3,
+      "prior_confidence": 0.1038,
+      "current_rank": 3,
+      "current_confidence": 0.1038,
+      "support_axes": [],
+      "weakening_axes": [],
+      "unresolved_axes": [
+        "structure_prior"
+      ],
+      "new_support_evidence_ids": [],
+      "new_weakening_evidence_ids": [],
+      "net_direction": "flat",
+      "commentary": "Candidate remains unresolved under current evidence and stays in the negotiation set."
+    }
+  ],
+  "normalization_summary": {
+    "llm_primary_label": null,
+    "normalized_primary_label": null,
+    "decision_state": null,
+    "canonical_pool_closed": false,
+    "standard_label_closure": null,
+    "residual_other_admissible": false,
+    "novelty_candidate": false,
+    "novelty_basis": [],
+    "normalization_reason_codes": []
+  },
+  "final_label_adjudication": {},
+  "updated_at": "2026-03-16T10:21:55Z"
+}

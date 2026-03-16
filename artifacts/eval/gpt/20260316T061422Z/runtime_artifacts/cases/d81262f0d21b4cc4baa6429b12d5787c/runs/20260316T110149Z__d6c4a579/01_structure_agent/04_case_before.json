@@ -1,0 +1,89 @@
+{
+  "case_id": "d81262f0d21b4cc4baa6429b12d5787c",
+  "case_version": "1.1.0-multi-agent",
+  "runtime": {
+    "run_lane": "atb_cache_only",
+    "reference_index_root": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/data/reference_indices/split_levels_v2/views",
+    "reference_view": "leave_level_1",
+    "difficulty_level": 1,
+    "allow_other_label": false,
+    "label_pool_name": "main_no_other"
+  },
+  "query": {
+    "input_smiles": "O=C1C2=C(C=CC=C2)C(/C1=CC(C=C3)=CC=C3N(C4=CC=CC=C4)C5=CC=CC=C5)=O",
+    "canonical_smiles": null,
+    "inchikey": null,
+    "code": "IND-TPA",
+    "reference": "Chem.Commun.,2017,53,921-924.",
+    "created_at": "2026-03-16T11:01:49Z",
+    "aliases": [
+      "IND-TPA"
+    ]
+  },
+  "inputs": {
+    "offline_pdfs": []
+  },
+  "evidence_acquire": {
+    "emission": {
+      "mode": "web_search",
+      "strictness": "relaxed",
+      "extractor_mode": "mineru_llm"
+    }
+  },
+  "neighbors": [],
+  "risk_scores": {},
+  "evidence_readiness": {
+    "atb": {
+      "cache_status": "absent",
+      "request_status": "not_requested",
+      "missing_fields": [],
+      "last_update": "2026-03-16T11:01:49Z"
+    },
+    "literature": {
+      "status": "not_started",
+      "sources": [],
+      "last_update": "2026-03-16T11:01:49Z",
+      "notes": null
+    },
+    "experiment": {
+      "status": "not_requested",
+      "requested_fields": [],
+      "received_fields": [],
+      "last_update": "2026-03-16T11:01:49Z",
+      "notes": null
+    }
+  },
+  "target_fields": {
+    "emission_aggr_nm": 612.0
+  },
+  "target_fields_provenance": {
+    "emission_aggr_nm": {
+      "source_type": "dataset_row",
+      "source_ref": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/data/split_list/1_level.csv",
+      "source_locator": "row_index=45; code=IND-TPA",
+      "confidence": 1.0,
+      "identity_match": "exact",
+      "identity_match_confidence": 1.0,
+      "condition": "aggregation",
+      "condition_bucket": "aggregation"
+    }
+  },
+  "evidence_candidates_staging": [],
+  "current_gate": {
+    "state": "needs_manual",
+    "ready_for_reasoning": false,
+    "reason": "not_evaluated",
+    "reasoning_mode": "blocked"
+  },
+  "action_rationale": "",
+  "action_plan": [],
+  "post_uq": {
+    "status": "not_started",
+    "confidence": null,
+    "contradictions": [],
+    "missing_evidence": [],
+    "recommended_actions": []
+  },
+  "agent_runs": [],
+  "history": []
+}

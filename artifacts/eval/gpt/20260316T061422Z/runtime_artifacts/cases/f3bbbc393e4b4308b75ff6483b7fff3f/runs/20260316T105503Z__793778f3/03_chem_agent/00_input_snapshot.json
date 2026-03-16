@@ -1,0 +1,14 @@
+{
+  "case_id": "f3bbbc393e4b4308b75ff6483b7fff3f",
+  "inchikey": "FYEBPNSYVHPFJN-BGDIREAQSA-N",
+  "smiles": "COc1ccc(C(=C(c2ccccc2)c2ccc(-c3ccc(/C=C4\\SC(=S)N(CC(=O)O)C4=O)cc3)cc2)c2ccc(OC)cc2)cc1",
+  "code": "TPE-PR-COOH",
+  "aliases": [
+    "TPE-PR-COOH"
+  ],
+  "run_lane": "atb_cache_only",
+  "mode": "web_search",
+  "strictness": "relaxed",
+  "extractor_mode": "mineru_llm",
+  "offline_pdfs": []
+}

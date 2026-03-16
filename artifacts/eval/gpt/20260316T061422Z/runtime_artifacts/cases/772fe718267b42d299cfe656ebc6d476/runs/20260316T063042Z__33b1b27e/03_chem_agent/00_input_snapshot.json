@@ -1,0 +1,14 @@
+{
+  "case_id": "772fe718267b42d299cfe656ebc6d476",
+  "inchikey": "UWTNUBWZVWIVMZ-UHFFFAOYSA-N",
+  "smiles": "CC1(C)c2ccccc2N(c2ccc3c(c2)c2cc(N4c5ccccc5C(C)(C)c5ccccc54)ccc2c2nc4cc(C(=O)c5ccccc5)ccc4nc32)c2ccccc21",
+  "code": "DPPM-DMAC",
+  "aliases": [
+    "DPPM-DMAC"
+  ],
+  "run_lane": "atb_cache_only",
+  "mode": "web_search",
+  "strictness": "relaxed",
+  "extractor_mode": "mineru_llm",
+  "offline_pdfs": []
+}

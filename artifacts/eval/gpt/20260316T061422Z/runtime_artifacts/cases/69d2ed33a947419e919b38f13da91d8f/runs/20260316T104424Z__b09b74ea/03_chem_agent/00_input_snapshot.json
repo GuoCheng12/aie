@@ -1,0 +1,14 @@
+{
+  "case_id": "69d2ed33a947419e919b38f13da91d8f",
+  "inchikey": "UINDPMQCLDKUOB-KSKHYJKRSA-J",
+  "smiles": "O=C(CN(CC(=O)[O][Na])Cc1ccc(O)c(/C=N/N=C/c2cc(CN(CC(=O)[O][Na])CC(=O)[O][Na])ccc2O)c1)[O][Na]",
+  "code": "SA-4CO2Na",
+  "aliases": [
+    "SA-4CO2Na"
+  ],
+  "run_lane": "atb_cache_only",
+  "mode": "web_search",
+  "strictness": "relaxed",
+  "extractor_mode": "mineru_llm",
+  "offline_pdfs": []
+}

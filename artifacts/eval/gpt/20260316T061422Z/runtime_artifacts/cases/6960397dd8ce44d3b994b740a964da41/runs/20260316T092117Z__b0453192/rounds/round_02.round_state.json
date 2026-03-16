@@ -1,0 +1,254 @@
+{
+  "round_index": 2,
+  "active_profile": "R2",
+  "llm_failure_reason": null,
+  "hypothesis_delta": {
+    "changed": false,
+    "primary_label_before": "ICT",
+    "primary_label_after": "ICT",
+    "confidence_before": 0.40848000000000007,
+    "confidence_after": 0.24466406400000004,
+    "confidence_delta": -0.163816,
+    "template_before": "mixture",
+    "template_after": "mixture"
+  },
+  "new_evidence_used": {
+    "added_ids": [
+      "E21",
+      "E24",
+      "E32",
+      "E60"
+    ],
+    "effective_added_ids": [
+      "E21",
+      "E24",
+      "E32",
+      "E60"
+    ],
+    "removed_ids": [
+      "E39",
+      "E51",
+      "E52"
+    ],
+    "added_paths": [
+      "/evidence_readiness/atb/features_summary/charge_redis_heteroatom_abs_share",
+      "/evidence_readiness/atb/features_summary/charge_redis_top3_abs_share",
+      "/evidence_readiness/atb/features_summary/charge_redis_total_abs",
+      "/evidence_readiness/atb/features_summary/delta_angles",
+      "/evidence_readiness/atb/features_summary/delta_bonds",
+      "/evidence_readiness/atb/features_summary/delta_dihedral",
+      "/evidence_readiness/atb/features_summary/delta_gap",
+      "/evidence_readiness/atb/features_summary/delta_volume",
+      "/evidence_readiness/atb/features_summary/s1_transition_electric_dip_au",
+      "/risk_scores/atb_neighbor_features_all",
+      "/target_fields/emission_aggr_nm",
+      "/target_fields/emission_solid_or_film_nm",
+      "/target_fields_provenance/emission_aggr_nm",
+      "/target_fields_provenance/emission_solid_or_film_nm"
+    ],
+    "count_added": 4,
+    "count_effective_added": 4
+  },
+  "conflict_delta": {
+    "new_conflicts": [],
+    "resolved_conflicts": [
+      "C3"
+    ],
+    "unresolved_before": 3,
+    "unresolved_after": 2
+  },
+  "feasibility_snapshot": {
+    "overall_score": 0.25,
+    "constraints": [
+      "lane_disabled:literature",
+      "lane_disabled:wetlab",
+      "missing_input:offline_pdf"
+    ],
+    "lane_capabilities": {
+      "atb_available": true,
+      "offline_pdf_available": false,
+      "literature_enabled": false,
+      "wetlab_enabled": false
+    }
+  },
+  "chosen_next_round_profile": "R2",
+  "profile_adjustment_reason": "as_recommended",
+  "candidate_scorecard": [
+    {
+      "label": "ICT",
+      "prior_rank": 1,
+      "prior_confidence": 0.4085,
+      "current_rank": 1,
+      "current_confidence": 0.2447,
+      "support_axes": [
+        "structural_relaxation"
+      ],
+      "weakening_axes": [],
+      "unresolved_axes": [
+        "target_observation",
+        "electronic_redistribution",
+        "structural_relaxation",
+        "comparative_transferability"
+      ],
+      "new_support_evidence_ids": [],
+      "new_weakening_evidence_ids": [],
+      "net_direction": "down",
+      "commentary": "Current leading candidate supported by structural_relaxation."
+    },
+    {
+      "label": "ESIPT",
+      "prior_rank": 2,
+      "prior_confidence": 0.2504,
+      "current_rank": 2,
+      "current_confidence": 0.2504,
+      "support_axes": [],
+      "weakening_axes": [],
+      "unresolved_axes": [
+        "target_observation",
+        "electronic_redistribution",
+        "structural_relaxation",
+        "comparative_transferability"
+      ],
+      "new_support_evidence_ids": [],
+      "new_weakening_evidence_ids": [],
+      "net_direction": "flat",
+      "commentary": "Candidate remains unresolved under current evidence and stays in the negotiation set."
+    },
+    {
+      "label": "unknown",
+      "prior_rank": 3,
+      "prior_confidence": 0.2008,
+      "current_rank": 3,
+      "current_confidence": 0.2008,
+      "support_axes": [],
+      "weakening_axes": [],
+      "unresolved_axes": [
+        "target_observation",
+        "electronic_redistribution",
+        "structural_relaxation",
+        "comparative_transferability"
+      ],
+      "new_support_evidence_ids": [],
+      "new_weakening_evidence_ids": [],
+      "net_direction": "flat",
+      "commentary": "Candidate remains unresolved under current evidence and stays in the negotiation set."
+    },
+    {
+      "label": "TICT",
+      "prior_rank": 4,
+      "prior_confidence": 0.1999,
+      "current_rank": 4,
+      "current_confidence": 0.1999,
+      "support_axes": [],
+      "weakening_axes": [],
+      "unresolved_axes": [
+        "target_observation",
+        "electronic_redistribution",
+        "structural_relaxation",
+        "comparative_transferability"
+      ],
+      "new_support_evidence_ids": [],
+      "new_weakening_evidence_ids": [],
+      "net_direction": "flat",
+      "commentary": "Candidate remains unresolved under current evidence and stays in the negotiation set."
+    }
+  ],
+  "master_candidate_scorecard": [
+    {
+      "label": "ICT",
+      "prior_rank": 1,
+      "prior_confidence": 0.4085,
+      "current_rank": 1,
+      "current_confidence": 0.2447,
+      "support_axes": [
+        "structural_relaxation"
+      ],
+      "weakening_axes": [],
+      "unresolved_axes": [
+        "target_observation",
+        "electronic_redistribution",
+        "structural_relaxation",
+        "comparative_transferability"
+      ],
+      "new_support_evidence_ids": [],
+      "new_weakening_evidence_ids": [],
+      "net_direction": "down",
+      "commentary": "Current leading candidate supported by structural_relaxation."
+    },
+    {
+      "label": "ESIPT",
+      "prior_rank": 2,
+      "prior_confidence": 0.2504,
+      "current_rank": 2,
+      "current_confidence": 0.2504,
+      "support_axes": [],
+      "weakening_axes": [],
+      "unresolved_axes": [
+        "target_observation",
+        "electronic_redistribution",
+        "structural_relaxation",
+        "comparative_transferability"
+      ],
+      "new_support_evidence_ids": [],
+      "new_weakening_evidence_ids": [],
+      "net_direction": "flat",
+      "commentary": "Candidate remains unresolved under current evidence and stays in the negotiation set."
+    },
+    {
+      "label": "unknown",
+      "prior_rank": 3,
+      "prior_confidence": 0.2008,
+      "current_rank": 3,
+      "current_confidence": 0.2008,
+      "support_axes": [],
+      "weakening_axes": [],
+      "unresolved_axes": [
+        "target_observation",
+        "electronic_redistribution",
+        "structural_relaxation",
+        "comparative_transferability"
+      ],
+      "new_support_evidence_ids": [],
+      "new_weakening_evidence_ids": [],
+      "net_direction": "flat",
+      "commentary": "Candidate remains unresolved under current evidence and stays in the negotiation set."
+    },
+    {
+      "label": "TICT",
+      "prior_rank": 4,
+      "prior_confidence": 0.1999,
+      "current_rank": 4,
+      "current_confidence": 0.1999,
+      "support_axes": [],
+      "weakening_axes": [],
+      "unresolved_axes": [
+        "target_observation",
+        "electronic_redistribution",
+        "structural_relaxation",
+        "comparative_transferability"
+      ],
+      "new_support_evidence_ids": [],
+      "new_weakening_evidence_ids": [],
+      "net_direction": "flat",
+      "commentary": "Candidate remains unresolved under current evidence and stays in the negotiation set."
+    }
+  ],
+  "normalization_summary": {
+    "llm_primary_label": "ICT",
+    "normalized_primary_label": "ICT",
+    "decision_state": "provisional_known",
+    "canonical_pool_closed": false,
+    "standard_label_closure": "provisional",
+    "residual_other_admissible": true,
+    "novelty_candidate": true,
+    "novelty_basis": [
+      "mechanism_entropy_high",
+      "late_round_residual_conflict"
+    ],
+    "normalization_reason_codes": [
+      "standard_label_provisional"
+    ]
+  },
+  "final_label_adjudication": {},
+  "updated_at": "2026-03-16T09:25:02Z"
+}

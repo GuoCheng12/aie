@@ -1,0 +1,14 @@
+{
+  "case_id": "f3df6886621741f0aed84f5e3ae915af",
+  "inchikey": "BGFCJGBDTCLPCB-UHFFFAOYSA-N",
+  "smiles": "N#CC(C#N)=C1Sc2c(F)c(-c3ccc(N(c4ccccc4)c4ccccc4)cc3)c3nsnc3c2S1",
+  "code": "TPABSM",
+  "aliases": [
+    "TPABSM"
+  ],
+  "run_lane": "atb_cache_only",
+  "mode": "web_search",
+  "strictness": "relaxed",
+  "extractor_mode": "mineru_llm",
+  "offline_pdfs": []
+}

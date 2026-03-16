@@ -1,0 +1,78 @@
+[
+  {
+    "op": "replace",
+    "path": "/current_gate/state",
+    "value": "ready_for_reasoning"
+  },
+  {
+    "op": "replace",
+    "path": "/current_gate/ready_for_reasoning",
+    "value": true
+  },
+  {
+    "op": "replace",
+    "path": "/current_gate/reason",
+    "value": "atb_neighbor_flag:inlier"
+  },
+  {
+    "op": "replace",
+    "path": "/current_gate/reasoning_mode",
+    "value": "normal"
+  },
+  {
+    "op": "replace",
+    "path": "/action_rationale",
+    "value": "READY_AGENT gate=ready_for_reasoning; ready_for_reasoning=true; reasoning_mode=normal; reasons=atb_neighbor_flag:inlier."
+  },
+  {
+    "op": "replace",
+    "path": "/action_plan",
+    "value": [
+      {
+        "action": "run_master_reasoner",
+        "priority": 1,
+        "status": "pending",
+        "inputs": {},
+        "expected_outputs": [],
+        "blocking": false,
+        "notes": "READY_AGENT promoted reasoning step to priority=1."
+      }
+    ]
+  },
+  {
+    "op": "add",
+    "path": "/risk_scores/readiness_identity_low_confidence",
+    "value": false
+  },
+  {
+    "op": "add",
+    "path": "/risk_scores/readiness_gate_state",
+    "value": "ready_for_reasoning"
+  },
+  {
+    "op": "add",
+    "path": "/risk_scores/readiness_atb_neighbor_flag",
+    "value": "inlier"
+  },
+  {
+    "op": "add",
+    "path": "/agent_runs/-",
+    "value": {
+      "agent_name": "ready_agent",
+      "version": "1.0.0",
+      "status": "success",
+      "status_reason_code": null,
+      "started_at": "2026-03-16T07:55:19Z",
+      "ended_at": "2026-03-16T07:55:19Z",
+      "inputs_hash": "c543279beeddf969c78f8c92f2a3114df2ecb7f07b721bd0d2c7a8fbbe16b5c9",
+      "idempotency_key": "f275c63a9455aea61dd2765fda57843350b2be9d925a45701d736b5a925aa3a8",
+      "artifacts": [
+        {
+          "kind": "step_artifacts",
+          "path": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/artifacts/eval/gpt/20260316T061422Z/runtime_artifacts/cases/8f219cc5db304fffba411807d14b0a49/runs/20260316T075519Z__c7714351/04_ready_agent"
+        }
+      ],
+      "warnings": []
+    }
+  }
+]

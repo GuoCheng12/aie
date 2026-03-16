@@ -1,0 +1,89 @@
+{
+  "case_id": "2b3ff0b5ba8140cb88716acfef67cecb",
+  "case_version": "1.1.0-multi-agent",
+  "runtime": {
+    "run_lane": "atb_cache_only",
+    "reference_index_root": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/data/reference_indices/split_levels_v2/views",
+    "reference_view": "leave_level_1",
+    "difficulty_level": 1,
+    "allow_other_label": false,
+    "label_pool_name": "main_no_other"
+  },
+  "query": {
+    "input_smiles": "N(C1=CC=CC=C1)(C2=CC=CC=C2)C3=CC=C(C4=CC=C(C5=CC=C(N(C6=CC=CC=C6)C7=CC=CC=C7)C=C5)C8=N[Se]N=C84)C=C3",
+    "canonical_smiles": null,
+    "inchikey": null,
+    "code": "TPA-Se",
+    "reference": "ActaChim.Sinica2021,79,319-325",
+    "created_at": "2026-03-16T10:27:37Z",
+    "aliases": [
+      "TPA-Se"
+    ]
+  },
+  "inputs": {
+    "offline_pdfs": []
+  },
+  "evidence_acquire": {
+    "emission": {
+      "mode": "web_search",
+      "strictness": "relaxed",
+      "extractor_mode": "mineru_llm"
+    }
+  },
+  "neighbors": [],
+  "risk_scores": {},
+  "evidence_readiness": {
+    "atb": {
+      "cache_status": "absent",
+      "request_status": "not_requested",
+      "missing_fields": [],
+      "last_update": "2026-03-16T10:27:37Z"
+    },
+    "literature": {
+      "status": "not_started",
+      "sources": [],
+      "last_update": "2026-03-16T10:27:37Z",
+      "notes": null
+    },
+    "experiment": {
+      "status": "not_requested",
+      "requested_fields": [],
+      "received_fields": [],
+      "last_update": "2026-03-16T10:27:37Z",
+      "notes": null
+    }
+  },
+  "target_fields": {
+    "emission_aggr_nm": 626.0
+  },
+  "target_fields_provenance": {
+    "emission_aggr_nm": {
+      "source_type": "dataset_row",
+      "source_ref": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/data/split_list/1_level.csv",
+      "source_locator": "row_index=40; code=TPA-Se",
+      "confidence": 1.0,
+      "identity_match": "exact",
+      "identity_match_confidence": 1.0,
+      "condition": "aggregation",
+      "condition_bucket": "aggregation"
+    }
+  },
+  "evidence_candidates_staging": [],
+  "current_gate": {
+    "state": "needs_manual",
+    "ready_for_reasoning": false,
+    "reason": "not_evaluated",
+    "reasoning_mode": "blocked"
+  },
+  "action_rationale": "",
+  "action_plan": [],
+  "post_uq": {
+    "status": "not_started",
+    "confidence": null,
+    "contradictions": [],
+    "missing_evidence": [],
+    "recommended_actions": []
+  },
+  "agent_runs": [],
+  "history": []
+}

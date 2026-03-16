@@ -1,0 +1,87 @@
+[
+  {
+    "op": "replace",
+    "path": "/current_gate/state",
+    "value": "ready_conservative"
+  },
+  {
+    "op": "replace",
+    "path": "/current_gate/ready_for_reasoning",
+    "value": true
+  },
+  {
+    "op": "replace",
+    "path": "/current_gate/reason",
+    "value": "atb_status:failed; atb_neighbor_flag:target_missing"
+  },
+  {
+    "op": "replace",
+    "path": "/current_gate/reasoning_mode",
+    "value": "conservative"
+  },
+  {
+    "op": "replace",
+    "path": "/action_rationale",
+    "value": "READY_AGENT gate=ready_conservative; ready_for_reasoning=true; reasoning_mode=conservative; reasons=atb_status:failed; atb_neighbor_flag:target_missing."
+  },
+  {
+    "op": "replace",
+    "path": "/action_plan",
+    "value": [
+      {
+        "action": "run_master_reasoner",
+        "priority": 1,
+        "status": "pending",
+        "inputs": {},
+        "expected_outputs": [],
+        "blocking": false,
+        "notes": "READY_AGENT promoted reasoning step to priority=1."
+      },
+      {
+        "action": "retry_target_atb",
+        "priority": 2,
+        "status": "pending",
+        "inputs": {},
+        "expected_outputs": [],
+        "blocking": false,
+        "notes": "aTB failed/partial; retry queued while preserving reasoning flow."
+      }
+    ]
+  },
+  {
+    "op": "add",
+    "path": "/risk_scores/readiness_identity_low_confidence",
+    "value": false
+  },
+  {
+    "op": "add",
+    "path": "/risk_scores/readiness_gate_state",
+    "value": "ready_conservative"
+  },
+  {
+    "op": "add",
+    "path": "/risk_scores/readiness_atb_neighbor_flag",
+    "value": "target_missing"
+  },
+  {
+    "op": "add",
+    "path": "/agent_runs/-",
+    "value": {
+      "agent_name": "ready_agent",
+      "version": "1.0.0",
+      "status": "success",
+      "status_reason_code": null,
+      "started_at": "2026-03-16T06:45:56Z",
+      "ended_at": "2026-03-16T06:45:56Z",
+      "inputs_hash": "6a4a00f387c72ba2de04bfd3b424a198c3a609a4372c90f42e735aec7f14935f",
+      "idempotency_key": "8893ecd0d43bfd8a9f00f8d312ab94f0c1ad1a4bb7d59f18a559139836f1041a",
+      "artifacts": [
+        {
+          "kind": "step_artifacts",
+          "path": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/artifacts/eval/gpt/20260316T061422Z/runtime_artifacts/cases/fa072f019f854c60b8235ea02033fee1/runs/20260316T064555Z__4d5f10d4/04_ready_agent"
+        }
+      ],
+      "warnings": []
+    }
+  }
+]

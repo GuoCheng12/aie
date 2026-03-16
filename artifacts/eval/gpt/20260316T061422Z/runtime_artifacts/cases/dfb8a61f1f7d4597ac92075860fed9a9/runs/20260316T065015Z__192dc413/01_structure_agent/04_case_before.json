@@ -1,0 +1,89 @@
+{
+  "case_id": "dfb8a61f1f7d4597ac92075860fed9a9",
+  "case_version": "1.1.0-multi-agent",
+  "runtime": {
+    "run_lane": "atb_cache_only",
+    "reference_index_root": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/data/reference_indices/split_levels_v2/views",
+    "reference_view": "leave_level_1",
+    "difficulty_level": 1,
+    "allow_other_label": false,
+    "label_pool_name": "main_no_other"
+  },
+  "query": {
+    "input_smiles": "O=C(C1=CC2=C(N=C(C(C=C3)=C(C4=C5)C=C3N(C6=CC=CC=C6C7(C8=CC=CC=C8S9)C%10=C9C=CC=C%10)C%11=C7C=CC=C%11)C(C4=CC=C5N%12C%13=CC=CC=C%13C(C%14=C%15C=CC=C%14)(C%16=CC=CC=C%16S%15)C%17=C%12C=CC=C%17)=N2)C=C1)C%18=CC=CC=C%18",
+    "canonical_smiles": null,
+    "inchikey": null,
+    "code": "DPPM-STAC",
+    "reference": "Adv. Sci. 2021, 2104435",
+    "created_at": "2026-03-16T06:50:15Z",
+    "aliases": [
+      "DPPM-STAC"
+    ]
+  },
+  "inputs": {
+    "offline_pdfs": []
+  },
+  "evidence_acquire": {
+    "emission": {
+      "mode": "web_search",
+      "strictness": "relaxed",
+      "extractor_mode": "mineru_llm"
+    }
+  },
+  "neighbors": [],
+  "risk_scores": {},
+  "evidence_readiness": {
+    "atb": {
+      "cache_status": "absent",
+      "request_status": "not_requested",
+      "missing_fields": [],
+      "last_update": "2026-03-16T06:50:15Z"
+    },
+    "literature": {
+      "status": "not_started",
+      "sources": [],
+      "last_update": "2026-03-16T06:50:15Z",
+      "notes": null
+    },
+    "experiment": {
+      "status": "not_requested",
+      "requested_fields": [],
+      "received_fields": [],
+      "last_update": "2026-03-16T06:50:15Z",
+      "notes": null
+    }
+  },
+  "target_fields": {
+    "emission_solid_or_film_nm": 566.0
+  },
+  "target_fields_provenance": {
+    "emission_solid_or_film_nm": {
+      "source_type": "dataset_row",
+      "source_ref": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/data/split_list/1_level.csv",
+      "source_locator": "row_index=7; code=DPPM-STAC",
+      "confidence": 1.0,
+      "identity_match": "exact",
+      "identity_match_confidence": 1.0,
+      "condition": "solid_or_film",
+      "condition_bucket": "solid_or_film"
+    }
+  },
+  "evidence_candidates_staging": [],
+  "current_gate": {
+    "state": "needs_manual",
+    "ready_for_reasoning": false,
+    "reason": "not_evaluated",
+    "reasoning_mode": "blocked"
+  },
+  "action_rationale": "",
+  "action_plan": [],
+  "post_uq": {
+    "status": "not_started",
+    "confidence": null,
+    "contradictions": [],
+    "missing_evidence": [],
+    "recommended_actions": []
+  },
+  "agent_runs": [],
+  "history": []
+}

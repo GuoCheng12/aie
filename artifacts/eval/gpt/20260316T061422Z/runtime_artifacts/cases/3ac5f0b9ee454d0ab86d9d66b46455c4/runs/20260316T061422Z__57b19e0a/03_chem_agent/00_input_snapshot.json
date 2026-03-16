@@ -1,0 +1,14 @@
+{
+  "case_id": "3ac5f0b9ee454d0ab86d9d66b46455c4",
+  "inchikey": "HHQRXGMHCMMVOI-UHFFFAOYSA-N",
+  "smiles": "CC(C)(C)c1ccc(-n2c(-c3ccc(-c4ccc(-c5ccc(C(=C(c6ccccc6)c6ccccc6)c6ccccc6)cc5)c5nsnc45)s3)nc3c4ccccc4c4ccccc4c32)cc1",
+  "code": "t-BPITBT-TPA",
+  "aliases": [
+    "t-BPITBT-TPA"
+  ],
+  "run_lane": "atb_cache_only",
+  "mode": "web_search",
+  "strictness": "relaxed",
+  "extractor_mode": "mineru_llm",
+  "offline_pdfs": []
+}

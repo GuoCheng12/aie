@@ -1,0 +1,63 @@
+{
+  "cache_status": "failed",
+  "has_features_json": false,
+  "keyfield_complete": false,
+  "missing_fields": [],
+  "status": {
+    "inchikey": "VKNYKECRQSPURD-UHFFFAOYSA-N",
+    "run_status": "failed",
+    "fail_stage": "excit",
+    "error_msg": "Timeout after 1800s",
+    "timestamp": "2026-01-24T07:05:58.477013",
+    "atb_version": null,
+    "runtime_sec": 1800.99
+  },
+  "features": null,
+  "features_summary": null,
+  "aop_compact": {
+    "version": "aop_compact_v1",
+    "source_files": {
+      "opt": "opt/opt_run.aop",
+      "excit": "excit/excit_run.aop"
+    },
+    "convergence_flags": {
+      "opt_has_fail_marker": false,
+      "excit_has_fail_marker": false
+    },
+    "s0_permanent_dipole_debye": {
+      "x": -3.0013,
+      "y": -1.9409,
+      "z": -0.739,
+      "tot": 3.6498
+    },
+    "s1_permanent_dipole_debye": {
+      "x": null,
+      "y": null,
+      "z": null,
+      "tot": null
+    },
+    "delta_permanent_dipole_tot_debye": null,
+    "s1_transition_electric_dipole_au": {
+      "x": null,
+      "y": null,
+      "z": null,
+      "dip": null
+    },
+    "s1_transition_magnetic_dipole_au": {
+      "x": null,
+      "y": null,
+      "z": null
+    },
+    "s1_rotatory_strength_cgs": null,
+    "s1_excitation": {
+      "energy_ev": null,
+      "wavelength_nm": null,
+      "wavenumber_cm1": null,
+      "oscillator_strength_f": null
+    },
+    "reliability": "low",
+    "notes": [
+      "compact extraction only; no mechanism interpretation"
+    ]
+  }
+}

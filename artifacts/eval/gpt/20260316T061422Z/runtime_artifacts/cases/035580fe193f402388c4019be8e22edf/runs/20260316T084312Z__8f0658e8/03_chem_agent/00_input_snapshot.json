@@ -1,0 +1,14 @@
+{
+  "case_id": "035580fe193f402388c4019be8e22edf",
+  "inchikey": "BOBGLBZNZSRULV-AIDPXTNXSA-N",
+  "smiles": "c1ccc(/C(=C(/c2ccccc2)c2ccc(-c3ccc(-n4c5ccccc5c5ccccc54)cc3)cc2)c2ccc(-c3ccc(-n4c5ccccc5c5ccccc54)cc3)cc2)cc1",
+  "code": "p-BCaPTPE",
+  "aliases": [
+    "p-BCaPTPE"
+  ],
+  "run_lane": "atb_cache_only",
+  "mode": "web_search",
+  "strictness": "relaxed",
+  "extractor_mode": "mineru_llm",
+  "offline_pdfs": []
+}

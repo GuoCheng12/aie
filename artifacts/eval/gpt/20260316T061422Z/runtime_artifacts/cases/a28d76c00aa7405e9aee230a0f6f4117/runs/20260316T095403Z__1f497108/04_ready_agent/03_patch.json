@@ -1,0 +1,96 @@
+[
+  {
+    "op": "replace",
+    "path": "/current_gate/state",
+    "value": "ready_conservative"
+  },
+  {
+    "op": "replace",
+    "path": "/current_gate/ready_for_reasoning",
+    "value": true
+  },
+  {
+    "op": "replace",
+    "path": "/current_gate/reason",
+    "value": "atb_neighbor_outlier:high"
+  },
+  {
+    "op": "replace",
+    "path": "/current_gate/reasoning_mode",
+    "value": "conservative"
+  },
+  {
+    "op": "replace",
+    "path": "/action_rationale",
+    "value": "READY_AGENT gate=ready_conservative; ready_for_reasoning=true; reasoning_mode=conservative; reasons=atb_neighbor_outlier:high."
+  },
+  {
+    "op": "replace",
+    "path": "/action_plan",
+    "value": [
+      {
+        "action": "run_master_reasoner",
+        "priority": 1,
+        "status": "pending",
+        "inputs": {},
+        "expected_outputs": [],
+        "blocking": false,
+        "notes": "READY_AGENT promoted reasoning step to priority=1."
+      },
+      {
+        "action": "literature_search_web",
+        "priority": 2,
+        "status": "pending",
+        "inputs": {},
+        "expected_outputs": [],
+        "blocking": false,
+        "notes": "aTB neighborhood signal is outlier; collect corroborating literature evidence."
+      },
+      {
+        "action": "request_min_experiment_emission",
+        "priority": 3,
+        "status": "pending",
+        "inputs": {},
+        "expected_outputs": [],
+        "blocking": false,
+        "notes": "aTB neighborhood signal is outlier; request minimal emission verification."
+      }
+    ]
+  },
+  {
+    "op": "add",
+    "path": "/risk_scores/readiness_identity_low_confidence",
+    "value": false
+  },
+  {
+    "op": "add",
+    "path": "/risk_scores/readiness_gate_state",
+    "value": "ready_conservative"
+  },
+  {
+    "op": "add",
+    "path": "/risk_scores/readiness_atb_neighbor_flag",
+    "value": "outlier"
+  },
+  {
+    "op": "add",
+    "path": "/agent_runs/-",
+    "value": {
+      "agent_name": "ready_agent",
+      "version": "1.0.0",
+      "status": "success",
+      "status_reason_code": null,
+      "started_at": "2026-03-16T09:54:03Z",
+      "ended_at": "2026-03-16T09:54:03Z",
+      "inputs_hash": "970fe010297a5f641f8f3492a0e06b1171b5800b950fe51db21c8766cce18a58",
+      "idempotency_key": "d28e26b06b988467319edee083977290a44e0bdbd4ba9a7bc27a3a10cee7e49e",
+      "artifacts": [
+        {
+          "kind": "step_artifacts",
+          "path": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/artifacts/eval/gpt/20260316T061422Z/runtime_artifacts/cases/a28d76c00aa7405e9aee230a0f6f4117/runs/20260316T095403Z__1f497108/04_ready_agent"
+        }
+      ],
+      "warnings": []
+    }
+  }
+]

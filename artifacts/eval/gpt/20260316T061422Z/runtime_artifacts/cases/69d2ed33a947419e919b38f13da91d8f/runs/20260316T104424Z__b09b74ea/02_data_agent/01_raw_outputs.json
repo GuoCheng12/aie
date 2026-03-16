@@ -1,0 +1,53 @@
+{
+  "data_agent_raw": {
+    "canonical_smiles": "O=C(CN(CC(=O)[O][Na])Cc1ccc(O)c(/C=N/N=C/c2cc(CN(CC(=O)[O][Na])CC(=O)[O][Na])ccc2O)c1)[O][Na]",
+    "inchikey": "UINDPMQCLDKUOB-KSKHYJKRSA-J",
+    "rdkit_descriptors": {
+      "mw": 618.4180000000005,
+      "logp": -1.338399999999997,
+      "tpsa": 176.85999999999999,
+      "n_rotatable_bonds": 15,
+      "n_hbd": 2,
+      "n_hba": 14,
+      "n_rings": 2,
+      "n_aromatic_rings": 2,
+      "n_heavy_atoms": 42
+    },
+    "structure_prior_source": "existing_case",
+    "structure_prior_profile": {
+      "version": "structure_prior_v1",
+      "descriptor_snapshot": {
+        "n_rotatable_bonds": 15,
+        "n_hbd": 2,
+        "n_hba": 14,
+        "n_rings": 2,
+        "n_aromatic_rings": 2,
+        "tpsa": 176.85999999999999,
+        "logp": -1.338399999999997
+      },
+      "donor_acceptor_topology": "strong",
+      "intramolecular_hbond_candidates": "possible",
+      "aromatic_core_density": "high",
+      "flexibility_proxy": "high",
+      "conjugation_proxy": "high",
+      "overall_structure_prior": "Conjugation is high; aromatic-core density is high; flexibility is high; donor/acceptor topology is strong; intramolecular H-bond candidates are possible; reliability is high.",
+      "reliability": "high",
+      "notes": [
+        "Donor/acceptor topology is strong under the current topology heuristic.",
+        "Aromatic-core density is high, flexibility is high, and conjugation is high.",
+        "Intramolecular H-bond candidates are possible as structural context."
+      ]
+    },
+    "neighbors_count": 50,
+    "risk_scores": {
+      "top1_sim": 0.292308,
+      "mean_topk_sim": 0.143968,
+      "neighbor_gap": 0.012308,
+      "novelty_struct": 0.707692,
+      "mechanism_entropy": 0.846544,
+      "mechanism_hint": "ESIPT",
+      "hint_confidence": 0.518311
+    },
+    "data_dir": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/data/reference_indices/split_levels_v2/views/leave_level_1"
+  }
+}

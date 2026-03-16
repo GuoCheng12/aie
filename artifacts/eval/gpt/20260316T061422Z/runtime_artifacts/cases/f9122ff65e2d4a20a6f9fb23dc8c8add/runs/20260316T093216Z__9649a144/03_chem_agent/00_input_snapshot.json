@@ -1,0 +1,14 @@
+{
+  "case_id": "f9122ff65e2d4a20a6f9fb23dc8c8add",
+  "inchikey": "JLALPHJPBGSGTP-UHFFFAOYSA-N",
+  "smiles": "COc1ccc(C(=C(c2ccc(OC)cc2)c2ccc(-c3ccc(C=C(C#N)C#N)cc3)cc2)c2ccccc2)cc1",
+  "code": "MTPE-M",
+  "aliases": [
+    "MTPE-M"
+  ],
+  "run_lane": "atb_cache_only",
+  "mode": "web_search",
+  "strictness": "relaxed",
+  "extractor_mode": "mineru_llm",
+  "offline_pdfs": []
+}

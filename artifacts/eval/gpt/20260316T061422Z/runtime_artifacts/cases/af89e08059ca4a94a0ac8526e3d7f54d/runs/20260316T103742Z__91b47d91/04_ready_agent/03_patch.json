@@ -1,0 +1,96 @@
+[
+  {
+    "op": "replace",
+    "path": "/current_gate/state",
+    "value": "ready_conservative"
+  },
+  {
+    "op": "replace",
+    "path": "/current_gate/ready_for_reasoning",
+    "value": true
+  },
+  {
+    "op": "replace",
+    "path": "/current_gate/reason",
+    "value": "atb_neighbor_outlier:medium"
+  },
+  {
+    "op": "replace",
+    "path": "/current_gate/reasoning_mode",
+    "value": "conservative"
+  },
+  {
+    "op": "replace",
+    "path": "/action_rationale",
+    "value": "READY_AGENT gate=ready_conservative; ready_for_reasoning=true; reasoning_mode=conservative; reasons=atb_neighbor_outlier:medium."
+  },
+  {
+    "op": "replace",
+    "path": "/action_plan",
+    "value": [
+      {
+        "action": "run_master_reasoner",
+        "priority": 1,
+        "status": "pending",
+        "inputs": {},
+        "expected_outputs": [],
+        "blocking": false,
+        "notes": "READY_AGENT promoted reasoning step to priority=1."
+      },
+      {
+        "action": "literature_search_web",
+        "priority": 2,
+        "status": "pending",
+        "inputs": {},
+        "expected_outputs": [],
+        "blocking": false,
+        "notes": "aTB neighborhood signal is outlier; collect corroborating literature evidence."
+      },
+      {
+        "action": "request_min_experiment_emission",
+        "priority": 3,
+        "status": "pending",
+        "inputs": {},
+        "expected_outputs": [],
+        "blocking": false,
+        "notes": "aTB neighborhood signal is outlier; request minimal emission verification."
+      }
+    ]
+  },
+  {
+    "op": "add",
+    "path": "/risk_scores/readiness_identity_low_confidence",
+    "value": false
+  },
+  {
+    "op": "add",
+    "path": "/risk_scores/readiness_gate_state",
+    "value": "ready_conservative"
+  },
+  {
+    "op": "add",
+    "path": "/risk_scores/readiness_atb_neighbor_flag",
+    "value": "outlier"
+  },
+  {
+    "op": "add",
+    "path": "/agent_runs/-",
+    "value": {
+      "agent_name": "ready_agent",
+      "version": "1.0.0",
+      "status": "success",
+      "status_reason_code": null,
+      "started_at": "2026-03-16T10:37:42Z",
+      "ended_at": "2026-03-16T10:37:42Z",
+      "inputs_hash": "b995f53c8f9efbcdb41850fd0ddf34114355a6d112e0e5c233435b3e6adbfe23",
+      "idempotency_key": "eef223420175c2d9d5b8b414cc2421acdc6273ee8055146cdb99f7b55cfca1d6",
+      "artifacts": [
+        {
+          "kind": "step_artifacts",
+          "path": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/artifacts/eval/gpt/20260316T061422Z/runtime_artifacts/cases/af89e08059ca4a94a0ac8526e3d7f54d/runs/20260316T103742Z__91b47d91/04_ready_agent"
+        }
+      ],
+      "warnings": []
+    }
+  }
+]

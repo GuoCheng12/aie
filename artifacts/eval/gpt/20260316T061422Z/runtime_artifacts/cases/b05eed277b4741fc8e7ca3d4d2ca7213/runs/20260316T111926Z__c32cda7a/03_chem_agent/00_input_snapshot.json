@@ -1,0 +1,14 @@
+{
+  "case_id": "b05eed277b4741fc8e7ca3d4d2ca7213",
+  "inchikey": "SWILASQDIICLLP-UHFFFAOYSA-N",
+  "smiles": "COc1ccc(C(c2ccc(OC)cc2)c2ccc(OC)cc2)cc1",
+  "code": "TPM-MO",
+  "aliases": [
+    "TPM-MO"
+  ],
+  "run_lane": "atb_cache_only",
+  "mode": "web_search",
+  "strictness": "relaxed",
+  "extractor_mode": "mineru_llm",
+  "offline_pdfs": []
+}

@@ -1,0 +1,518 @@
+{
+  "round_index": 3,
+  "status": "insufficient_evidence",
+  "candidate_scorecard": [
+    {
+      "label": "TICT",
+      "prior_rank": 1,
+      "prior_confidence": 0.5203,
+      "current_rank": 1,
+      "current_confidence": 0.2517,
+      "support_axes": [
+        "target_observation"
+      ],
+      "weakening_axes": [],
+      "unresolved_axes": [
+        "target_observation",
+        "electronic_redistribution",
+        "structural_relaxation"
+      ],
+      "new_support_evidence_ids": [],
+      "new_weakening_evidence_ids": [],
+      "net_direction": "down",
+      "commentary": "Current leading candidate supported by target_observation."
+    },
+    {
+      "label": "neutral aromatic",
+      "prior_rank": 2,
+      "prior_confidence": 0.2948,
+      "current_rank": 2,
+      "current_confidence": 0.2948,
+      "support_axes": [],
+      "weakening_axes": [],
+      "unresolved_axes": [
+        "target_observation",
+        "electronic_redistribution",
+        "structural_relaxation"
+      ],
+      "new_support_evidence_ids": [],
+      "new_weakening_evidence_ids": [],
+      "net_direction": "flat",
+      "commentary": "Candidate remains unresolved under current evidence and stays in the negotiation set."
+    },
+    {
+      "label": "ICT",
+      "prior_rank": 1,
+      "prior_confidence": 0.2517,
+      "current_rank": 3,
+      "current_confidence": 0.1359,
+      "support_axes": [],
+      "weakening_axes": [],
+      "unresolved_axes": [
+        "target_observation",
+        "electronic_redistribution",
+        "structural_relaxation"
+      ],
+      "new_support_evidence_ids": [],
+      "new_weakening_evidence_ids": [],
+      "net_direction": "down",
+      "commentary": "Candidate remains unresolved under current evidence and stays in the negotiation set."
+    },
+    {
+      "label": "ESIPT",
+      "prior_rank": 4,
+      "prior_confidence": 0.049,
+      "current_rank": 4,
+      "current_confidence": 0.049,
+      "support_axes": [],
+      "weakening_axes": [],
+      "unresolved_axes": [
+        "target_observation",
+        "electronic_redistribution",
+        "structural_relaxation"
+      ],
+      "new_support_evidence_ids": [],
+      "new_weakening_evidence_ids": [],
+      "net_direction": "flat",
+      "commentary": "Candidate remains unresolved under current evidence and stays in the negotiation set."
+    }
+  ],
+  "master_candidate_scorecard": [
+    {
+      "label": "TICT",
+      "prior_rank": 1,
+      "prior_confidence": 0.5203,
+      "current_rank": 1,
+      "current_confidence": 0.2517,
+      "support_axes": [
+        "target_observation"
+      ],
+      "weakening_axes": [],
+      "unresolved_axes": [
+        "target_observation",
+        "electronic_redistribution",
+        "structural_relaxation"
+      ],
+      "new_support_evidence_ids": [],
+      "new_weakening_evidence_ids": [],
+      "net_direction": "down",
+      "commentary": "Current leading candidate supported by target_observation."
+    },
+    {
+      "label": "neutral aromatic",
+      "prior_rank": 2,
+      "prior_confidence": 0.2948,
+      "current_rank": 2,
+      "current_confidence": 0.2948,
+      "support_axes": [],
+      "weakening_axes": [],
+      "unresolved_axes": [
+        "target_observation",
+        "electronic_redistribution",
+        "structural_relaxation"
+      ],
+      "new_support_evidence_ids": [],
+      "new_weakening_evidence_ids": [],
+      "net_direction": "flat",
+      "commentary": "Candidate remains unresolved under current evidence and stays in the negotiation set."
+    },
+    {
+      "label": "ICT",
+      "prior_rank": 1,
+      "prior_confidence": 0.2517,
+      "current_rank": 3,
+      "current_confidence": 0.1359,
+      "support_axes": [],
+      "weakening_axes": [],
+      "unresolved_axes": [
+        "target_observation",
+        "electronic_redistribution",
+        "structural_relaxation"
+      ],
+      "new_support_evidence_ids": [],
+      "new_weakening_evidence_ids": [],
+      "net_direction": "down",
+      "commentary": "Candidate remains unresolved under current evidence and stays in the negotiation set."
+    },
+    {
+      "label": "ESIPT",
+      "prior_rank": 4,
+      "prior_confidence": 0.049,
+      "current_rank": 4,
+      "current_confidence": 0.049,
+      "support_axes": [],
+      "weakening_axes": [],
+      "unresolved_axes": [
+        "target_observation",
+        "electronic_redistribution",
+        "structural_relaxation"
+      ],
+      "new_support_evidence_ids": [],
+      "new_weakening_evidence_ids": [],
+      "net_direction": "flat",
+      "commentary": "Candidate remains unresolved under current evidence and stays in the negotiation set."
+    }
+  ],
+  "normalization_summary": {
+    "llm_primary_label": "TICT",
+    "normalized_primary_label": "TICT",
+    "decision_state": "provisional_known",
+    "canonical_pool_closed": false,
+    "standard_label_closure": "provisional",
+    "residual_other_admissible": true,
+    "novelty_candidate": true,
+    "novelty_basis": [
+      "late_round_residual_conflict"
+    ],
+    "normalization_reason_codes": [
+      "standard_label_provisional"
+    ]
+  },
+  "final_label_adjudication": {
+    "llm_primary_label": "TICT",
+    "adjudicated_label": "TICT",
+    "decision_state": "provisional_known",
+    "canonical_pool_closed": false,
+    "allow_other_label": false,
+    "residual_other_admissible": false,
+    "novelty_candidate": false,
+    "novelty_basis": [],
+    "reason_codes": [
+      "provisional_standard_retained",
+      "llm_final_adjudication_failed"
+    ],
+    "confidence_adjustment_delta": 0.0,
+    "adjudicated_confidence": 0.251712,
+    "why_not_other": "The active benchmark label pool disables 'other'; unresolved cases must remain within standard labels or unknown.",
+    "why_not_unknown": "Final adjudication retained a legal non-unknown outcome.",
+    "why_not_top_standard": "No standard label achieved full closure; only provisional support remained.",
+    "legal_candidates": [
+      "TICT",
+      "unknown"
+    ],
+    "top_standard_label": "TICT",
+    "llm_error": "invalid_final_adjudication_output:invalid_decision_state"
+  },
+  "evidence_scorecard": [
+    {
+      "dimension": "atb_baseline",
+      "score": 1.0,
+      "gaps": [],
+      "supporting_evidence_ids": []
+    },
+    {
+      "dimension": "external_discriminators",
+      "score": 0.0,
+      "gaps": [],
+      "supporting_evidence_ids": []
+    }
+  ],
+  "conflict_adjudication": [
+    {
+      "conflict_id": "C1",
+      "status": "unresolved",
+      "rationale": "threshold/range text must use configured reasoning_config.thresholds",
+      "evidence_ids": []
+    },
+    {
+      "conflict_id": "C2",
+      "status": "unresolved",
+      "rationale": "found 1, require >=2",
+      "evidence_ids": []
+    },
+    {
+      "conflict_id": "C3",
+      "status": "unresolved",
+      "rationale": "found 0, require >=1 support citation",
+      "evidence_ids": []
+    },
+    {
+      "conflict_id": "C4",
+      "status": "unresolved",
+      "rationale": "step A requires at least one aTB citation",
+      "evidence_ids": []
+    },
+    {
+      "conflict_id": "C5",
+      "status": "unresolved",
+      "rationale": "added E60 because compact .aop evidence is available in this round",
+      "evidence_ids": []
+    }
+  ],
+  "voi_ranked_actions": [
+    {
+      "action": "switch_run_lane_offline_pdf",
+      "expected_information_gain": 0.65,
+      "feasible": true,
+      "feasibility_score": 1.0,
+      "blocked_by": [],
+      "unblock_actions": [],
+      "priority_score": 0.65,
+      "rationale": "Enable offline PDF lane to unlock new discriminative evidence.",
+      "llm_priority_weight": 1.0
+    },
+    {
+      "action": "provide_offline_pdf",
+      "expected_information_gain": 0.6,
+      "feasible": true,
+      "feasibility_score": 1.0,
+      "blocked_by": [],
+      "unblock_actions": [],
+      "priority_score": 0.6,
+      "rationale": "Provide a PDF input so offline extraction can run.",
+      "llm_priority_weight": 1.0
+    },
+    {
+      "action": "run_master_reasoner",
+      "expected_information_gain": 0.35,
+      "feasible": true,
+      "feasibility_score": 1.0,
+      "blocked_by": [],
+      "unblock_actions": [],
+      "priority_score": 0.35,
+      "rationale": "Re-run reasoning after profile update to reduce uncertainty.",
+      "llm_priority_weight": 1.0
+    },
+    {
+      "action": "request_min_experiment_emission",
+      "expected_information_gain": 0.7,
+      "feasible": false,
+      "feasibility_score": 0.0,
+      "blocked_by": [
+        "lane_disabled:wetlab"
+      ],
+      "unblock_actions": [
+        "enable_wetlab_lane"
+      ],
+      "priority_score": 0.0,
+      "rationale": "Emission readouts provide strongest discriminators among competing hypotheses.",
+      "llm_priority_weight": 1.0
+    },
+    {
+      "action": "run_offline_pdf_extractor",
+      "expected_information_gain": 0.55,
+      "feasible": false,
+      "feasibility_score": 0.0,
+      "blocked_by": [
+        "missing_input:offline_pdf",
+        "lane_disabled:literature"
+      ],
+      "unblock_actions": [
+        "request_manual_pdf"
+      ],
+      "priority_score": 0.0,
+      "rationale": "Extract literature cues to reduce mechanism ambiguity.",
+      "llm_priority_weight": 1.0
+    }
+  ],
+  "next_round_profile": "NONE",
+  "stop_recommendation": {
+    "should_stop": true,
+    "reason_code": "no_new_evidence_available_in_lane",
+    "explanation": "active_profile=R2; next_profile=NONE; feasibility=0.25"
+  },
+  "confidence_update": {
+    "prev": 0.31464000000000003,
+    "delta": -0.062928,
+    "new": 0.251712,
+    "basis": "final_adjudication"
+  },
+  "information_gain": {
+    "count_added": 0,
+    "count_effective_added": 0,
+    "effective_gain": true,
+    "hypothesis_changed": true,
+    "confidence_delta": 0.0,
+    "profile_repeated": true
+  },
+  "feasibility": {
+    "lane_capabilities": {
+      "atb_available": true,
+      "offline_pdf_available": false,
+      "literature_enabled": false,
+      "wetlab_enabled": false
+    },
+    "constraints": [
+      "lane_disabled:literature",
+      "lane_disabled:wetlab",
+      "missing_input:offline_pdf"
+    ],
+    "overall_score": 0.25
+  },
+  "llm_layer": {
+    "enabled": true,
+    "status": "ok",
+    "schema_version": "eval_llm_output_schema_v1",
+    "output": {
+      "critique_points": [
+        {
+          "title": "critique_1",
+          "severity": "low",
+          "note": "The core TICT claim is only weakly supported by direct torsional evidence: the excited-state torsion trend is essentially flat/none (E31; abs delta_dihedral 0.043°), and the combin",
+          "evidence_ids": [
+            "E31",
+            "E37"
+          ]
+        },
+        {
+          "title": "critique_2",
+          "severity": "medium",
+          "note": "The argument leans heavily on neighbor similarity/label transfer (top1_sim 0.94; neighbors mostly TICT) but does not clearly separate “shared scaffold” from “shared mechanism”; the",
+          "evidence_ids": [
+            "E23"
+          ]
+        },
+        {
+          "title": "critique_3",
+          "severity": "medium",
+          "note": "Electronic “CT-ness” is ambiguous: redistribution_score is “medium” (E36) and redistribution magnitude “mid” (E35), but the permanent dipole change across S0→S1 is near zero (E62),",
+          "evidence_ids": [
+            "E36",
+            "E35",
+            "E62"
+          ]
+        },
+        {
+          "title": "critique_4",
+          "severity": "low",
+          "note": "There is an internal bucket mismatch for gap/redistribution: self-only aTB trend marks delta_gap bucket “low” (E32) while the charge redistribution profile calls delta_gap_bucket “",
+          "evidence_ids": [
+            "E32",
+            "E36"
+          ]
+        },
+        {
+          "title": "critique_5",
+          "severity": "medium",
+          "note": "The emission evidence only anchors an aggregate emission wavelength (E70) with aggr_only coverage (E72) and medium reliability (E73); inferring “AIE via suppression of a nonradiati",
+          "evidence_ids": [
+            "E70",
+            "E72",
+            "E73"
+          ]
+        },
+        {
+          "title": "critique_6",
+          "severity": "medium",
+          "note": "The supporting_chain cites mismatched evidence IDs (e.g., torsion_access step A cites E70; ct_family step B cites E72; aIE_bridge step C cites E31). This misalignment makes the tra",
+          "evidence_ids": [
+            "E70",
+            "E72",
+            "E31"
+          ]
+        }
+      ],
+      "conflicts": [
+        {
+          "conflict_id": "C1",
+          "status": "unresolved",
+          "rationale": "TICT requires twisting vs observed near-zero torsional change: TICT hypothesis conflicts with E31/E37. Adjudication: either downgrade",
+          "evidence_ids": [
+            "E31",
+            "E37"
+          ]
+        }
+      ],
+      "voi_ranked_actions": [],
+      "confidence_delta_suggestion": 0.0,
+      "next_round_profile_suggestion": "R1"
+    },
+    "request": {
+      "model": "gpt-5.2",
+      "instructions": "You are an evaluator critique layer for mechanism reasoning.\nRespond in concise natural language using tagged sections.\nDo not call tools.\nFocus on critique quality, conflict adjudication, and VoI ranking weights.\nInclude explicit references to evidence_id where relevant.\nAvoid markdown tables and avoid code fences.\nUse EXACT section prefixes in this order:\nCRITIQUE_POINTS:\nCONFLICTS:\nVOI_RANKED_ACTIONS:\nCONFIDENCE_DELTA_SUGGESTION:\nNEXT_ROUND_PROFILE_SUGGESTION:\nVOI item format suggestion: action=<name>; weight=<0.1..3.0>; rationale=<text>.\n\nOutput mode reminder: tagged natural language sections only.",
+      "input": "{\"master_output_parsed\": {\"__meta\": {\"allowed_mechanism_labels\": [\"TICT\", \"ESIPT\", \"ICT\", \"neutral aromatic\", \"unknown\"], \"confidence_components\": {\"base_conf\": 0.62, \"cap_reason\": \"global_cap\", \"cap_value\": 0.95, \"ent_factor\": 1.0, \"final_conf_post_cap\": 0.526098, \"final_conf_pre_cap\": 0.526098, \"mode_factor\": 1.0, \"neighbor_factor\": 1.011726, \"r0_penalty_applied\": false, \"r0_penalty_factor\": 0.9, \"sim_factor\": 1.0}, \"confidence_formula_version\": \"soft_v1\", \"final_confidence\": 0.526098, \"missing_required_sections\": [], \"penalty_components\": {\"base_conf\": 0.62, \"cap_reason\": \"global_cap\", \"cap_value\": 0.95, \"ent_factor\": 1.0, \"final_conf_post_cap\": 0.526098, \"final_conf_pre_cap\": 0.526098, \"mode_factor\": 1.0, \"neighbor_factor\": 1.011726, \"r0_penalty_applied\": false, \"r0_penalty_factor\": 0.9, \"sim_factor\": 1.0}, \"raw_confidence_from_model\": 0.52}, \"competing_hypotheses\": [{\"atb_support_level\": \"none\", \"confidence\": 1.0, \"evidence_used\": [{\"evidence_id\": \"E70\", \"note\": \"competing hypothesis context: 1) ICT — plausible because structural relaxation is low while redistribution is medium (E37, E36).\", \"role\": \"context\"}], \"name\": \"1) ICT — plausible because structural relaxation is low while redistribution is medium (E37, E36).\"}, {\"atb_support_level\": \"none\", \"confidence\": 1.0, \"evidence_used\": [{\"evidence_id\": \"E72\", \"note\": \"competing hypothesis context: 2) neutral aromatic — plausible if emission is largely locally excited with limited reorganization (E37) despite aggregate-only observation (E72).\", \"role\": \"context\"}], \"name\": \"2) neutral aromatic — plausible if emission is largely locally excited with limited reorganization (E37) despite aggrega\"}, {\"atb_support_level\": \"none\", \"confidence\": 1.0, \"evidence_used\": [{\"evidence_id\": \"E31\", \"note\": \"competing hypothesis context: 3) ESIPT — low plausibility given weak proton-transfer prerequisite in compact-prior space (E57).\", \"role\": \"context\"}], \"name\": \"3) ESIPT — low plausibility given weak proton-transfer prerequisite in compact-prior space (E57).\"}], \"evidence_used\": [{\"evidence_id\": \"E70\", \"note\": \"E70: Aggregate-state emission observed at 624 nm (target anchor).\", \"role\": \"context\"}, {\"evidence_id\": \"E72\", \"note\": \"E72: Coverage is aggr_only; no shift info available (limits discrimination).\", \"role\": \"context\"}, {\"evidence_id\": \"E31\", \"note\": \"E31: aTB torsion trend bucket low/flat (limited static torsional relaxation).\", \"role\": \"context\"}, {\"evidence_id\": \"E37\", \"note\": \"E37: Structural relaxation proxy low (torsion/bond/angle/volume combined).\", \"role\": \"context\"}, {\"evidence_id\": \"E35\", \"note\": \"E35: Redistribution magnitude bucket mid; distributed; heteroatom involvement mid.\", \"role\": \"context\"}, {\"evidence_id\": \"E36\", \"note\": \"E36: Redistribution_score medium\", \"role\": \"context\"}], \"limits\": [\"Tagged natural-language output converted to structured master_output.\", \"Confidence is computed from raw PRIMARY_CONFIDENCE via soft penalty (sim/entropy/mode/separation).\"], \"mechanism_claim\": {\"confidence\": 0.5261, \"primary_hypothesis\": {\"aie_rationale_type\": \"stable\", \"atb_support_level\": \"none\", \"mechanism_label\": \"TICT\", \"natural_language_mechanism\": \"The best-supported hypothesis is a TICT-type nonradiative channel that is curtailed upon aggregation/rigidification, enabling aggregate-state emission at 624 nm (E70) even though only aggregate-state data are available (E72, E73). The strongest prior/context cue is the very high-similarity nearest neighbor labeled TICT (top1_sim context; comparative torsion/electronic fields are inlier vs the neighbor set, E21, E22, E24), while the target aTB profiles indicate modest excited-state electronic redistribution (E35, E36) alongside limited geometric reorganization overall (E37) and high shape-rigidity proxy (E39), consistent with “restriction suppresses a rotor/CT-derived decay pathway” as a plausible AIE bridge.\\nUnresolved boundary: the target’s excited-state torsional response is bucketed low/flat (E31) and the combined structural relaxation proxy is low (E37), which can also fit an ICT-like emissive state rather than a strongly accessed twisted CT minimum. In this case, a TICT channel could still exist but be “pre-twisted” (small S0→S1 torsion change) or be dynamically accessed without appearing as a large static relaxation; that ambiguity keeps ICT and neutral-aromatic interpretations in play given the medium-strength redistribution cue (E36) and only aggregate-state emission anchoring (E72).\\n\\nFalsifiable next tests: obtain solution-phase emission (or dilute/non-aggregated condition) to see whether emission is quenched and whether viscosity/temperature dependence indicates a torsional gating process (ties directly to TICT vs ICT/neutral aromatic; E72). Time-resolved emission to look for a delayed/dual-component relaxation signature and solvatochromic response to separate TICT (strong environment/viscosity gating) from a more rigid ICT or locally excited “neutral aromatic” channel, while ESIPT is disfavored by the lack of a tautomerizable proton-transfer site (compact prior context, E57).\\n\\nSupporting chain (A->B->C->D):\\n- torsion_access: A) Excited-state structural access appears limited in static relaxation (low/flat torsion; low overall relaxation) (E31, E37), with high rigidity proxy (E39).\\n- ct_family: B) Electronic redistribution is present at a medium level and fairly distributed (E35, E36), compatible with CT-family excited states that can couple to nonradiative decay.\\n- aIE_bridge: C) Aggregation/rigidification is a plausible suppressor of CT-coupled rotor decay, consistent with aggregate-state emission being the only observed channel here (E70, E72).\\n- discriminators: D) If TICT dominates, viscosity/temperature should strongly modulate emission and solution should be weak/quenched; if ICT dominates, stronger solvatochromism but weaker viscosity gating; ESIPT would show characteristic proton-transfer signatures (context: comparative torsion/electronic placement vs neighbors, E21, E22).\"}, \"reasoning_mode_used\": \"normal\"}, \"predictions\": [{\"evidence_used\": [{\"evidence_id\": \"E70\", \"note\": \"prediction 1 context\", \"role\": \"context\"}], \"expected_signal\": \"mechanism-separating trend\", \"prediction\": \"discriminator_test_1\"}, {\"evidence_used\": [{\"evidence_id\": \"E72\", \"note\": \"prediction 2 context\", \"role\": \"context\"}], \"expected_signal\": \"mechanism-separating trend\", \"prediction\": \"discriminator_test_2\"}, {\"evidence_used\": [{\"evidence_id\": \"E31\", \"note\": \"prediction 3 context\", \"role\": \"context\"}], \"expected_signal\": \"mechanism-separating trend\", \"prediction\": \"discriminator_test_3\"}], \"recommended_next_actions\": [\"provide_offline_pdf\", \"switch_run_lane_offline_pdf\"], \"status\": \"insufficient_evidence\", \"supporting_chain\": [{\"claim\": \"Excited-state structural access is inferred from available aTB cues.\", \"evidence_used\": [{\"evidence_id\": \"E70\", \"note\": \"aTB structural cue\", \"role\": \"support\"}], \"step_id\": \"A\", \"step_name\": \"torsion_access\"}, {\"claim\": \"An electronic redistribution or nonradiative-channel hypothesis is updated from current target cues.\", \"evidence_used\": [{\"evidence_id\": \"E72\", \"note\": \"channel context cue\", \"role\": \"context\"}], \"step_id\": \"B\", \"step_name\": \"ct_family\"}, {\"claim\": \"Aggregation/rigidification may suppress nonradiative pathways.\", \"evidence_used\": [{\"evidence_id\": \"E31\", \"note\": \"aggregation bridge cue\", \"role\": \"context\"}], \"step_id\": \"C\", \"step_name\": \"aIE_bridge\"}, {\"claim\": \"Discriminator tests are needed to separate top competing hypotheses.\", \"evidence_used\": [{\"evidence_id\": \"E70\", \"note\": \"discriminator context\", \"role\": \"context\"}], \"step_id\": \"D\", \"step_name\": \"discriminators\"}], \"template_used\": \"stable\"}, \"policy\": {\"adjudication_candidate_set_mode\": \"master_primary_plus_competing\", \"allow_other_label\": false, \"allow_structure_prior_without_atb\": true, \"atb_angles_strong\": 0.8, \"atb_angles_weak\": 0.2, \"atb_asymmetry_strong\": 0.2, \"atb_asymmetry_weak\": 0.05, \"atb_bonds_strong\": 0.08, \"atb_bonds_weak\": 0.02, \"atb_dihedral_flat_eps\": 1e-06, \"atb_dihedral_thresh_none\": 8.0, \"atb_dihedral_thresh_strong\": 15.0, \"atb_dipole_flat_eps\": 0.05, \"atb_dipole_strong\": 0.6, \"atb_dipole_weak\": 0.2, \"atb_gap_flat_eps\": 0.05, \"atb_gap_strong\": 0.6, \"atb_gap_weak\": 0.2, \"atb_rotconst_rel_strong\": 0.15, \"atb_rotconst_rel_weak\": 0.05, \"atb_vol_flat_eps\": 0.1, \"atb_vol_strong\": 2.0, \"atb_vol_weak\": 0.5, \"charge_redis_hetero_share_high\": 0.262, \"charge_redis_hetero_share_low\": 0.1046, \"charge_redis_top3_share_high\": 0.3195, \"charge_redis_top3_share_low\": 0.1908, \"charge_redis_total_abs_high\": 0.4805, \"charge_redis_total_abs_low\": 0.219, \"comparative_axis_can_only_adjust\": true, \"comparative_only_max_abs_conf_delta\": 0.04, \"comparative_only_support_penalty_factor\": 0.85, \"confidence_base_mixture\": 0.52, \"confidence_base_novelty\": 0.45, \"confidence_base_stable\": 0.62, \"confidence_soft_penalty_version\": \"v1\", \"ct_proxy_compat_alias\": true, \"electronic_redistribution_requires_corroboration\": true, \"entropy_high\": 0.75, \"evidence_axis_mode\": \"generic_v1\", \"final_adjudication_enabled\": true, \"final_adjudication_use_llm\": true, \"global_confidence_cap\": 0.95, \"late_round_provisional_standard_confidence_cap\": 0.32, \"late_round_single_axis_standard_confidence_cap\": 0.32, \"late_round_single_axis_standard_penalty_factor\": 0.85, \"mixture_conflict_penalty\": 0.92, \"multi_active_conflict_penalty\": 0.8, \"neighbor_support_min_sim\": 0.55, \"novelty_candidate_entropy_threshold\": 0.75, \"novelty_candidate_struct_threshold\": 0.6, \"one_active_conflict_penalty\": 0.9, \"other_residual_conflict_min\": 2, \"other_residual_min_standard_candidates\": 2, \"penalty_ent_floor\": 0.55, \"penalty_entropy_strength\": 0.25, \"penalty_mode_conservative\": 0.86, \"penalty_sim_floor\": 0.55, \"penalty_sim_strength\": 0.25, \"r0_candidate_confidence_cap\": 0.3, \"r0_penalty_factor\": 0.9, \"residual_other_min_conflicts\": 2, \"residual_other_min_standard_candidates\": 2, \"separation_boost_strength\": 0.22, \"separation_center\": 0.45, \"single_axis_confidence_cap\": 0.38, \"single_axis_penalty_factor\": 0.8, \"standard_label_min_positive_axes\": 2, \"standard_label_requires_target_axis\": true, \"structure_prior_profile_enabled\": true, \"top1_sim_low\": 0.5, \"unresolved_warning_penalty\": 0.9}, \"reasoning_pack\": {\"atb_trends_self\": {\"delta_dihedral_abs_deg\": 0.04323444029091661, \"delta_dihedral_bucket\": \"none\", \"delta_dihedral_direction\": \"increase\", \"delta_dihedral_percentile_global\": 0.10162129151090937, \"delta_gap_bucket\": \"moderate\", \"delta_gap_direction\": \"decrease\", \"delta_gap_percentile_global\": 0.5264739918201505, \"delta_volume_bucket\": \"moderate\", \"delta_volume_direction\": \"increase\", \"delta_volume_percentile_global\": 0.7873413333333399, \"enabled\": true, \"fields_used\": [\"delta_dihedral\", \"delta_gap\", \"delta_volume\", \"excitation_energy\"], \"notes\": [\"delta_dihedral bucket=none (abs=0.043 deg).\", \"delta_gap shows decrease trend with moderate magnitude.\", \"delta_volume shows increase trend with moderate magnitude.\", \"Global percentile estimates are threshold-based (self-only), not neighbor-distribution percentiles.\"], \"overall_motion_proxy\": \"medium\", \"reliability\": \"high\"}, \"evidence_profile\": {\"active_profile\": \"R2\", \"config\": {\"include_atb_ct_proxy_profile\": true, \"include_atb_shape_rigidity_profile\": true, \"include_atb_structural_relaxation_profile\": true, \"include_atb_trend_profile\": true, \"include_atb_trends_self\": true, \"include_candidate_slate_v2\": false, \"include_candidate_slate_v3\": false, \"include_compact_prior_metrics_v1\": false, \"include_compact_prior_neighbor_profile_v1\": true, \"include_emission_observation_profile\": true, \"include_experiment_status\": true, \"include_literature_status\": true, \"include_neighbor_atb_stats\": true, \"include_neighbor_atb_stats_by_label\": true, \"include_neighbor_feature_rows\": false, \"include_neighbor_summary\": true, \"include_prior_reliability_profile\": false, \"include_prior_reliability_profile_v2\": false, \"include_structure_candidate_distribution\": true, \"include_structure_fact_sheet\": false, \"include_structure_motif_profile\": true, \"include_structure_prior_profile\": true, \"include_structure_retrieval_profile\": true, \"include_target_atb_full\": false, \"include_target_atb_summary\": true, \"neighbor_topk\": 50, \"registry_max_items\": 24}, \"profiles\": {\"R0\": {\"include_atb_ct_proxy_profile\": false, \"include_atb_shape_rigidity_profile\": false, \"include_atb_structural_relaxation_profile\": false, \"include_atb_trend_profile\": false, \"include_atb_trends_self\": false, \"include_candidate_slate_v2\": false, \"include_candidate_slate_v3\": true, \"include_compact_prior_metrics_v1\": true, \"include_compact_prior_neighbor_profile_v1\": false, \"include_emission_observation_profile\": false, \"include_experiment_status\": false, \"include_literature_status\": false, \"include_neighbor_atb_stats\": false, \"include_neighbor_atb_stats_by_label\": false, \"include_neighbor_feature_rows\": false, \"include_neighbor_summary\": true, \"include_prior_reliability_profile\": false, \"include_prior_reliability_profile_v2\": true, \"include_structure_candidate_distribution\": true, \"include_structure_fact_sheet\": false, \"include_structure_motif_profile\": true, \"include_structure_prior_profile\": true, \"include_structure_retrieval_profile\": true, \"include_target_atb_full\": false, \"include_target_atb_summary\": false, \"neighbor_topk\": 50, \"registry_max_items\": 16}, \"R1\": {\"include_atb_ct_proxy_profile\": true, \"include_atb_shape_rigidity_profile\": true, \"include_atb_structural_relaxation_profile\": true, \"include_atb_trend_profile\": true, \"include_atb_trends_self\": true, \"include_candidate_slate_v2\": false, \"include_candidate_slate_v3\": false, \"include_compact_prior_metrics_v1\": false, \"include_compact_prior_neighbor_profile_v1\": false, \"include_emission_observation_profile\": true, \"include_experiment_status\": false, \"include_literature_status\": false, \"include_neighbor_atb_stats\": false, \"include_neighbor_atb_stats_by_label\": false, \"include_neighbor_feature_rows\": false, \"include_neighbor_summary\": true, \"include_prior_reliability_profile\": false, \"include_prior_reliability_profile_v2\": false, \"include_structure_candidate_distribution\": true, \"include_structure_fact_sheet\": false, \"include_structure_motif_profile\": true, \"include_structure_prior_profile\": true, \"include_structure_retrieval_profile\": true, \"include_target_atb_full\": false, \"include_target_atb_summary\": true, \"neighbor_topk\": 50, \"registry_max_items\": 30}, \"R2\": {\"include_atb_ct_proxy_profile\": true, \"include_atb_shape_rigidity_profile\": true, \"include_atb_structural_relaxation_profile\": true, \"include_atb_trend_profile\": true, \"include_atb_trends_self\": true, \"include_candidate_slate_v2\": false, \"include_candidate_slate_v3\": false, \"include_compact_prior_metrics_v1\": false, \"include_compact_prior_neighbor_profile_v1\": true, \"include_emission_observation_profile\": true, \"include_experiment_status\": true, \"include_literature_status\": true, \"include_neighbor_atb_stats\": true, \"include_neighbor_atb_stats_by_label\": true, \"include_neighbor_feature_rows\": false, \"include_neighbor_summary\": true, \"include_prior_reliability_profile\": false, \"include_prior_reliability_profile_v2\": false, \"include_structure_candidate_distribution\": true, \"include_structure_fact_sheet\": false, \"include_structure_motif_profile\": true, \"include_structure_prior_profile\": true, \"include_structure_retrieval_profile\": true, \"include_target_atb_full\": false, \"include_target_atb_summary\": true, \"neighbor_topk\": 50, \"registry_max_items\": 24}, \"R3\": {\"include_atb_ct_proxy_profile\": true, \"include_atb_shape_rigidity_profile\": true, \"include_atb_structural_relaxation_profile\": true, \"include_atb_trend_profile\": true, \"include_atb_trends_self\": true, \"include_candidate_slate_v2\": false, \"include_candidate_slate_v3\": false, \"include_compact_prior_metrics_v1\": false, \"include_compact_prior_neighbor_profile_v1\": true, \"include_emission_observation_profile\": true, \"include_experiment_status\": true, \"include_literature_status\": true, \"include_neighbor_atb_stats\": true, \"include_neighbor_atb_stats_by_label\": true, \"include_neighbor_feature_rows\": false, \"include_neighbor_summary\": true, \"include_prior_reliability_profile\": false, \"include_prior_reliability_profile_v2\": false, \"include_structure_candidate_distribution\": true, \"include_structure_fact_sheet\": false, \"include_structure_motif_profile\": true, \"include_structure_prior_profile\": true, \"include_structure_retrieval_profile\": true, \"include_target_atb_full\": false, \"include_target_atb_summary\": true, \"neighbor_topk\": 50, \"registry_max_items\": 24}}}, \"evidence_readiness\": {\"atb\": {\"cache_status\": \"success\", \"features\": null, \"features_summary\": {\"_excitation_energy_raw\": \"0.6421\", \"aop_compact_reliability_score\": 2.0, \"charge_redis_heteroatom_abs_share\": 0.2254570661121221, \"charge_redis_max_abs_atom\": 0.017032000000000047, \"charge_redis_n_atoms_ge_0p01\": 6.0, \"charge_redis_n_atoms_ge_0p02\": 0.0, \"charge_redis_top3_abs_share\": 0.13989775582705177, \"charge_redis_total_abs\": 0.288525, \"delta_angles\": -0.008012983281915353, \"delta_bonds\": 0.002852327027262236, \"delta_dihedral\": 0.04323444029091661, \"delta_gap\": -0.32647399182015047, \"delta_perm_dipole_tot_debye\": -0.0495000000000001, \"delta_volume\": 1.9525300000000243, \"excitation_energy\": 0.6421, \"exciting_path_mean_volume\": 896.6891766666668, \"s0_perm_dipole_tot_debye\": 12.9119, \"s0_rays_asymmetry_parameter\": 0.9797975706549781, \"s0_rotational_constant_a\": 0.0152303, \"s0_rotational_constant_b\": 0.0162777, \"s0_rotational_constant_c\": 0.1189208, \"s0_volume\": 895.9008, \"s1_excitation_wavelength_nm\": 1930.857, \"s1_oscillator_strength_f\": 0.0897, \"s1_perm_dipole_tot_debye\": 12.8624, \"s1_rays_asymmetry_parameter\": 0.9800216153105821, \"s1_rotational_constant_a\": 0.0153809, \"s1_rotational_constant_b\": 0.0163939, \"s1_rotational_constant_c\": 0.1167905, \"s1_rotatory_strength_cgs\": 4.4303, \"s1_transition_electric_dip_au\": 5.7033, \"s1_transition_magnetic_dip_norm_au\": 0.11741605512024325, \"s1_volume\": 897.85333}, \"missing_fields\": []}, \"experiment\": {\"notes\": \"lane_disabled\", \"status\": \"not_requested\"}, \"literature\": {\"notes\": \"lane_disabled\", \"status\": \"not_started\"}}, \"evidence_registry\": [{\"derived_from_case_paths\": [\"/evidence_readiness/atb/features_summary/delta_dihedral\", \"/risk_scores/atb_neighbor_features_all\"], \"evidence_id\": \"E21\", \"label\": \"target abs_delta_dihedral vs neighbor distribution\", \"note_hint\": \"R2 comparative torsional evidence\", \"pack_path\": \"/risk_scores/neighbor_atb_stats_by_label/fields/abs_delta_dihedral\", \"role_hint\": \"support\", \"source_type\": \"derived_pack\", \"value_preview\": {\"neighbors_iqr\": 0.29162590503694474, \"neighbors_median\": 0.13607882437725038, \"target\": 0.04323444029091661, \"target_percentile\": 0.22727272727272727, \"z_robust\": -0.5782290974693511}}, {\"derived_from_case_paths\": [\"/evidence_readiness/atb/features_summary/delta_gap\", \"/risk_scores/atb_neighbor_features_all\"], \"evidence_id\": \"E22\", \"label\": \"target delta_gap vs neighbor distribution\", \"note_hint\": \"R2 comparative electronic-redistribution context\", \"pack_path\": \"/risk_scores/neighbor_atb_stats_by_label/fields/delta_gap\", \"role_hint\": \"context\", \"source_type\": \"derived_pack\", \"value_preview\": {\"neighbors_iqr\": 0.641828052590408, \"neighbors_median\": -0.7773012759562368, \"target\": -0.32647399182015047, \"target_percentile\": 0.9545454545454546, \"z_robust\": 0.9057024843031122}}, {\"derived_from_case_paths\": [\"/risk_scores/atb_neighbor_features_all\"], \"evidence_id\": \"E23\", \"label\": \"label-stratified neighbor aTB comparison\", \"note_hint\": \"R2 label-conditioned neighbor comparison\", \"pack_path\": \"/risk_scores/neighbor_atb_stats_by_label/by_label\", \"role_hint\": \"context\", \"source_type\": \"derived_pack\", \"value_preview\": {\"ESIPT\": {\"iqr_abs_delta_dihedral\": 0.14015336752565588, \"iqr_delta_gap\": 0.3273590420034308, \"median_abs_delta_dihedral\": 0.14232535575101934, \"median_delta_gap\": -0.9890017423174555, \"n\": 4, \"percentile_of_target_abs_delta_dihedral\": 0.25, \"percentile_of_target_delta_gap\": 1.0}, \"ICT\": {\"iqr_abs_delta_dihedral\": 0.005598761172855404, \"iqr_delta_gap\": 0.07890212179681977, \"median_abs_delta_dihedral\": 0.018573482856133694, \"median_delta_gap\": -0.5322519009979378, \"n\": 2, \"percentile_of_target_abs_delta_dihedral\": 1.0, \"percentile_of_target_delta_gap\": 1.0}, \"TICT\": {\"iqr_abs_delta_dihedral\": 0.1694661101251569, \"iqr_delta_gap\": 0.2952604963862675, \"median_abs_delta_dihedral\": 0.17542383831989383, \"median_delta_gap\": -0.3554595553937374, \"n\": 8, \"percentile_of_target_abs_delta_dihedral\": 0.125, \"percentile_of_target_delta_gap\": 0.875}, \"neutral aromatic\": {\"iqr_abs_delta_dihedral\": 0.352284746163658, \"iqr_delta_gap\": 0.5313838579280953, \"median_abs_delta_dihedral\": 0.10739405264047974, \"median_delta_gap\": -1.0287752580866387, \"n\": 8, \"percentile_of_target_abs_delta_dihedral\": 0.125, \"percentile_of_target_delta_gap\": 1.0}}}, {\"derived_from_case_paths\": [\"/risk_scores/atb_neighbor_features_all\"], \"evidence_id\": \"E24\", \"label\": \"neighbor comparative reliability\", \"note_hint\": \"R2 comparative reliability level\", \"pack_path\": \"/risk_scores/neighbor_atb_stats_by_label/reliability\", \"role_hint\": \"context\", \"source_type\": \"derived_pack\", \"value_preview\": {\"reliability\": \"high\", \"sample_size\": 22, \"separation_score\": 0.5033}}, {\"evidence_id\": \"E57\", \"label\": \"compact-prior neighbor comparative summary\", \"note_hint\": \"R2 compact-prior neighbor outlier summary in interpretable metric space\", \"pack_path\": \"/risk_scores/compact_prior_neighbor_profile_v1\", \"role_hint\": \"context\", \"source_type\": \"derived_pack\", \"value_preview\": {\"aromatic_localization_outlier\": \"low\", \"compact_neighbor_reliability\": \"low\", \"neighbor_label_entropy\": 0.858673, \"neighbor_majority_label\": \"ESIPT\", \"overall_prior_outlier\": \"low\", \"proton_transfer_readiness_outlier\": \"low\", \"rotatable_potential_outlier\": \"low\"}}, {\"case_path\": \"/target_fields/emission_aggr_nm\", \"evidence_id\": \"E70\", \"label\": \"aggregate-state emission observation\", \"note_hint\": \"target aggregate-state emission observation\", \"role_hint\": \"support\", \"source_type\": \"case\", \"value_preview\": {\"emission_aggr_nm\": 624.0}}, {\"derived_from_case_paths\": [\"/target_fields/emission_aggr_nm\", \"/target_fields/emission_solid_or_film_nm\"], \"evidence_id\": \"E72\", \"label\": \"emission shift summary\", \"note_hint\": \"compact target emission observation shift summary\", \"pack_path\": \"/risk_scores/emission_observation_profile\", \"role_hint\": \"support\", \"source_type\": \"derived_pack\", \"value_preview\": {\"coverage\": \"aggr_only\", \"shift_direction\": \"unknown\", \"shift_magnitude_bucket\": \"unknown\", \"shift_nm\": null}}, {\"derived_from_case_paths\": [\"/target_fields/emission_aggr_nm\", \"/target_fields/emission_solid_or_film_nm\", \"/target_fields_provenance/emission_aggr_nm\", \"/target_fields_provenance/emission_solid_or_film_nm\"], \"evidence_id\": \"E73\", \"label\": \"emission observation reliability summary\", \"note_hint\": \"emission observation coverage and provenance reliability summary\", \"pack_path\": \"/risk_scores/emission_observation_profile\", \"role_hint\": \"context\", \"source_type\": \"derived_pack\", \"value_preview\": {\"coverage\": \"aggr_only\", \"reliability\": \"medium\"}}, {\"case_path\": \"/evidence_readiness/atb/features_summary/delta_dihedral\", \"evidence_id\": \"E31\", \"label\": \"aTB torsion trend\", \"note_hint\": \"torsion trend bucket=low direction=flat\", \"role_hint\": \"support\", \"source_type\": \"case\", \"value_preview\": {\"bucket\": \"low\", \"direction\": \"flat\"}}, {\"case_path\": \"/evidence_readiness/atb/features_summary/delta_gap\", \"evidence_id\": \"E32\", \"label\": \"aTB electronic redistribution trend\", \"note_hint\": \"redistribution bucket=low direction=decrease\", \"role_hint\": \"context\", \"source_type\": \"case\", \"value_preview\": {\"bucket\": \"low\", \"direction\": \"decrease\"}}, {\"case_path\": \"/evidence_readiness/atb/features_summary/delta_volume\", \"evidence_id\": \"E33\", \"label\": \"aTB volume trend\", \"note_hint\": \"volume trend bucket=mid direction=increase\", \"role_hint\": \"context\", \"source_type\": \"case\", \"value_preview\": {\"bucket\": \"mid\", \"direction\": \"increase\"}}, {\"derived_from_case_paths\": [\"/evidence_readiness/atb/features_summary/delta_dihedral\", \"/evidence_readiness/atb/features_summary/delta_gap\", \"/evidence_readiness/atb/features_summary/delta_volume\"], \"evidence_id\": \"E34\", \"label\": \"aTB overall motion proxy\", \"note_hint\": \"self-only motion proxy from bucketized aTB trend profile\", \"pack_path\": \"/risk_scores/atb_trend_profile/overall_motion_proxy\", \"role_hint\": \"context\", \"source_type\": \"derived_pack\", \"value_preview\": {\"overall_motion_proxy\": \"medium\", \"reliability\": \"high\"}}, {\"derived_from_case_paths\": [\"/evidence_readiness/atb/features_summary/charge_redis_total_abs\", \"/evidence_readiness/atb/features_summary/charge_redis_top3_abs_share\", \"/evidence_readiness/atb/features_summary/charge_redis_heteroatom_abs_share\"], \"evidence_id\": \"E35\", \"label\": \"aTB electronic redistribution magnitude cue\", \"note_hint\": \"compact target-only electronic redistribution magnitude cue\", \"pack_path\": \"/risk_scores/charge_redistribution_profile/redistribution_magnitude_bucket\", \"role_hint\": \"support\", \"source_type\": \"derived_pack\", \"value_preview\": {\"heteroatom_involvement\": \"mid\", \"redistribution_localization\": \"distributed\", \"redistribution_magnitude_bucket\": \"mid\", \"reliability\": \"high\", \"source\": \"atomwise_charge_variation\"}}, {\"derived_from_case_paths\": [\"/evidence_readiness/atb/features_summary/charge_redis_total_abs\", \"/evidence_readiness/atb/features_summary/delta_gap\"], \"evidence_id\": \"E36\", \"label\": \"aTB electronic redistribution summary\", \"note_hint\": \"compact electronic redistribution summary\", \"pack_path\": \"/risk_scores/charge_redistribution_profile/redistribution_score\", \"role_hint\": \"support\", \"source_type\": \"derived_pack\", \"value_preview\": {\"delta_gap_bucket\": \"mid\", \"redistribution_score\": \"medium\", \"source\": \"atomwise_charge_variation\"}}, {\"derived_from_case_paths\": [\"/evidence_readiness/atb/features_summary/delta_dihedral\", \"/evidence_readiness/atb/features_summary/delta_bonds\", \"/evidence_readiness/atb/features_summary/delta_angles\", \"/evidence_readiness/atb/features_summary/delta_volume\"], \"evidence_id\": \"E37\", \"label\": \"aTB structural relaxation summary\", \"note_hint\": \"combined structural relaxation from torsion, bonds, angles, and volume\", \"pack_path\": \"/risk_scores/atb_structural_relaxation_profile/relaxation_proxy_score\", \"role_hint\": \"support\", \"source_type\": \"derived_pack\", \"value_preview\": {\"delta_dihedral_bucket\": \"low\", \"delta_volume_bucket\": \"mid\", \"relaxation_proxy_score\": \"low\"}}, {\"case_path\": \"/evidence_readiness/atb/features_summary/exciting_path_mean_volume\", \"evidence_id\": \"E38\", \"label\": \"aTB excited-path volume cue\", \"note_hint\": \"excited-path volume cue from cached aTB output\", \"role_hint\": \"context\", \"source_type\": \"case\", \"value_preview\": {\"exciting_path_mean_volume\": 896.6891766666668}}, {\"derived_from_case_paths\": [\"/evidence_readiness/atb/features_summary/s0_rays_asymmetry_parameter\", \"/evidence_readiness/atb/features_summary/s1_rays_asymmetry_parameter\", \"/evidence_readiness/atb/features_summary/s0_rotational_constant_a\", \"/evidence_readiness/atb/features_summary/s1_rotational_constant_a\"], \"evidence_id\": \"E39\", \"label\": \"aTB shape-rigidity summary\", \"note_hint\": \"auxiliary shape/rigidity cue from asymmetry and rotational changes\", \"pack_path\": \"/risk_scores/atb_shape_rigidity_profile/rigidity_proxy\", \"role_hint\": \"context\", \"source_type\": \"derived_pack\", \"value_preview\": {\"reliability\": \"high\", \"rigidity_proxy\": \"high\"}}, {\"case_path\": \"/evidence_readiness/atb/features_summary/s1_transition_electric_dip_au\", \"evidence_id\": \"E60\", \"label\": \"aTB S1 transition electric dipole cue\", \"note_hint\": \"compact S1 transition electric dipole magnitude from final excit aop block\", \"role_hint\": \"context\", \"source_type\": \"case\", \"value_preview\": {\"aop_reliability_score\": 2.0, \"s1_transition_electric_dip_au\": 5.7033}}, {\"case_path\": \"/evidence_readiness/atb/features_summary/s1_oscillator_strength_f\", \"evidence_id\": \"E61\", \"label\": \"aTB S1 oscillator/excitation cue\", \"note_hint\": \"compact S1 oscillator and excitation-wavelength cue from final excit aop block\", \"role_hint\": \"context\", \"source_type\": \"case\", \"value_preview\": {\"aop_reliability_score\": 2.0, \"s1_excitation_wavelength_nm\": 1930.857, \"s1_oscillator_strength_f\": 0.0897}}, {\"case_path\": \"/evidence_readiness/atb/features_summary/delta_perm_dipole_tot_debye\", \"evidence_id\": \"E62\", \"label\": \"aTB permanent dipole delta cue\", \"note_hint\": \"compact S0/S1 permanent dipole delta from final opt/excit aop blocks\", \"role_hint\": \"context\", \"source_type\": \"case\", \"value_preview\": {\"aop_reliability_score\": 2.0, \"delta_perm_dipole_tot_debye\": -0.0495000000000001}}], \"gate\": {\"ready_for_reasoning\": true, \"reason\": \"atb_neighbor_flag:inlier\", \"reasoning_mode\": \"normal\", \"state\": \"ready_for_reasoning\"}, \"mechanism_context\": {\"candidate_mechanisms_top3\": [{\"mechanism_id\": \"TICT\", \"probability\": 0.520283}, {\"mechanism_id\": \"neutral aromatic\", \"probability\": 0.294832}, {\"mechanism_id\": \"ICT\", \"probability\": 0.135884}], \"candidate_mechanisms_topk\": [{\"mechanism_id\": \"TICT\", \"probability\": 0.520283}, {\"mechanism_id\": \"neutral aromatic\", \"probability\": 0.294832}, {\"mechanism_id\": \"ICT\", \"probability\": 0.135884}, {\"mechanism_id\": \"ESIPT\", \"probability\": 0.049002}], \"mechanism_signatures_top3\": []}, \"neighbor_atb_stats\": {\"by_label\": {\"ESIPT\": {\"iqr_abs_delta_dihedral\": 0.14015336752565588, \"iqr_delta_gap\": 0.3273590420034308, \"median_abs_delta_dihedral\": 0.14232535575101934, \"median_delta_gap\": -0.9890017423174555, \"n\": 4, \"percentile_of_target_abs_delta_dihedral\": 0.25, \"percentile_of_target_delta_gap\": 1.0}, \"ICT\": {\"iqr_abs_delta_dihedral\": 0.005598761172855404, \"iqr_delta_gap\": 0.07890212179681977, \"median_abs_delta_dihedral\": 0.018573482856133694, \"median_delta_gap\": -0.5322519009979378, \"n\": 2, \"percentile_of_target_abs_delta_dihedral\": 1.0, \"percentile_of_target_delta_gap\": 1.0}, \"TICT\": {\"iqr_abs_delta_dihedral\": 0.1694661101251569, \"iqr_delta_gap\": 0.2952604963862675, \"median_abs_delta_dihedral\": 0.17542383831989383, \"median_delta_gap\": -0.3554595553937374, \"n\": 8, \"percentile_of_target_abs_delta_dihedral\": 0.125, \"percentile_of_target_delta_gap\": 0.875}, \"neutral aromatic\": {\"iqr_abs_delta_dihedral\": 0.352284746163658, \"iqr_delta_gap\": 0.5313838579280953, \"median_abs_delta_dihedral\": 0.10739405264047974, \"median_delta_gap\": -1.0287752580866387, \"n\": 8, \"percentile_of_target_abs_delta_dihedral\": 0.125, \"percentile_of_target_delta_gap\": 1.0}}, \"closest_label_by_field\": {\"abs_delta_dihedral\": \"ICT\", \"delta_gap\": \"TICT\"}, \"fields\": {\"abs_delta_dihedral\": {\"neighbors_iqr\": 0.29162590503694474, \"neighbors_median\": 0.13607882437725038, \"target\": 0.04323444029091661, \"target_percentile\": 0.22727272727272727, \"z_robust\": -0.5782290974693511}, \"delta_dihedral\": {\"neighbors_iqr\": 0.18767115412465785, \"neighbors_median\": 0.035178367436095925, \"target\": 0.04323444029091661, \"target_percentile\": 0.5, \"z_robust\": 0.050713013811233505}, \"delta_gap\": {\"neighbors_iqr\": 0.641828052590408, \"neighbors_median\": -0.7773012759562368, \"target\": -0.32647399182015047, \"target_percentile\": 0.9545454545454546, \"z_robust\": 0.9057024843031122}, \"delta_volume\": {\"neighbors_iqr\": 6.233419999999967, \"neighbors_median\": -2.5635650000000396, \"target\": 1.9525300000000243, \"target_percentile\": 0.8181818181818182, \"z_robust\": 0.9428511036846643}}, \"reliability\": \"high\", \"sample_size\": 22, \"separation_score\": 0.5033, \"summary\": [\"Target abs_delta_dihedral is near the middle (23%) of neighbor distribution.\", \"Target abs_delta_dihedral is closest to label group ICT.\", \"Neighbor comparative reliability is high.\"]}, \"neighbor_atb_stats_by_label\": {\"by_label\": {\"ESIPT\": {\"iqr_abs_delta_dihedral\": 0.14015336752565588, \"iqr_delta_gap\": 0.3273590420034308, \"median_abs_delta_dihedral\": 0.14232535575101934, \"median_delta_gap\": -0.9890017423174555, \"n\": 4, \"percentile_of_target_abs_delta_dihedral\": 0.25, \"percentile_of_target_delta_gap\": 1.0}, \"ICT\": {\"iqr_abs_delta_dihedral\": 0.005598761172855404, \"iqr_delta_gap\": 0.07890212179681977, \"median_abs_delta_dihedral\": 0.018573482856133694, \"median_delta_gap\": -0.5322519009979378, \"n\": 2, \"percentile_of_target_abs_delta_dihedral\": 1.0, \"percentile_of_target_delta_gap\": 1.0}, \"TICT\": {\"iqr_abs_delta_dihedral\": 0.1694661101251569, \"iqr_delta_gap\": 0.2952604963862675, \"median_abs_delta_dihedral\": 0.17542383831989383, \"median_delta_gap\": -0.3554595553937374, \"n\": 8, \"percentile_of_target_abs_delta_dihedral\": 0.125, \"percentile_of_target_delta_gap\": 0.875}, \"neutral aromatic\": {\"iqr_abs_delta_dihedral\": 0.352284746163658, \"iqr_delta_gap\": 0.5313838579280953, \"median_abs_delta_dihedral\": 0.10739405264047974, \"median_delta_gap\": -1.0287752580866387, \"n\": 8, \"percentile_of_target_abs_delta_dihedral\": 0.125, \"percentile_of_target_delta_gap\": 1.0}}, \"closest_label_by_field\": {\"abs_delta_dihedral\": \"ICT\", \"delta_gap\": \"TICT\"}, \"fields\": {\"abs_delta_dihedral\": {\"neighbors_iqr\": 0.29162590503694474, \"neighbors_median\": 0.13607882437725038, \"target\": 0.04323444029091661, \"target_percentile\": 0.22727272727272727, \"z_robust\": -0.5782290974693511}, \"delta_dihedral\": {\"neighbors_iqr\": 0.18767115412465785, \"neighbors_median\": 0.035178367436095925, \"target\": 0.04323444029091661, \"target_percentile\": 0.5, \"z_robust\": 0.050713013811233505}, \"delta_gap\": {\"neighbors_iqr\": 0.641828052590408, \"neighbors_median\": -0.7773012759562368, \"target\": -0.32647399182015047, \"target_percentile\": 0.9545454545454546, \"z_robust\": 0.9057024843031122}, \"delta_volume\": {\"neighbors_iqr\": 6.233419999999967, \"neighbors_median\": -2.5635650000000396, \"target\": 1.9525300000000243, \"target_percentile\": 0.8181818181818182, \"z_robust\": 0.9428511036846643}}, \"reliability\": \"high\", \"sample_size\": 22, \"separation_score\": 0.5033, \"summary\": [\"Target abs_delta_dihedral is near the middle (23%) of neighbor distribution.\", \"Target abs_delta_dihedral is closest to label group ICT.\", \"Neighbor comparative reliability is high.\"]}, \"neighbors_topk\": [{\"case_index\": 0, \"neighbor_inchikey\": \"NZXQUTOHWDFLJQ-UHFFFAOYSA-N\", \"neighbor_mechanism_label\": \"TICT\", \"rank\": 1, \"sim\": 0.9423076923076923}, {\"case_index\": 1, \"neighbor_inchikey\": \"MXPORNGQIJFANJ-BCJTWVECSA-N\", \"neighbor_mechanism_label\": \"TICT\", \"rank\": 2, \"sim\": 0.6307692307692307}, {\"case_index\": 2, \"neighbor_inchikey\": \"WGZILBDUSNBZNU-UHFFFAOYSA-N\", \"neighbor_mechanism_label\": \"TICT\", \"rank\": 3, \"sim\": 0.5666666666666667}, {\"case_index\": 3, \"neighbor_inchikey\": \"HJTOXOYZFDNTOR-BCJTWVECSA-N\", \"neighbor_mechanism_label\": \"TICT\", \"rank\": 4, \"sim\": 0.5294117647058824}, {\"case_index\": 4, \"neighbor_inchikey\": \"JXKUHWKQQIEYNN-UHFFFAOYSA-N\", \"neighbor_mechanism_label\": \"TICT\", \"rank\": 5, \"sim\": 0.40789473684210525}], \"pack_version\": \"master_pack_v1\", \"query\": {\"aliases\": [\"TPE-PR-COOH\"], \"canonical_smiles\": \"COc1ccc(C(=C(c2ccccc2)c2ccc(-c3ccc(/C=C4\\\\SC(=S)N(CC(=O)O)C4=O)cc3)cc2)c2ccc(OC)cc2)cc1\", \"code\": \"TPE-PR-COOH\", \"inchikey\": \"FYEBPNSYVHPFJN-BGDIREAQSA-N\", \"input_smiles\": \"COC(C=C1)=CC=C1/C(C2=CC=C(OC)C=C2)=C(C3=CC=C(C4=CC=C(/C=C5C(N(CC(O)=O)C(S/5)=S)=O)C=C4)C=C3)/C6=CC=CC=C6\", \"reference\": \"SciChinaChem,2020,63:1428-1434\"}, \"risk_scores\": {\"atb_ct_proxy_profile\": {\"ct_proxy_score\": \"medium\", \"delta_dipole_abs\": 0.288525, \"delta_dipole_bucket\": \"mid\", \"delta_dipole_direction\": \"unknown\", \"delta_gap_abs\": 0.32647399182015047, \"delta_gap_bucket\": \"mid\", \"delta_gap_direction\": \"decrease\", \"notes\": [\"Deprecated alias of the generic electronic redistribution profile.\", \"Not a true dipole-moment interpretation.\"], \"reliability\": \"high\", \"version\": \"atb_ct_proxy_v1\"}, \"atb_neighbor_consistency\": {\"enabled\": true, \"fields_used\": [\"delta_gap\", \"delta_dihedral\", \"delta_volume\"], \"flag\": \"inlier\", \"mad\": {\"delta_dihedral\": 0.10714698831492342, \"delta_gap\": 0.3357381066517571, \"delta_volume\": 3.230694999999969}, \"median\": {\"delta_dihedral\": 0.035178367436095925, \"delta_gap\": -0.7773012759562368, \"delta_volume\": -2.5635650000000396}, \"outlier_dims\": [], \"outlier_score_max\": 0.9428511036846643, \"outlier_score_rss\": 0.7553888631166593, \"reliability\": \"high\", \"sample_size\": 22, \"thresholds\": {\"min_sample_size\": 5, \"z_max\": 3.5}, \"updated_at\": \"2026-03-16T10:55:03Z\", \"warnings\": [], \"z_scores\": {\"delta_dihedral\": 0.050713013811233505, \"delta_gap\": 0.9057024843031122, \"delta_volume\": 0.9428511036846643}}, \"atb_shape_rigidity_profile\": {\"asymmetry_bucket\": \"high\", \"asymmetry_change_abs\": 0.00022404465560399434, \"notes\": [\"Rigidity proxy treats smaller asymmetry and rotational-constant changes as higher rigidity.\", \"This profile is an auxiliary axis and is interpreted alongside the other evidence axes.\"], \"reliability\": \"high\", \"rigidity_proxy\": \"high\", \"rotational_constant_bucket\": \"high\", \"rotational_constant_change_proxy\": 0.011646795696365125, \"version\": \"atb_shape_rigidity_v1\"}, \"atb_structural_relaxation_profile\": {\"abs_values\": {\"delta_angles\": 0.008012983281915353, \"delta_bonds\": 0.002852327027262236, \"delta_dihedral\": 0.04323444029091661, \"delta_volume\": 1.9525300000000243}, \"buckets\": {\"delta_angles\": \"low\", \"delta_bonds\": \"low\", \"delta_dihedral\": \"low\", \"delta_volume\": \"mid\"}, \"notes\": [\"Structural relaxation combines torsion, bond, angle, and volume responses.\", \"delta_dihedral is not treated as the only structural relaxation cue.\"], \"relaxation_proxy_score\": \"low\", \"reliability\": \"high\", \"version\": \"atb_structural_relaxation_v1\"}, \"atb_trend_profile\": {\"abs_values\": {\"delta_dihedral\": 0.04323444029091661, \"delta_gap\": 0.32647399182015047, \"delta_volume\": 1.9525300000000243}, \"buckets\": {\"delta_dihedral\": \"low\", \"delta_gap\": \"low\", \"delta_volume\": \"mid\"}, \"ct_proxy\": {\"delta_gap_bucket\": \"low\"}, \"direction\": {\"delta_dihedral\": \"flat\", \"delta_gap\": \"decrease\", \"delta_volume\": \"increase\"}, \"notes\": [\"Self-only profile from target aTB features_summary.\", \"Bucket strength uses fixed quantile-calibrated cutoffs.\", \"Directions use sign with flat epsilon and do not affect bucket.\"], \"overall_motion_proxy\": \"medium\", \"reliability\": \"high\", \"version\": \"atb_trend_v1\"}, \"atb_trends_self\": {\"delta_dihedral_abs_deg\": 0.04323444029091661, \"delta_dihedral_bucket\": \"none\", \"delta_dihedral_direction\": \"increase\", \"delta_dihedral_percentile_global\": 0.10162129151090937, \"delta_gap_bucket\": \"moderate\", \"delta_gap_direction\": \"decrease\", \"delta_gap_percentile_global\": 0.5264739918201505, \"delta_volume_bucket\": \"moderate\", \"delta_volume_direction\": \"increase\", \"delta_volume_percentile_global\": 0.7873413333333399, \"enabled\": true, \"fields_used\": [\"delta_dihedral\", \"delta_gap\", \"delta_volume\", \"excitation_energy\"], \"notes\": [\"delta_dihedral bucket=none (abs=0.043 deg).\", \"delta_gap shows decrease trend with moderate magnitude.\", \"delta_volume shows increase trend with moderate magnitude.\", \"Global percentile estimates are threshold-based (self-only), not neighbor-distribution percentiles.\"], \"overall_motion_proxy\": \"medium\", \"reliability\": \"high\"}, \"charge_redistribution_profile\": {\"delta_gap_abs\": 0.32647399182015047, \"delta_gap_bucket\": \"mid\", \"delta_gap_direction\": \"decrease\", \"heteroatom_abs_share\": 0.2254570661121221, \"heteroatom_involvement\": \"mid\", \"max_abs_atom_variation\": 0.017032000000000047, \"n_atoms_ge_0p01\": 6, \"n_atoms_ge_0p02\": 0, \"notes\": [\"Derived from atom-wise charge variation and gap change.\", \"This is an electronic redistribution cue, not a true dipole moment.\"], \"redistribution_localization\": \"distributed\", \"redistribution_magnitude_bucket\": \"mid\", \"redistribution_score\": \"medium\", \"reliability\": \"high\", \"source\": \"atomwise_charge_variation\", \"top3_atom_abs_share\": 0.13989775582705177, \"total_abs_charge_variation\": 0.288525, \"version\": \"charge_redistribution_v2\"}, \"compact_prior_metrics_v1\": {\"aromatic_localization_score\": 2, \"h_donor_acceptor_pairing\": 1, \"notes\": [\"h_donor_acceptor_pairing=1: incomplete or imbalanced donor-acceptor pairing\", \"proton_transfer_sites=0: no tautomerizable proton-transfer site\", \"proton_transfer_readiness_score=1: weak proton-transfer prerequisite\", \"aromatic_localization_score=2: locally retained aromatic character\", \"rotatable_potential=1: ring-rotor combination present\"], \"proton_transfer_readiness_score\": 1, \"proton_transfer_sites\": 0, \"reliability\": \"high\", \"rotatable_potential\": 1, \"safe_interpretations\": {\"aromatic_localization_score\": \"locally retained aromatic character\", \"h_donor_acceptor_pairing\": \"incomplete or imbalanced donor-acceptor pairing\", \"proton_transfer_readiness_score\": \"weak proton-transfer prerequisite\", \"proton_transfer_sites\": \"no tautomerizable proton-transfer site\", \"rotatable_potential\": \"ring-rotor combination present\"}, \"version\": \"compact_prior_metrics_v1\"}, \"compact_prior_neighbor_profile_v1\": {\"aromatic_localization_outlier\": \"low\", \"compact_neighbor_reliability\": \"low\", \"neighbor_label_entropy\": 0.858673, \"neighbor_majority_label\": \"ESIPT\", \"notes\": [\"compact prior neighbor majority is ESIPT with entropy 0.859.\", \"overall prior outlier is low; compact neighbor reliability is low.\"], \"overall_prior_outlier\": \"low\", \"proton_transfer_readiness_outlier\": \"low\", \"rotatable_potential_outlier\": \"low\", \"top_neighbors\": [{\"compact_metrics\": {\"aromatic_localization_score\": 2, \"proton_transfer_readiness_score\": 1, \"rotatable_potential\": 1}, \"distance\": 0.0, \"inchikey\": \"JSYHUHBYWFZBNR-UHFFFAOYSA-M\", \"mechanism_label\": \"ESIPT\", \"similarity\": 1.0}, {\"compact_metrics\": {\"aromatic_localization_score\": 2, \"proton_transfer_readiness_score\": 1, \"rotatable_potential\": 1}, \"distance\": 0.0, \"inchikey\": \"KWVHTWVRZTUAIO-WQVHNPAPSA-N\", \"mechanism_label\": \"ESIPT\", \"similarity\": 1.0}, {\"compact_metrics\": {\"aromatic_localization_score\": 2, \"proton_transfer_readiness_score\": 1, \"rotatable_potential\": 1}, \"distance\": 0.0, \"inchikey\": \"PXODMYMNYDULAF-UHFFFAOYSA-M\", \"mechanism_label\": \"ESIPT\", \"similarity\": 1.0}, {\"compact_metrics\": {\"aromatic_localization_score\": 2, \"proton_transfer_readiness_score\": 1, \"rotatable_potential\": 1}, \"distance\": 0.0, \"inchikey\": \"RKCCHOOOPIHOND-HKWRFOASSA-N\", \"mechanism_label\": \"ESIPT\", \"similarity\": 1.0}, {\"compact_metrics\": {\"aromatic_localization_score\": 2, \"proton_transfer_readiness_score\": 1, \"rotatable_potential\": 1}, \"distance\": 0.0, \"inchikey\": \"WUSWMMAWIMDNER-UHFFFAOYSA-N\", \"mechanism_label\": \"ESIPT\", \"similarity\": 1.0}, {\"compact_metrics\": {\"aromatic_localization_score\": 2, \"proton_transfer_readiness_score\": 1, \"rotatable_potential\": 1}, \"distance\": 0.0, \"inchikey\": \"MBWHRIGVJFNTMV-UHFFFAOYSA-M\", \"mechanism_label\": \"ICT\", \"similarity\": 1.0}, {\"compact_metrics\": {\"aromatic_localization_score\": 2, \"proton_transfer_readiness_score\": 1, \"rotatable_potential\": 1}, \"distance\": 0.0, \"inchikey\": \"NZXQUTOHWDFLJQ-UHFFFAOYSA-N\", \"mechanism_label\": \"TICT\", \"similarity\": 1.0}, {\"compact_metrics\": {\"aromatic_localization_score\": 2, \"proton_transfer_readiness_score\": 1, \"rotatable_potential\": 1}, \"distance\": 0.0, \"inchikey\": \"SCDBUPOBUZLRHF-UHFFFAOYSA-N\", \"mechanism_label\": \"TICT\", \"similarity\": 1.0}, {\"compact_metrics\": {\"aromatic_localization_score\": 2, \"proton_transfer_readiness_score\": 1, \"rotatable_potential\": 1}, \"distance\": 0.0, \"inchikey\": \"XILYXGZIIDMWRA-JYCBWZHHSA-N\", \"mechanism_label\": \"TICT\", \"similarity\": 1.0}, {\"compact_metrics\": {\"aromatic_localization_score\": 2, \"proton_transfer_readiness_score\": 1, \"rotatable_potential\": 1}, \"distance\": 0.0, \"inchikey\": \"ZZMYATPBTYDZSQ-UHFFFAOYSA-O\", \"mechanism_label\": \"TICT\", \"similarity\": 1.0}], \"version\": \"compact_prior_neighbor_profile_v1\"}, \"emission_observation_profile\": {\"coverage\": \"aggr_only\", \"emission_aggr_nm\": 624.0, \"emission_solid_or_film_nm\": null, \"notes\": [\"Only aggregate-state emission observation is present.\", \"Observation coverage is aggr_only with medium reliability.\"], \"reliability\": \"medium\", \"shift_direction\": \"unknown\", \"shift_magnitude_bucket\": \"unknown\", \"shift_nm\": null, \"version\": \"emission_observation_v1\"}, \"mean_topk_sim\": 0.313393, \"mechanism_entropy\": 0.169652, \"neighbor_atb_stats\": {\"by_label\": {\"ESIPT\": {\"iqr_abs_delta_dihedral\": 0.14015336752565588, \"iqr_delta_gap\": 0.3273590420034308, \"median_abs_delta_dihedral\": 0.14232535575101934, \"median_delta_gap\": -0.9890017423174555, \"n\": 4, \"percentile_of_target_abs_delta_dihedral\": 0.25, \"percentile_of_target_delta_gap\": 1.0}, \"ICT\": {\"iqr_abs_delta_dihedral\": 0.005598761172855404, \"iqr_delta_gap\": 0.07890212179681977, \"median_abs_delta_dihedral\": 0.018573482856133694, \"median_delta_gap\": -0.5322519009979378, \"n\": 2, \"percentile_of_target_abs_delta_dihedral\": 1.0, \"percentile_of_target_delta_gap\": 1.0}, \"TICT\": {\"iqr_abs_delta_dihedral\": 0.1694661101251569, \"iqr_delta_gap\": 0.2952604963862675, \"median_abs_delta_dihedral\": 0.17542383831989383, \"median_delta_gap\": -0.3554595553937374, \"n\": 8, \"percentile_of_target_abs_delta_dihedral\": 0.125, \"percentile_of_target_delta_gap\": 0.875}, \"neutral aromatic\": {\"iqr_abs_delta_dihedral\": 0.352284746163658, \"iqr_delta_gap\": 0.5313838579280953, \"median_abs_delta_dihedral\": 0.10739405264047974, \"median_delta_gap\": -1.0287752580866387, \"n\": 8, \"percentile_of_target_abs_delta_dihedral\": 0.125, \"percentile_of_target_delta_gap\": 1.0}}, \"closest_label_by_field\": {\"abs_delta_dihedral\": \"ICT\", \"delta_gap\": \"TICT\"}, \"fields\": {\"abs_delta_dihedral\": {\"neighbors_iqr\": 0.29162590503694474, \"neighbors_median\": 0.13607882437725038, \"target\": 0.04323444029091661, \"target_percentile\": 0.22727272727272727, \"z_robust\": -0.5782290974693511}, \"delta_dihedral\": {\"neighbors_iqr\": 0.18767115412465785, \"neighbors_median\": 0.035178367436095925, \"target\": 0.04323444029091661, \"target_percentile\": 0.5, \"z_robust\": 0.050713013811233505}, \"delta_gap\": {\"neighbors_iqr\": 0.641828052590408, \"neighbors_median\": -0.7773012759562368, \"target\": -0.32647399182015047, \"target_percentile\": 0.9545454545454546, \"z_robust\": 0.9057024843031122}, \"delta_volume\": {\"neighbors_iqr\": 6.233419999999967, \"neighbors_median\": -2.5635650000000396, \"target\": 1.9525300000000243, \"target_percentile\": 0.8181818181818182, \"z_robust\": 0.9428511036846643}}, \"reliability\": \"high\", \"sample_size\": 22, \"separation_score\": 0.5033, \"summary\": [\"Target abs_delta_dihedral is near the middle (23%) of neighbor distribution.\", \"Target abs_delta_dihedral is closest to label group ICT.\", \"Neighbor comparative reliability is high.\"]}, \"neighbor_atb_stats_by_label\": {\"by_label\": {\"ESIPT\": {\"iqr_abs_delta_dihedral\": 0.14015336752565588, \"iqr_delta_gap\": 0.3273590420034308, \"median_abs_delta_dihedral\": 0.14232535575101934, \"median_delta_gap\": -0.9890017423174555, \"n\": 4, \"percentile_of_target_abs_delta_dihedral\": 0.25, \"percentile_of_target_delta_gap\": 1.0}, \"ICT\": {\"iqr_abs_delta_dihedral\": 0.005598761172855404, \"iqr_delta_gap\": 0.07890212179681977, \"median_abs_delta_dihedral\": 0.018573482856133694, \"median_delta_gap\": -0.5322519009979378, \"n\": 2, \"percentile_of_target_abs_delta_dihedral\": 1.0, \"percentile_of_target_delta_gap\": 1.0}, \"TICT\": {\"iqr_abs_delta_dihedral\": 0.1694661101251569, \"iqr_delta_gap\": 0.2952604963862675, \"median_abs_delta_dihedral\": 0.17542383831989383, \"median_delta_gap\": -0.3554595553937374, \"n\": 8, \"percentile_of_target_abs_delta_dihedral\": 0.125, \"percentile_of_target_delta_gap\": 0.875}, \"neutral aromatic\": {\"iqr_abs_delta_dihedral\": 0.352284746163658, \"iqr_delta_gap\": 0.5313838579280953, \"median_abs_delta_dihedral\": 0.10739405264047974, \"median_delta_gap\": -1.0287752580866387, \"n\": 8, \"percentile_of_target_abs_delta_dihedral\": 0.125, \"percentile_of_target_delta_gap\": 1.0}}, \"closest_label_by_field\": {\"abs_delta_dihedral\": \"ICT\", \"delta_gap\": \"TICT\"}, \"fields\": {\"abs_delta_dihedral\": {\"neighbors_iqr\": 0.29162590503694474, \"neighbors_median\": 0.13607882437725038, \"target\": 0.04323444029091661, \"target_percentile\": 0.22727272727272727, \"z_robust\": -0.5782290974693511}, \"delta_dihedral\": {\"neighbors_iqr\": 0.18767115412465785, \"neighbors_median\": 0.035178367436095925, \"target\": 0.04323444029091661, \"target_percentile\": 0.5, \"z_robust\": 0.050713013811233505}, \"delta_gap\": {\"neighbors_iqr\": 0.641828052590408, \"neighbors_median\": -0.7773012759562368, \"target\": -0.32647399182015047, \"target_percentile\": 0.9545454545454546, \"z_robust\": 0.9057024843031122}, \"delta_volume\": {\"neighbors_iqr\": 6.233419999999967, \"neighbors_median\": -2.5635650000000396, \"target\": 1.9525300000000243, \"target_percentile\": 0.8181818181818182, \"z_robust\": 0.9428511036846643}}, \"reliability\": \"high\", \"sample_size\": 22, \"separation_score\": 0.5033, \"summary\": [\"Target abs_delta_dihedral is near the middle (23%) of neighbor distribution.\", \"Target abs_delta_dihedral is closest to label group ICT.\", \"Neighbor comparative reliability is high.\"]}, \"novelty_struct\": 0.057692, \"structure_candidate_distribution\": {\"calibration\": {\"method\": \"retrieval_fallback\", \"reliability\": \"low\"}, \"label_probs\": {\"ESIPT\": 0.049002, \"ICT\": 0.135884, \"TICT\": 0.520283, \"neutral aromatic\": 0.294832, \"other\": 0.0, \"unknown\": 0.0}, \"top3\": [{\"label\": \"TICT\", \"prob\": 0.520283}, {\"label\": \"neutral aromatic\", \"prob\": 0.294832}, {\"label\": \"ICT\", \"prob\": 0.135884}], \"top_candidates\": [{\"label\": \"TICT\", \"prob\": 0.520283}, {\"label\": \"neutral aromatic\", \"prob\": 0.294832}, {\"label\": \"ICT\", \"prob\": 0.135884}, {\"label\": \"ESIPT\", \"prob\": 0.049002}], \"version\": \"structure_candidate_dist_v1\"}, \"structure_fact_sheet\": {\"aromatic_core_connectivity\": \"extended\", \"aromatic_rigidity_signature\": \"high\", \"conjugation_compactness\": \"high\", \"conjugation_continuity\": \"segmented\", \"donor_acceptor_fragment_balance\": \"high\", \"donor_acceptor_path_multiplicity\": \"high\", \"donor_acceptor_separation_regime\": \"short\", \"donor_acceptor_topology\": \"strong\", \"fused_aromatic_core_strength\": \"none\", \"global_flexibility_vs_core_rigidity\": \"mixed\", \"heteroatom_cluster_pattern\": \"clustered\", \"intramolecular_hbond_geometry\": \"possible\", \"notes\": [\"Detected 2 donor site(s) and 5 acceptor site(s) with short donor-acceptor separation.\", \"Intramolecular H-bond geometry is possible; tautomerizable subgraph strength is low.\", \"Aromatic scaffold is extended with high rigidity and low planarity proxy.\", \"Matched structural motif families: carbonyl_acceptor.\"], \"planarity_break_count\": 10, \"planarity_proxy\": \"low\", \"proton_transfer_local_geometry\": \"none\", \"proton_transfer_topology_candidate\": \"none\", \"reliability\": \"high\", \"tautomerizable_subgraph_strength\": \"low\", \"version\": \"structure_fact_sheet_v1\"}, \"structure_motif_profile\": {\"acceptor_sites\": 5, \"aromatic_core_connectivity\": \"extended\", \"aromatic_rigidity_signature\": \"high\", \"aromatic_scaffold_type\": \"extended\", \"conjugation_compactness\": \"high\", \"conjugation_continuity\": \"segmented\", \"conjugation_span_bucket\": \"high\", \"donor_acceptor_fragment_balance\": \"high\", \"donor_acceptor_path_multiplicity\": \"high\", \"donor_acceptor_path_strength\": \"mid\", \"donor_acceptor_separation_regime\": \"short\", \"donor_sites\": 2, \"flexibility_regime\": \"high\", \"fused_aromatic_core\": false, \"fused_aromatic_core_strength\": \"none\", \"global_flexibility_vs_core_rigidity\": \"mixed\", \"heteroatom_cluster_pattern\": \"clustered\", \"intramolecular_hbond_geometry\": \"possible\", \"intramolecular_hbond_motif\": \"likely\", \"motif_density\": \"high\", \"notes\": [\"Detected 2 donor site(s) and 5 acceptor site(s) with short donor-acceptor separation.\", \"Intramolecular H-bond geometry is possible; tautomerizable subgraph strength is low.\", \"Aromatic scaffold is extended with high rigidity and low planarity proxy.\", \"Matched structural motif families: carbonyl_acceptor.\"], \"planarity_break_count\": 10, \"planarity_proxy\": \"low\", \"possible_intramolecular_hbond_pairs\": 3, \"proton_transfer_local_geometry\": \"none\", \"proton_transfer_topology_candidate\": \"none\", \"reliability\": \"high\", \"tautomerizable_motif\": \"none\", \"tautomerizable_motif_candidates\": 0, \"tautomerizable_subgraph_strength\": \"low\", \"version\": \"structure_motif_v1\"}, \"structure_prior_profile\": {\"aromatic_core_density\": \"high\", \"conjugation_proxy\": \"high\", \"descriptor_snapshot\": {\"logp\": 8.664000000000003, \"n_aromatic_rings\": 5, \"n_hba\": 6, \"n_hbd\": 1, \"n_rings\": 6, \"n_rotatable_bonds\": 10, \"tpsa\": 76.07000000000001}, \"donor_acceptor_topology\": \"strong\", \"flexibility_proxy\": \"high\", \"intramolecular_hbond_candidates\": \"possible\", \"notes\": [\"Donor/acceptor topology is strong under the current topology heuristic.\", \"Aromatic-core density is high, flexibility is high, and conjugation is high.\", \"Intramolecular H-bond candidates are possible as structural context.\"], \"overall_structure_prior\": \"Conjugation is high; aromatic-core density is high; flexibility is high; donor/acceptor topology is strong; intramolecular H-bond candidates are possible; reliability is high.\", \"reliability\": \"high\", \"version\": \"structure_prior_v1\"}, \"structure_retrieval_profile\": {\"feature_morgan_topk\": [{\"canonical_smiles\": \"COc1ccc(C(=C(c2ccccc2)c2ccc(C=C3SC(=S)N(CC(=O)O)C3=O)cc2)c2ccc(OC)cc2)cc1\", \"case_index\": 80, \"inchikey\": \"NZXQUTOHWDFLJQ-UHFFFAOYSA-N\", \"mechanism_label\": \"TICT\", \"sim\": 0.869565}, {\"canonical_smiles\": \"COc1ccc(C(=C(c2ccccc2)c2ccc(-c3ccc(C=C4C(=O)N(C)C(=O)N(C)C4=O)cc3)cc2)c2ccc(OC)cc2)cc1\", \"case_index\": 155, \"inchikey\": \"WGZILBDUSNBZNU-UHFFFAOYSA-N\", \"mechanism_label\": \"TICT\", \"sim\": 0.774194}, {\"canonical_smiles\": \"COc1ccc(C(=C(c2ccccc2)c2ccc(-c3ccc(C(C)=C(C#N)C#N)cc3)cc2)c2ccc(OC)cc2)cc1\", \"case_index\": 72, \"inchikey\": \"MYCLCAXWUZLTCQ-UHFFFAOYSA-N\", \"mechanism_label\": \"neutral aromatic\", \"sim\": 0.746667}, {\"canonical_smiles\": \"CCN1C(=O)S/C(=C\\\\c2ccc(-c3ccc(C(=C(c4ccc(OC)cc4)c4ccc(OC)cc4)c4ccccc4)cc3)s2)C1=O\", \"case_index\": 33, \"inchikey\": \"HJTOXOYZFDNTOR-BCJTWVECSA-N\", \"mechanism_label\": \"TICT\", \"sim\": 0.74026}, {\"canonical_smiles\": \"CCN1C(=O)/C(=C/c2ccc(-c3ccc(C(=C(c4ccc(OC)cc4)c4ccc(OC)cc4)c4ccccc4)cc3)s2)SC1=S\", \"case_index\": 71, \"inchikey\": \"MXPORNGQIJFANJ-BCJTWVECSA-N\", \"mechanism_label\": \"TICT\", \"sim\": 0.74026}, {\"canonical_smiles\": \"COc1ccc(C(=C(c2ccccc2)c2ccc(-c3ccc(C(=C(C#N)C#N)c4cccs4)cc3)cc2)c2ccc(OC)cc2)cc1\", \"case_index\": 35, \"inchikey\": \"HWIOZWZGNDDAMK-UHFFFAOYSA-N\", \"mechanism_label\": \"neutral aromatic\", \"sim\": 0.676829}, {\"canonical_smiles\": \"COc1ccc(C(=C(c2ccccc2)c2ccc(C=C(C#N)C#N)cc2)c2ccc(OC)cc2)cc1\", \"case_index\": 114, \"inchikey\": \"RLKXRYJKSORLKX-UHFFFAOYSA-N\", \"mechanism_label\": \"ESIPT\", \"sim\": 0.646259}, {\"canonical_smiles\": \"COc1ccc(C(=C(c2ccccc2)c2ccc(-c3ccc(C(C)=C(C#N)C#N)s3)cc2)c2ccc(OC)cc2)cc1\", \"case_index\": 100, \"inchikey\": \"QKLLRQGXJKQFJR-UHFFFAOYSA-N\", \"mechanism_label\": \"neutral aromatic\", \"sim\": 0.628931}, {\"canonical_smiles\": \"COc1ccc(C(=C(c2ccccc2)c2ccc(C(C)=C(C#N)C#N)cc2)c2ccc(OC)cc2)cc1\", \"case_index\": 97, \"inchikey\": \"QBXYYJOIUQVVML-UHFFFAOYSA-N\", \"mechanism_label\": \"neutral aromatic\", \"sim\": 0.626667}, {\"canonical_smiles\": \"COc1ccc(C(=C(c2ccccc2)c2ccc(C(=C(C#N)C#N)c3cccs3)cc2)c2ccc(OC)cc2)cc1\", \"case_index\": 177, \"inchikey\": \"YPTYOGRNMXMUHM-UHFFFAOYSA-N\", \"mechanism_label\": \"neutral aromatic\", \"sim\": 0.626582}], \"feature_neighbor_label_distribution\": {\"ESIPT\": 0.091328, \"TICT\": 0.441518, \"neutral aromatic\": 0.467153}, \"murcko_topk\": [{\"case_index\": 33, \"generic_scaffold_smiles\": \"CC1CC(C)C(CC2CCC(C3CCC(C(C4CCCCC4)C(C4CCCCC4)C4CCCCC4)CC3)C2)C1\", \"inchikey\": \"HJTOXOYZFDNTOR-BCJTWVECSA-N\", \"mechanism_label\": \"TICT\", \"murcko_scaffold_smiles\": \"O=C1NC(=O)C(=Cc2ccc(-c3ccc(C(=C(c4ccccc4)c4ccccc4)c4ccccc4)cc3)s2)S1\", \"sim\": 0.957983}, {\"case_index\": 71, \"generic_scaffold_smiles\": \"CC1CC(C)C(CC2CCC(C3CCC(C(C4CCCCC4)C(C4CCCCC4)C4CCCCC4)CC3)C2)C1\", \"inchikey\": \"MXPORNGQIJFANJ-BCJTWVECSA-N\", \"mechanism_label\": \"TICT\", \"murcko_scaffold_smiles\": \"O=C1NC(=S)SC1=Cc1ccc(-c2ccc(C(=C(c3ccccc3)c3ccccc3)c3ccccc3)cc2)s1\", \"sim\": 0.957983}, {\"case_index\": 133, \"generic_scaffold_smiles\": \"CC1CC(C)C(CC2CCC(C3CCC(C(C4CCCCC4)C(C4CCCCC4)C4CCCCC4)CC3)C2)C1\", \"inchikey\": \"UAFPQOWBJSQQTO-PNEAAFPUSA-N\", \"mechanism_label\": \"TICT\", \"murcko_scaffold_smiles\": \"C=c1[nH]c(=O)c(=Cc2ccc(-c3ccc(C(=C(c4ccccc4)c4ccccc4)c4ccccc4)cc3)s2)s1\", \"sim\": 0.957983}, {\"case_index\": 155, \"generic_scaffold_smiles\": \"CC1CC(C)C(CC2CCC(C3CCC(C(C4CCCCC4)C(C4CCCCC4)C4CCCCC4)CC3)CC2)C(C)C1\", \"inchikey\": \"WGZILBDUSNBZNU-UHFFFAOYSA-N\", \"mechanism_label\": \"TICT\", \"murcko_scaffold_smiles\": \"O=C1NC(=O)C(=Cc2ccc(-c3ccc(C(=C(c4ccccc4)c4ccccc4)c4ccccc4)cc3)cc2)C(=O)N1\", \"sim\": 0.943548}, {\"case_index\": 18, \"generic_scaffold_smiles\": \"C1CCC(C(C2CCCCC2)C2CCC3C(CC4CC(CCC5CCCC6CCCCC65)CCC43)C2)CC1\", \"inchikey\": \"FCQQVHNAJPXFJW-UHFFFAOYSA-N\", \"mechanism_label\": \"ICT\", \"murcko_scaffold_smiles\": \"C(=Cc1cc[nH+]c2ccccc12)c1ccc2c(c1)[nH]c1cc(N(c3ccccc3)c3ccccc3)ccc12\", \"sim\": 0.917355}, {\"case_index\": 125, \"generic_scaffold_smiles\": \"CC1CC2CCCCC2CC1C1CCC(C2CCC3CCC(C4CCCCC4)C(C4CCCCC4)C3C2)CC1\", \"inchikey\": \"SRSBUFGDJUMWDP-UHFFFAOYSA-N\", \"mechanism_label\": \"TICT\", \"murcko_scaffold_smiles\": \"O=c1oc2ccccc2cc1-c1ccc(-c2ccc3c[nH+]c(-c4ccccc4)c(-c4ccccc4)c3c2)cc1\", \"sim\": 0.902439}, {\"case_index\": 25, \"generic_scaffold_smiles\": \"C1CCC(C(C2CCCCC2)C2CCC(C3CCC(CCC4C5CCCCC5CC5CCCCC54)C3)CC2)CC1\", \"inchikey\": \"GGTPMMKFZZLOPN-UHFFFAOYSA-M\", \"mechanism_label\": \"ICT\", \"murcko_scaffold_smiles\": \"C(=Cc1c2ccccc2[nH+]c2ccccc12)c1ccc(-c2ccc(N(c3ccccc3)c3ccccc3)cc2)s1\", \"sim\": 0.888889}, {\"case_index\": 151, \"generic_scaffold_smiles\": \"C1CCC(C(C2CCCCC2)C(C2CCCCC2)C2CCC(C3C4CCCC4CC4CCCC43)CC2)CC1\", \"inchikey\": \"VQNKCFBZCGGWFU-UHFFFAOYSA-N\", \"mechanism_label\": \"TICT\", \"murcko_scaffold_smiles\": \"[BH2-]1n2cccc2C(c2ccc(C(=C(c3ccccc3)c3ccccc3)c3ccccc3)cc2)=C2C=CC=[N+]12\", \"sim\": 0.886179}, {\"case_index\": 111, \"generic_scaffold_smiles\": \"CC1CC(CCC2CCC(CC(C)C3CCCCC3C(C3CCCCC3)C3CCCCC3)CC2)CC2CCCCC12\", \"inchikey\": \"RFTIBNJJSQHOMR-DARPEHSRSA-N\", \"mechanism_label\": \"ICT\", \"murcko_scaffold_smiles\": \"C=C1C=C(C=Cc2ccc(OC(=O)c3ccccc3P(c3ccccc3)c3ccccc3)cc2)Oc2ccccc21\", \"sim\": 0.88189}, {\"case_index\": 74, \"generic_scaffold_smiles\": \"C1CCC(C(C2CCC3CC4CCCCC4C3C2)C(C2CCCCC2)C2CCC3CC4CCCCC4C3C2)CC1\", \"inchikey\": \"MZXBKOUHXKCWMJ-WVAJSKRXSA-N\", \"mechanism_label\": \"neutral aromatic\", \"murcko_scaffold_smiles\": \"c1ccc(C(=C(c2ccccc2)c2ccc3c(c2)-c2ccccc2C3)c2ccc3c(c2)-c2ccccc2C3)cc1\", \"sim\": 0.874016}], \"retrieval_consensus_strength\": \"mid\", \"scaffold_neighbor_label_distribution\": {\"ICT\": 0.2932, \"TICT\": 0.61147, \"neutral aromatic\": 0.095331}, \"version\": \"structure_retrieval_v1\"}, \"top1_sim\": 0.942308}, \"runtime\": {\"allow_other_label\": false, \"emission_mode\": \"web_search\", \"emission_strictness\": \"relaxed\", \"label_pool_name\": \"main_no_other\", \"run_lane\": \"atb_cache_only\"}, \"target_fields\": {\"emission_aggr_nm\": 624.0}, \"target_fields_provenance\": {\"emission_aggr_nm\": {\"condition\": \"aggregation\", \"condition_bucket\": \"aggregation\", \"confidence\": 1.0, \"identity_match\": \"exact\", \"identity_match_confidence\": 1.0, \"source_locator\": \"row_index=44; code=TPE-PR-COOH\", \"source_ref\": \"/Users/wuguocheng/workshop/Uncertainty_aware_AIE/data/split_list/1_level.csv\", \"source_type\": \"dataset_row\"}}}, \"run_lane_capabilities\": {\"atb_available\": true, \"literature_enabled\": false, \"offline_pdf_available\": false, \"wetlab_enabled\": false}, \"thresholds\": {\"atb_dihedral_flat_eps\": 1e-06, \"atb_dihedral_thresh_none\": 8.0, \"atb_dihedral_thresh_strong\": 15.0, \"atb_gap_flat_eps\": 0.05, \"atb_gap_strong\": 0.6, \"atb_gap_weak\": 0.2, \"atb_vol_flat_eps\": 0.1, \"atb_vol_strong\": 2.0, \"atb_vol_weak\": 0.5, \"conservative_confidence_cap\": 0.65, \"entropy_high\": 0.75, \"global_confidence_cap\": 0.95, \"neighbor_support_min_sim\": 0.55, \"r0_penalty_factor\": 0.9, \"top1_sim_low\": 0.5}}",
+      "tools": [],
+      "max_output_tokens": 1500,
+      "reasoning": {
+        "effort": "high"
+      }
+    },
+    "response": {
+      "id": "resp_08cb7f74015747c20069b7e2ebf5d8819388770ea4a37132dd",
+      "created_at": 1773658859.0,
+      "error": null,
+      "incomplete_details": {
+        "reason": "max_output_tokens"
+      },
+      "instructions": "You are an evaluator critique layer for mechanism reasoning.\nRespond in concise natural language using tagged sections.\nDo not call tools.\nFocus on critique quality, conflict adjudication, and VoI ranking weights.\nInclude explicit references to evidence_id where relevant.\nAvoid markdown tables and avoid code fences.\nUse EXACT section prefixes in this order:\nCRITIQUE_POINTS:\nCONFLICTS:\nVOI_RANKED_ACTIONS:\nCONFIDENCE_DELTA_SUGGESTION:\nNEXT_ROUND_PROFILE_SUGGESTION:\nVOI item format suggestion: action=<name>; weight=<0.1..3.0>; rationale=<text>.\n\nOutput mode reminder: tagged natural language sections only.",
+      "metadata": {},
+      "model": "gpt-5.2",
+      "object": "response",
+      "output": [
+        {
+          "id": "rs_08cb7f74015747c20069b7e2eccaf48193bc6945c660d16b88",
+          "summary": [],
+          "type": "reasoning",
+          "content": null,
+          "encrypted_content": null,
+          "status": null
+        },
+        {
+          "id": "msg_08cb7f74015747c20069b7e2fbec4881938edbee5b396cbb24",
+          "content": [
+            {
+              "annotations": [],
+              "text": "CRITIQUE_POINTS:\n1) The core TICT claim is only weakly supported by direct torsional evidence: the excited-state torsion trend is essentially flat/none (E31; abs delta_dihedral 0.043°), and the combined structural relaxation proxy is low (E37), which undermines a “twist-to-CT minimum” narrative.\n2) The argument leans heavily on neighbor similarity/label transfer (top1_sim 0.94; neighbors mostly TICT) but does not clearly separate “shared scaffold” from “shared mechanism”; the label-stratified aTB comparison shows the target’s abs_delta_dihedral is actually closest to the ICT group (E23), not TICT.\n3) Electronic “CT-ness” is ambiguous: redistribution_score is “medium” (E36) and redistribution magnitude “mid” (E35), but the permanent dipole change across S0→S1 is near zero (E62), which weakens an ICT/TICT interpretation if dipole change is expected to correlate.\n4) There is an internal bucket mismatch for gap/redistribution: self-only aTB trend marks delta_gap bucket “low” (E32) while the charge redistribution profile calls delta_gap_bucket “mid” (E36). The narrative should explain why these differ (different calibration/thresholding) rather than treating them as consistent.\n5) The emission evidence only anchors an aggregate emission wavelength (E70) with aggr_only coverage (E72) and medium reliability (E73); inferring “AIE via suppression of a nonradiative channel” is speculative without solution/dilute data.\n6) The supporting_chain cites mismatched evidence IDs (e.g., torsion_access step A cites E70; ct_family step B cites E72; aIE_bridge step C cites E31). This misalignment makes the traceability of claims to evidence unreliable even if the underlying idea is reasonable.\n7) The compact-prior neighbor majority label being ESIPT (E57) is treated as disfavoring ESIPT, but the same pack explicitly indicates “no tautomerizable proton-transfer site” (compact_prior_metrics_v1) and says compact neighbor reliability is low (E57). This needs clearer adjudication: “majority ESIPT” is likely an artifact of coarse compact metrics, not a meaningful ESIPT signal.\n8) The model’s own competing hypotheses are not quantitatively updated (each listed at confidence=1.0 with atb_support_level=none), so the “competition” section doesn’t function as a real alternative accounting.\n9) The narrative introduces “high shape-rigidity proxy” (E39) to support “restriction,” but the structure prior indicates high flexibility (10 rotatable bonds; structure_prior_profile). The argument should distinguish “intrinsic flexibility” from “small S0→S1 geometric response” (E39/E37).\n10) Recommended_next_actions include offline-PDF actions (“provide_offline_pdf”, “switch_run_lane_offline_pdf”) despite offline_pdf_available=false; this is an execution-level inconsistency that should be removed or replaced with feasible requests (e.g., user-provided spectra).\n\nCONFLICTS:\n1) TICT requires twisting vs observed near-zero torsional change: TICT hypothesis conflicts with E31/E37. Adjudication: either downgrade",
+              "type": "output_text",
+              "logprobs": []
+            }
+          ],
+          "role": "assistant",
+          "status": "incomplete",
+          "type": "message"
+        }
+      ],
+      "parallel_tool_calls": true,
+      "temperature": 1.0,
+      "tool_choice": "auto",
+      "tools": [],
+      "top_p": 0.98,
+      "background": false,
+      "completed_at": null,
+      "conversation": null,
+      "max_output_tokens": 1500,
+      "max_tool_calls": null,
+      "previous_response_id": null,
+      "prompt": null,
+      "prompt_cache_key": null,
+      "prompt_cache_retention": null,
+      "reasoning": {
+        "effort": "high",
+        "generate_summary": null,
+        "summary": null
+      },
+      "safety_identifier": null,
+      "service_tier": "default",
+      "status": "incomplete",
+      "text": {
+        "format": {
+          "type": "text"
+        },
+        "verbosity": "medium"
+      },
+      "top_logprobs": 0,
+      "truncation": "disabled",
+      "usage": {
+        "input_tokens": 19009,
+        "input_tokens_details": {
+          "cached_tokens": 0
+        },
+        "output_tokens": 1500,
+        "output_tokens_details": {
+          "reasoning_tokens": 812
+        },
+        "total_tokens": 20509
+      },
+      "user": null,
+      "content_filters": null,
+      "frequency_penalty": 0.0,
+      "presence_penalty": 0.0,
+      "store": true
+    }
+  },
+  "confidence_adjustment": {
+    "enabled": false,
+    "applied": false,
+    "reason": "disabled"
+  }
+}

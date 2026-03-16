@@ -1,0 +1,131 @@
+{
+  "generated_at": "2026-03-16T11:30:02Z",
+  "eval_id": "20260316T061422Z",
+  "config": {
+    "test_csv": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/data/split_list/1_level.csv",
+    "run_lane": "atb_cache_only",
+    "runtime_mode": "single_pass_case_run",
+    "iterative": true,
+    "round_runner_mode": "dryrun_then_commit",
+    "max_rounds": 4,
+    "round_start_profile": "R0",
+    "model": "gpt-5.2",
+    "base_url": "http://35.220.164.252:3888/v1",
+    "reasoning_effort": "high",
+    "evaluator_use_llm": true,
+    "evaluator_model": null,
+    "evaluator_reasoning_effort": null,
+    "temperature": 0.2,
+    "llm_use_json_schema": false,
+    "seed_supported": false,
+    "seed": null,
+    "max_rows": 50,
+    "start_row": 0,
+    "neighbor_topk": 50,
+    "reference_index_root": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/data/reference_indices/split_levels_v2/views",
+    "reference_view": "leave_level_1"
+  },
+  "results": {
+    "counts": {
+      "total_rows": 50,
+      "status": {
+        "ok": 50
+      },
+      "ok_rows": 50,
+      "covered_rows": 50,
+      "unknown_predictions_in_covered": 1
+    },
+    "metrics": {
+      "top1_accuracy": 0.44,
+      "top1_accuracy_including_other": 0.44,
+      "top1_accuracy_excluding_other_gt": 0.44,
+      "macro_f1": 0.375401,
+      "coverage": 1.0,
+      "unknown_rate": 0.02,
+      "per_class_precision_recall_f1": {
+        "TICT": {
+          "precision": 0.5,
+          "recall": 0.142857,
+          "f1": 0.222222,
+          "support": 14
+        },
+        "ICT": {
+          "precision": 0.3125,
+          "recall": 0.714286,
+          "f1": 0.434783,
+          "support": 14
+        },
+        "ESIPT": {
+          "precision": 0.0,
+          "recall": 0.0,
+          "f1": 0.0,
+          "support": 7
+        },
+        "neutral aromatic": {
+          "precision": 0.692308,
+          "recall": 0.75,
+          "f1": 0.72,
+          "support": 12
+        },
+        "unknown": {
+          "precision": 1.0,
+          "recall": 0.333333,
+          "f1": 0.5,
+          "support": 3
+        }
+      },
+      "confusion_matrix": {
+        "TICT": {
+          "TICT": 2,
+          "ICT": 12,
+          "ESIPT": 0,
+          "neutral aromatic": 0,
+          "unknown": 0
+        },
+        "ICT": {
+          "TICT": 2,
+          "ICT": 10,
+          "ESIPT": 0,
+          "neutral aromatic": 2,
+          "unknown": 0
+        },
+        "ESIPT": {
+          "TICT": 0,
+          "ICT": 6,
+          "ESIPT": 0,
+          "neutral aromatic": 1,
+          "unknown": 0
+        },
+        "neutral aromatic": {
+          "TICT": 0,
+          "ICT": 3,
+          "ESIPT": 0,
+          "neutral aromatic": 9,
+          "unknown": 0
+        },
+        "unknown": {
+          "TICT": 0,
+          "ICT": 1,
+          "ESIPT": 0,
+          "neutral aromatic": 1,
+          "unknown": 1
+        }
+      },
+      "labels": [
+        "TICT",
+        "ICT",
+        "ESIPT",
+        "neutral aromatic",
+        "unknown"
+      ]
+    }
+  },
+  "artifacts": {
+    "predictions_csv": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/artifacts/eval/gpt/20260316T061422Z/predictions.csv",
+    "evaluation_report_json": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/artifacts/eval/gpt/20260316T061422Z/evaluation_report.json",
+    "evaluation_report_md": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/artifacts/eval/gpt/20260316T061422Z/evaluation_report.md",
+    "failed_cases_index_json": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/artifacts/eval/gpt/20260316T061422Z/failed_cases_index.json",
+    "runtime_artifacts_dir": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/artifacts/eval/gpt/20260316T061422Z/runtime_artifacts",
+    "runtime_case_dir": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/artifacts/eval/gpt/20260316T061422Z/runtime_cases"
+  }
+}

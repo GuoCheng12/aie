@@ -1,0 +1,8 @@
+{
+  "case_id": "de0f5df3be1d4bc6b16461bde5b9cef7",
+  "input_smiles": "N#C/C(C#N)=CC1=CC=C(C(C=C2)=CC=C2C3=C(C4=CC=CC=C4)N=C(C5=CC=CC=C5)C(C6=CC=CC=C6)=N3)C=C1",
+  "classifier_model_root": "artifacts/structure_agent/latest",
+  "retrieval_topk": 10,
+  "candidate_topk": 5,
+  "data_dir": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/data/reference_indices/split_levels_v2/views/leave_level_1"
+}

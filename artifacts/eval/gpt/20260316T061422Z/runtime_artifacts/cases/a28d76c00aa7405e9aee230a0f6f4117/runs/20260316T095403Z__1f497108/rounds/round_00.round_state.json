@@ -1,0 +1,200 @@
+{
+  "round_index": 0,
+  "active_profile": "R0",
+  "llm_failure_reason": null,
+  "hypothesis_delta": {
+    "changed": true,
+    "primary_label_before": null,
+    "primary_label_after": "ICT",
+    "confidence_before": 0.17944416000000002,
+    "confidence_after": 0.17944416000000002,
+    "confidence_delta": 0.0,
+    "template_before": null,
+    "template_after": "mixture"
+  },
+  "new_evidence_used": {
+    "added_ids": [
+      "E51",
+      "E52",
+      "E54",
+      "E56",
+      "E8"
+    ],
+    "effective_added_ids": [
+      "E51",
+      "E52",
+      "E54",
+      "E56",
+      "E8"
+    ],
+    "removed_ids": [],
+    "added_paths": [
+      "/risk_scores/compact_prior_metrics_v1/proton_transfer_readiness_score",
+      "/risk_scores/compact_prior_metrics_v1/proton_transfer_sites",
+      "/risk_scores/compact_prior_metrics_v1/rotatable_potential",
+      "/risk_scores/structure_prior_profile/overall_structure_prior",
+      "pack:/risk_scores/candidate_slate_v3"
+    ],
+    "count_added": 5,
+    "count_effective_added": 5
+  },
+  "conflict_delta": {
+    "new_conflicts": [
+      "C1",
+      "C2",
+      "C3",
+      "C4",
+      "C5"
+    ],
+    "resolved_conflicts": [],
+    "unresolved_before": 0,
+    "unresolved_after": 5
+  },
+  "feasibility_snapshot": {
+    "overall_score": 0.25,
+    "constraints": [
+      "lane_disabled:literature",
+      "lane_disabled:wetlab",
+      "missing_input:offline_pdf"
+    ],
+    "lane_capabilities": {
+      "atb_available": true,
+      "offline_pdf_available": false,
+      "literature_enabled": false,
+      "wetlab_enabled": false
+    }
+  },
+  "chosen_next_round_profile": "R1",
+  "profile_adjustment_reason": "as_recommended",
+  "candidate_scorecard": [
+    {
+      "label": "ICT",
+      "prior_rank": 1,
+      "prior_confidence": 0.4365,
+      "current_rank": 1,
+      "current_confidence": 0.1794,
+      "support_axes": [
+        "structure_prior"
+      ],
+      "weakening_axes": [],
+      "unresolved_axes": [
+        "structure_prior"
+      ],
+      "new_support_evidence_ids": [
+        "E56"
+      ],
+      "new_weakening_evidence_ids": [],
+      "net_direction": "down",
+      "commentary": "Current leading candidate supported by structure_prior."
+    },
+    {
+      "label": "TICT",
+      "prior_rank": 2,
+      "prior_confidence": 0.2791,
+      "current_rank": 2,
+      "current_confidence": 0.2791,
+      "support_axes": [],
+      "weakening_axes": [
+        "structure_prior"
+      ],
+      "unresolved_axes": [],
+      "new_support_evidence_ids": [],
+      "new_weakening_evidence_ids": [
+        "E56"
+      ],
+      "net_direction": "flat",
+      "commentary": "Candidate remains in play but is weakened relative to ICT."
+    },
+    {
+      "label": "ESIPT",
+      "prior_rank": 3,
+      "prior_confidence": 0.1905,
+      "current_rank": 3,
+      "current_confidence": 0.1905,
+      "support_axes": [],
+      "weakening_axes": [
+        "structure_prior"
+      ],
+      "unresolved_axes": [],
+      "new_support_evidence_ids": [],
+      "new_weakening_evidence_ids": [
+        "E56"
+      ],
+      "net_direction": "flat",
+      "commentary": "Candidate remains in play but is weakened relative to ICT."
+    }
+  ],
+  "master_candidate_scorecard": [
+    {
+      "label": "ICT",
+      "prior_rank": 1,
+      "prior_confidence": 0.4365,
+      "current_rank": 1,
+      "current_confidence": 0.1794,
+      "support_axes": [
+        "structure_prior"
+      ],
+      "weakening_axes": [],
+      "unresolved_axes": [
+        "structure_prior"
+      ],
+      "new_support_evidence_ids": [
+        "E56"
+      ],
+      "new_weakening_evidence_ids": [],
+      "net_direction": "down",
+      "commentary": "Current leading candidate supported by structure_prior."
+    },
+    {
+      "label": "TICT",
+      "prior_rank": 2,
+      "prior_confidence": 0.2791,
+      "current_rank": 2,
+      "current_confidence": 0.2791,
+      "support_axes": [],
+      "weakening_axes": [
+        "structure_prior"
+      ],
+      "unresolved_axes": [],
+      "new_support_evidence_ids": [],
+      "new_weakening_evidence_ids": [
+        "E56"
+      ],
+      "net_direction": "flat",
+      "commentary": "Candidate remains in play but is weakened relative to ICT."
+    },
+    {
+      "label": "ESIPT",
+      "prior_rank": 3,
+      "prior_confidence": 0.1905,
+      "current_rank": 3,
+      "current_confidence": 0.1905,
+      "support_axes": [],
+      "weakening_axes": [
+        "structure_prior"
+      ],
+      "unresolved_axes": [],
+      "new_support_evidence_ids": [],
+      "new_weakening_evidence_ids": [
+        "E56"
+      ],
+      "net_direction": "flat",
+      "commentary": "Candidate remains in play but is weakened relative to ICT."
+    }
+  ],
+  "normalization_summary": {
+    "llm_primary_label": "ICT",
+    "normalized_primary_label": "ICT",
+    "decision_state": "provisional_known",
+    "canonical_pool_closed": false,
+    "standard_label_closure": "provisional",
+    "residual_other_admissible": false,
+    "novelty_candidate": false,
+    "novelty_basis": [],
+    "normalization_reason_codes": [
+      "r0_prior_only_decision"
+    ]
+  },
+  "final_label_adjudication": {},
+  "updated_at": "2026-03-16T09:54:52Z"
+}

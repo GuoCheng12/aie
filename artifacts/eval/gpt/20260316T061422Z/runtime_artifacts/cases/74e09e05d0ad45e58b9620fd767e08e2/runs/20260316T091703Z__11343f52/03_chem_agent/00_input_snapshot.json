@@ -1,0 +1,14 @@
+{
+  "case_id": "74e09e05d0ad45e58b9620fd767e08e2",
+  "inchikey": "NUZOCLWWCTYCCZ-UHFFFAOYSA-N",
+  "smiles": "C[n+]1ccc(-c2ccc(-c3ccc(N(c4ccccc4)c4ccc(-c5ccc(N)cc5)cc4)cc3)s2)cc1",
+  "code": "TPA-Th(+)",
+  "aliases": [
+    "TPA-Th(+)"
+  ],
+  "run_lane": "atb_cache_only",
+  "mode": "web_search",
+  "strictness": "relaxed",
+  "extractor_mode": "mineru_llm",
+  "offline_pdfs": []
+}

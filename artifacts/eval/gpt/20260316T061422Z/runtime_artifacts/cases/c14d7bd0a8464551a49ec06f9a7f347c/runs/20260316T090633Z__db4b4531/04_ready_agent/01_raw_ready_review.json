@@ -1,0 +1,43 @@
+{
+  "inputs": {
+    "case_id": "c14d7bd0a8464551a49ec06f9a7f347c",
+    "inchikey": "KSOWGDNMMBWYQC-UHFFFAOYSA-N",
+    "atb_cache_status": "success",
+    "target_fields": {
+      "emission_aggr_nm": 588.0,
+      "emission_solid_or_film_nm": 558.0
+    },
+    "target_fields_provenance": {
+      "emission_aggr_nm": {
+        "source_type": "dataset_row",
+        "source_ref": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/data/split_list/1_level.csv",
+        "source_locator": "row_index=25; code=CNDEATPE",
+        "confidence": 1.0,
+        "identity_match": "exact",
+        "identity_match_confidence": 1.0,
+        "condition": "aggregation",
+        "condition_bucket": "aggregation"
+      },
+      "emission_solid_or_film_nm": {
+        "source_type": "dataset_row",
+        "source_ref": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/data/split_list/1_level.csv",
+        "source_locator": "row_index=25; code=CNDEATPE",
+        "confidence": 1.0,
+        "identity_match": "exact",
+        "identity_match_confidence": 1.0,
+        "condition": "solid_or_film",
+        "condition_bucket": "solid_or_film"
+      }
+    },
+    "staging_count": 0,
+    "action_plan": [],
+    "post_uq": {
+      "status": "not_started",
+      "confidence": null,
+      "contradictions": [],
+      "missing_evidence": [],
+      "recommended_actions": []
+    }
+  },
+  "patch_count": 9
+}

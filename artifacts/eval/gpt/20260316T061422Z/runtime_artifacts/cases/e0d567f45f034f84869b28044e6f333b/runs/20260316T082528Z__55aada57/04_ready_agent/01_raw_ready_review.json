@@ -1,0 +1,32 @@
+{
+  "inputs": {
+    "case_id": "e0d567f45f034f84869b28044e6f333b",
+    "inchikey": "MGISAKGHBIWFDS-UHFFFAOYSA-N",
+    "atb_cache_status": "success",
+    "target_fields": {
+      "emission_solid_or_film_nm": 494.0
+    },
+    "target_fields_provenance": {
+      "emission_solid_or_film_nm": {
+        "source_type": "dataset_row",
+        "source_ref": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/data/split_list/1_level.csv",
+        "source_locator": "row_index=18; code=5-BTDMS",
+        "confidence": 1.0,
+        "identity_match": "exact",
+        "identity_match_confidence": 1.0,
+        "condition": "solid_or_film",
+        "condition_bucket": "solid_or_film"
+      }
+    },
+    "staging_count": 0,
+    "action_plan": [],
+    "post_uq": {
+      "status": "not_started",
+      "confidence": null,
+      "contradictions": [],
+      "missing_evidence": [],
+      "recommended_actions": []
+    }
+  },
+  "patch_count": 9
+}

@@ -1,0 +1,14 @@
+{
+  "case_id": "eaa44497eeb94af7967b6faa80988153",
+  "inchikey": "OAZWDJGLIYNYMU-UHFFFAOYSA-N",
+  "smiles": "CN(C)c1ccc(C(c2ccc(N(C)C)cc2)c2ccc(N(C)C)cc2)cc1",
+  "code": "TPM-DMA",
+  "aliases": [
+    "TPM-DMA"
+  ],
+  "run_lane": "atb_cache_only",
+  "mode": "web_search",
+  "strictness": "relaxed",
+  "extractor_mode": "mineru_llm",
+  "offline_pdfs": []
+}

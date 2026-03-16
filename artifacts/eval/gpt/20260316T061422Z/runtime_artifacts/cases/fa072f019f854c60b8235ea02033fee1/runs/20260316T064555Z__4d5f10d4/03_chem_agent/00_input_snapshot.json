@@ -1,0 +1,14 @@
+{
+  "case_id": "fa072f019f854c60b8235ea02033fee1",
+  "inchikey": "VKNYKECRQSPURD-UHFFFAOYSA-N",
+  "smiles": "O=C(c1ccccc1)c1ccc2nc3c4ccc(N5c6ccccc6C6(c7ccccc7Oc7ccccc76)c6ccccc65)cc4c4cc(N5c6ccccc6C6(c7ccccc7Oc7ccccc76)c6ccccc65)ccc4c3nc2c1",
+  "code": "DPPM-SXAC",
+  "aliases": [
+    "DPPM-SXAC"
+  ],
+  "run_lane": "atb_cache_only",
+  "mode": "web_search",
+  "strictness": "relaxed",
+  "extractor_mode": "mineru_llm",
+  "offline_pdfs": []
+}

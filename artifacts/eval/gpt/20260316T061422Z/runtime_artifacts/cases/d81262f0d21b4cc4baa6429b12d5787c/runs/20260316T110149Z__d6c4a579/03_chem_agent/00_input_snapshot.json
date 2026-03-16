@@ -1,0 +1,14 @@
+{
+  "case_id": "d81262f0d21b4cc4baa6429b12d5787c",
+  "inchikey": "LQYGABAFZYAIOG-UHFFFAOYSA-N",
+  "smiles": "O=C1C(=Cc2ccc(N(c3ccccc3)c3ccccc3)cc2)C(=O)c2ccccc21",
+  "code": "IND-TPA",
+  "aliases": [
+    "IND-TPA"
+  ],
+  "run_lane": "atb_cache_only",
+  "mode": "web_search",
+  "strictness": "relaxed",
+  "extractor_mode": "mineru_llm",
+  "offline_pdfs": []
+}

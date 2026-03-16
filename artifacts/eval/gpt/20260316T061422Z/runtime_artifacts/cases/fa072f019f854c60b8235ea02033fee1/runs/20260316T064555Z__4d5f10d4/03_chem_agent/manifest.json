@@ -1,0 +1,70 @@
+{
+  "files": [
+    {
+      "name": "00_input_snapshot.json",
+      "path": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/artifacts/eval/gpt/20260316T061422Z/runtime_artifacts/cases/fa072f019f854c60b8235ea02033fee1/runs/20260316T064555Z__4d5f10d4/03_chem_agent/00_input_snapshot.json",
+      "sha256": "7cd86763c150315e6fb64fd2cad5e357b05a0c585cef9293b16ce2a623f2bc60",
+      "size_bytes": 441
+    },
+    {
+      "name": "01_raw_atb_cache_record.json",
+      "path": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/artifacts/eval/gpt/20260316T061422Z/runtime_artifacts/cases/fa072f019f854c60b8235ea02033fee1/runs/20260316T064555Z__4d5f10d4/03_chem_agent/01_raw_atb_cache_record.json",
+      "sha256": "fbbc3a236de3050d50828618fdba87040415cfc7f0d40dd7eff18b912fb420db",
+      "size_bytes": 1475
+    },
+    {
+      "name": "01_raw_atb_neighbor_consistency.json",
+      "path": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/artifacts/eval/gpt/20260316T061422Z/runtime_artifacts/cases/fa072f019f854c60b8235ea02033fee1/runs/20260316T064555Z__4d5f10d4/03_chem_agent/01_raw_atb_neighbor_consistency.json",
+      "sha256": "08e153d4a35ab27aa3e90bb7eb010cd91773b1b6f8a4d43c7f1f18a9c59fbdde",
+      "size_bytes": 907
+    },
+    {
+      "name": "01_raw_atb_neighbor_features_all.json",
+      "path": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/artifacts/eval/gpt/20260316T061422Z/runtime_artifacts/cases/fa072f019f854c60b8235ea02033fee1/runs/20260316T064555Z__4d5f10d4/03_chem_agent/01_raw_atb_neighbor_features_all.json",
+      "sha256": "d48c7525a96477fa674a8a8bdcc2b0a93ba71d381a5dab0ee0b5ec8ab9c84e35",
+      "size_bytes": 182650
+    },
+    {
+      "name": "01_raw_index.json",
+      "path": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/artifacts/eval/gpt/20260316T061422Z/runtime_artifacts/cases/fa072f019f854c60b8235ea02033fee1/runs/20260316T064555Z__4d5f10d4/03_chem_agent/01_raw_index.json",
+      "sha256": "bd2a552aab14bbff965d3afefd0592a26e935a669b63124d2670dc68bf6fc90a",
+      "size_bytes": 980
+    },
+    {
+      "name": "01_raw_lane.json",
+      "path": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/artifacts/eval/gpt/20260316T061422Z/runtime_artifacts/cases/fa072f019f854c60b8235ea02033fee1/runs/20260316T064555Z__4d5f10d4/03_chem_agent/01_raw_lane.json",
+      "sha256": "41c6dc5b5e2ecbe736603009ce9c5f803f5009a40fe9a4411abcd54c2bf6f983",
+      "size_bytes": 90
+    },
+    {
+      "name": "01_raw_outputs.json",
+      "path": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/artifacts/eval/gpt/20260316T061422Z/runtime_artifacts/cases/fa072f019f854c60b8235ea02033fee1/runs/20260316T064555Z__4d5f10d4/03_chem_agent/01_raw_outputs.json",
+      "sha256": "05f6dfd220bd820cbc2841f62479ba20ad6032ea579d9590f21dd9470c4e0b2f",
+      "size_bytes": 198583
+    },
+    {
+      "name": "03_patch.json",
+      "path": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/artifacts/eval/gpt/20260316T061422Z/runtime_artifacts/cases/fa072f019f854c60b8235ea02033fee1/runs/20260316T064555Z__4d5f10d4/03_chem_agent/03_patch.json",
+      "sha256": "bb380ff88f7e631f3da7787bf395ae8ecc0bb5321ce57eca63335b86412c39ba",
+      "size_bytes": 212000
+    },
+    {
+      "name": "04_case_before.json",
+      "path": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/artifacts/eval/gpt/20260316T061422Z/runtime_artifacts/cases/fa072f019f854c60b8235ea02033fee1/runs/20260316T064555Z__4d5f10d4/03_chem_agent/04_case_before.json",
+      "sha256": "11447289dbef00cdcd36c22f1e31249bac1930b6676563182519d2ffcbf3ded8",
+      "size_bytes": 31552
+    },
+    {
+      "name": "05_case_after.json",
+      "path": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/artifacts/eval/gpt/20260316T061422Z/runtime_artifacts/cases/fa072f019f854c60b8235ea02033fee1/runs/20260316T064555Z__4d5f10d4/03_chem_agent/05_case_after.json",
+      "sha256": "a351770b0c60967a69c287e81d54227544bcf3a023b784ce51dc889622844920",
+      "size_bytes": 242290
+    },
+    {
+      "name": "06_case_diff.json",
+      "path": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/artifacts/eval/gpt/20260316T061422Z/runtime_artifacts/cases/fa072f019f854c60b8235ea02033fee1/runs/20260316T064555Z__4d5f10d4/03_chem_agent/06_case_diff.json",
+      "sha256": "75ce856d949c6c65cf065831768f5b11a3f08818e260e975b810201683507add",
+      "size_bytes": 489
+    }
+  ]
+}

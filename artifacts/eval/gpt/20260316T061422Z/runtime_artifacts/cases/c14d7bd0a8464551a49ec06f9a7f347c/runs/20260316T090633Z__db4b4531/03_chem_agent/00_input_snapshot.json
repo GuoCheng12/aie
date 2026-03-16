@@ -1,0 +1,14 @@
+{
+  "case_id": "c14d7bd0a8464551a49ec06f9a7f347c",
+  "inchikey": "KSOWGDNMMBWYQC-UHFFFAOYSA-N",
+  "smiles": "CCN(CC)c1ccc(C(=C(c2ccccc2)c2ccc(C#Cc3ccc(C#N)cc3)cc2)c2ccc(N(CC)CC)cc2)cc1",
+  "code": "CNDEATPE",
+  "aliases": [
+    "CNDEATPE"
+  ],
+  "run_lane": "atb_cache_only",
+  "mode": "web_search",
+  "strictness": "relaxed",
+  "extractor_mode": "mineru_llm",
+  "offline_pdfs": []
+}

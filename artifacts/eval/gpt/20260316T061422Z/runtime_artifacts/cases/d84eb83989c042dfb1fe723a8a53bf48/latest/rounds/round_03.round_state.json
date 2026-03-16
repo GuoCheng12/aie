@@ -1,0 +1,271 @@
+{
+  "round_index": 3,
+  "active_profile": "R2",
+  "llm_failure_reason": null,
+  "hypothesis_delta": {
+    "changed": false,
+    "primary_label_before": "ICT",
+    "primary_label_after": "ICT",
+    "confidence_before": 0.31464000000000003,
+    "confidence_after": 0.27393552000000004,
+    "confidence_delta": -0.040704,
+    "template_before": "mixture",
+    "template_after": "mixture"
+  },
+  "new_evidence_used": {
+    "added_ids": [
+      "E22",
+      "E71"
+    ],
+    "effective_added_ids": [
+      "E22"
+    ],
+    "removed_ids": [
+      "E32",
+      "E57"
+    ],
+    "added_paths": [
+      "/evidence_readiness/atb/features_summary/charge_redis_heteroatom_abs_share",
+      "/evidence_readiness/atb/features_summary/charge_redis_top3_abs_share",
+      "/evidence_readiness/atb/features_summary/charge_redis_total_abs",
+      "/evidence_readiness/atb/features_summary/delta_angles",
+      "/evidence_readiness/atb/features_summary/delta_bonds",
+      "/evidence_readiness/atb/features_summary/delta_dihedral",
+      "/evidence_readiness/atb/features_summary/delta_gap",
+      "/evidence_readiness/atb/features_summary/delta_volume",
+      "/evidence_readiness/atb/features_summary/s1_transition_electric_dip_au",
+      "/risk_scores/atb_neighbor_features_all",
+      "/target_fields/emission_aggr_nm",
+      "/target_fields/emission_solid_or_film_nm",
+      "/target_fields_provenance/emission_aggr_nm",
+      "/target_fields_provenance/emission_solid_or_film_nm"
+    ],
+    "count_added": 2,
+    "count_effective_added": 1
+  },
+  "conflict_delta": {
+    "new_conflicts": [
+      "C3"
+    ],
+    "resolved_conflicts": [],
+    "unresolved_before": 2,
+    "unresolved_after": 3
+  },
+  "feasibility_snapshot": {
+    "overall_score": 0.25,
+    "constraints": [
+      "lane_disabled:literature",
+      "lane_disabled:wetlab",
+      "missing_input:offline_pdf"
+    ],
+    "lane_capabilities": {
+      "atb_available": true,
+      "offline_pdf_available": false,
+      "literature_enabled": false,
+      "wetlab_enabled": false
+    }
+  },
+  "chosen_next_round_profile": "R2",
+  "profile_adjustment_reason": "as_recommended",
+  "candidate_scorecard": [
+    {
+      "label": "ICT",
+      "prior_rank": 1,
+      "prior_confidence": 0.3146,
+      "current_rank": 1,
+      "current_confidence": 0.2739,
+      "support_axes": [
+        "structural_relaxation"
+      ],
+      "weakening_axes": [],
+      "unresolved_axes": [
+        "target_observation",
+        "electronic_redistribution",
+        "structural_relaxation",
+        "comparative_transferability"
+      ],
+      "new_support_evidence_ids": [],
+      "new_weakening_evidence_ids": [],
+      "net_direction": "down",
+      "commentary": "Current leading candidate supported by structural_relaxation."
+    },
+    {
+      "label": "TICT",
+      "prior_rank": 1,
+      "prior_confidence": 0.4575,
+      "current_rank": 2,
+      "current_confidence": 0.35,
+      "support_axes": [],
+      "weakening_axes": [
+        "structural_relaxation"
+      ],
+      "unresolved_axes": [
+        "structural_relaxation"
+      ],
+      "new_support_evidence_ids": [],
+      "new_weakening_evidence_ids": [],
+      "net_direction": "down",
+      "commentary": "Candidate remains in play but is weakened relative to ICT."
+    },
+    {
+      "label": "ESIPT",
+      "prior_rank": 2,
+      "prior_confidence": 0.2498,
+      "current_rank": 2,
+      "current_confidence": 0.2498,
+      "support_axes": [],
+      "weakening_axes": [],
+      "unresolved_axes": [
+        "target_observation",
+        "electronic_redistribution",
+        "structural_relaxation",
+        "comparative_transferability"
+      ],
+      "new_support_evidence_ids": [],
+      "new_weakening_evidence_ids": [],
+      "net_direction": "flat",
+      "commentary": "Candidate remains unresolved under current evidence and stays in the negotiation set."
+    },
+    {
+      "label": "neutral aromatic",
+      "prior_rank": 4,
+      "prior_confidence": 0.0458,
+      "current_rank": 4,
+      "current_confidence": 0.0458,
+      "support_axes": [],
+      "weakening_axes": [],
+      "unresolved_axes": [
+        "target_observation",
+        "electronic_redistribution",
+        "structural_relaxation",
+        "comparative_transferability"
+      ],
+      "new_support_evidence_ids": [],
+      "new_weakening_evidence_ids": [],
+      "net_direction": "flat",
+      "commentary": "Candidate remains unresolved under current evidence and stays in the negotiation set."
+    }
+  ],
+  "master_candidate_scorecard": [
+    {
+      "label": "ICT",
+      "prior_rank": 1,
+      "prior_confidence": 0.3146,
+      "current_rank": 1,
+      "current_confidence": 0.2739,
+      "support_axes": [
+        "structural_relaxation"
+      ],
+      "weakening_axes": [],
+      "unresolved_axes": [
+        "target_observation",
+        "electronic_redistribution",
+        "structural_relaxation",
+        "comparative_transferability"
+      ],
+      "new_support_evidence_ids": [],
+      "new_weakening_evidence_ids": [],
+      "net_direction": "down",
+      "commentary": "Current leading candidate supported by structural_relaxation."
+    },
+    {
+      "label": "TICT",
+      "prior_rank": 1,
+      "prior_confidence": 0.4575,
+      "current_rank": 2,
+      "current_confidence": 0.35,
+      "support_axes": [],
+      "weakening_axes": [
+        "structural_relaxation"
+      ],
+      "unresolved_axes": [
+        "structural_relaxation"
+      ],
+      "new_support_evidence_ids": [],
+      "new_weakening_evidence_ids": [],
+      "net_direction": "down",
+      "commentary": "Candidate remains in play but is weakened relative to ICT."
+    },
+    {
+      "label": "ESIPT",
+      "prior_rank": 2,
+      "prior_confidence": 0.2498,
+      "current_rank": 2,
+      "current_confidence": 0.2498,
+      "support_axes": [],
+      "weakening_axes": [],
+      "unresolved_axes": [
+        "target_observation",
+        "electronic_redistribution",
+        "structural_relaxation",
+        "comparative_transferability"
+      ],
+      "new_support_evidence_ids": [],
+      "new_weakening_evidence_ids": [],
+      "net_direction": "flat",
+      "commentary": "Candidate remains unresolved under current evidence and stays in the negotiation set."
+    },
+    {
+      "label": "neutral aromatic",
+      "prior_rank": 4,
+      "prior_confidence": 0.0458,
+      "current_rank": 4,
+      "current_confidence": 0.0458,
+      "support_axes": [],
+      "weakening_axes": [],
+      "unresolved_axes": [
+        "target_observation",
+        "electronic_redistribution",
+        "structural_relaxation",
+        "comparative_transferability"
+      ],
+      "new_support_evidence_ids": [],
+      "new_weakening_evidence_ids": [],
+      "net_direction": "flat",
+      "commentary": "Candidate remains unresolved under current evidence and stays in the negotiation set."
+    }
+  ],
+  "normalization_summary": {
+    "llm_primary_label": "ICT",
+    "normalized_primary_label": "ICT",
+    "decision_state": "provisional_known",
+    "canonical_pool_closed": false,
+    "standard_label_closure": "provisional",
+    "residual_other_admissible": true,
+    "novelty_candidate": true,
+    "novelty_basis": [
+      "mechanism_entropy_high"
+    ],
+    "normalization_reason_codes": [
+      "standard_label_provisional"
+    ]
+  },
+  "final_label_adjudication": {
+    "llm_primary_label": "ICT",
+    "adjudicated_label": "ICT",
+    "decision_state": "provisional_known",
+    "canonical_pool_closed": false,
+    "allow_other_label": false,
+    "residual_other_admissible": false,
+    "novelty_candidate": true,
+    "novelty_basis": [
+      "mechanism_entropy_high"
+    ],
+    "reason_codes": [
+      "provisional_standard_retained",
+      "llm_final_adjudication_failed"
+    ],
+    "confidence_adjustment_delta": 0.0,
+    "adjudicated_confidence": 0.273936,
+    "why_not_other": "The active benchmark label pool disables 'other'; unresolved cases must remain within standard labels or unknown.",
+    "why_not_unknown": "Final adjudication retained a legal non-unknown outcome.",
+    "why_not_top_standard": "No standard label achieved full closure; only provisional support remained.",
+    "legal_candidates": [
+      "ICT",
+      "unknown"
+    ],
+    "top_standard_label": "ICT",
+    "llm_error": "invalid_final_adjudication_output:invalid_decision_state"
+  },
+  "updated_at": "2026-03-16T08:43:11Z"
+}

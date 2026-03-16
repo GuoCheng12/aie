@@ -1,0 +1,14 @@
+{
+  "case_id": "af89e08059ca4a94a0ac8526e3d7f54d",
+  "inchikey": "KDZOLYVWNSCJOZ-UHFFFAOYSA-N",
+  "smiles": "CN(C)CCN(C)c1nc(-c2ccc(N(c3ccccc3)c3ccccc3)cc2)c2c(c1C#N)-c1ccccc1C2=O",
+  "code": "2-AFN",
+  "aliases": [
+    "2-AFN"
+  ],
+  "run_lane": "atb_cache_only",
+  "mode": "web_search",
+  "strictness": "relaxed",
+  "extractor_mode": "mineru_llm",
+  "offline_pdfs": []
+}

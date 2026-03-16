@@ -1,0 +1,52 @@
+{
+  "data_agent_raw": {
+    "canonical_smiles": "CCOC(=O)c1ccc(-n2c(-c3ccccc3)cc3c2cc(-c2ccccc2)n3-c2ccc(C(=O)OCC)cc2)cc1",
+    "inchikey": "SQOMVVNYBXMNPH-UHFFFAOYSA-N",
+    "rdkit_descriptors": {
+      "mw": 554.6460000000003,
+      "logp": 8.108600000000006,
+      "tpsa": 62.459999999999994,
+      "n_rotatable_bonds": 8,
+      "n_hbd": 0,
+      "n_hba": 6,
+      "n_rings": 6,
+      "n_aromatic_rings": 6,
+      "n_heavy_atoms": 42
+    },
+    "structure_prior_source": "existing_case",
+    "structure_prior_profile": {
+      "version": "structure_prior_v1",
+      "descriptor_snapshot": {
+        "n_rotatable_bonds": 8,
+        "n_hbd": 0,
+        "n_hba": 6,
+        "n_rings": 6,
+        "n_aromatic_rings": 6,
+        "tpsa": 62.459999999999994,
+        "logp": 8.108600000000006
+      },
+      "donor_acceptor_topology": "mixed",
+      "intramolecular_hbond_candidates": "none",
+      "aromatic_core_density": "high",
+      "flexibility_proxy": "high",
+      "conjugation_proxy": "high",
+      "overall_structure_prior": "Conjugation is high; aromatic-core density is high; flexibility is high; donor/acceptor topology is mixed; reliability is high.",
+      "reliability": "high",
+      "notes": [
+        "Donor/acceptor topology is mixed under the current topology heuristic.",
+        "Aromatic-core density is high, flexibility is high, and conjugation is high."
+      ]
+    },
+    "neighbors_count": 50,
+    "risk_scores": {
+      "top1_sim": 0.365385,
+      "mean_topk_sim": 0.214272,
+      "neighbor_gap": 0.065385,
+      "novelty_struct": 0.634615,
+      "mechanism_entropy": 0.991685,
+      "mechanism_hint": "ESIPT",
+      "hint_confidence": 0.290727
+    },
+    "data_dir": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/data/reference_indices/split_levels_v2/views/leave_level_1"
+  }
+}

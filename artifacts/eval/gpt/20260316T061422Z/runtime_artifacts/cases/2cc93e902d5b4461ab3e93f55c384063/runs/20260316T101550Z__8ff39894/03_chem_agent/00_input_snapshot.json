@@ -1,0 +1,14 @@
+{
+  "case_id": "2cc93e902d5b4461ab3e93f55c384063",
+  "inchikey": "SQOMVVNYBXMNPH-UHFFFAOYSA-N",
+  "smiles": "CCOC(=O)c1ccc(-n2c(-c3ccccc3)cc3c2cc(-c2ccccc2)n3-c2ccc(C(=O)OCC)cc2)cc1",
+  "code": "AAPP",
+  "aliases": [
+    "AAPP"
+  ],
+  "run_lane": "atb_cache_only",
+  "mode": "web_search",
+  "strictness": "relaxed",
+  "extractor_mode": "mineru_llm",
+  "offline_pdfs": []
+}

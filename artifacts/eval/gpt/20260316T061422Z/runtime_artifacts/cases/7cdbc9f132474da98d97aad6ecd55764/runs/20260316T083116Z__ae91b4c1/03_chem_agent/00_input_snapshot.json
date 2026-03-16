@@ -1,0 +1,14 @@
+{
+  "case_id": "7cdbc9f132474da98d97aad6ecd55764",
+  "inchikey": "UYVHTXKNCGCNSX-GZYRCYOKSA-N",
+  "smiles": "c1ccc(/C(=C(\\c2ccccc2)c2ccccc2-c2ccc(-n3c4ccccc4c4ccccc43)cc2)c2ccccc2-c2ccc(-n3c4ccccc4c4ccccc43)cc2)cc1",
+  "code": "(Z)-o-BCaPTPE",
+  "aliases": [
+    "(Z)-o-BCaPTPE"
+  ],
+  "run_lane": "atb_cache_only",
+  "mode": "web_search",
+  "strictness": "relaxed",
+  "extractor_mode": "mineru_llm",
+  "offline_pdfs": []
+}

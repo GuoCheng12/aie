@@ -1,0 +1,87 @@
+{
+  "round_index": 0,
+  "active_profile": "R0",
+  "status": "completed",
+  "hypothesis": {
+    "mechanism_label": "ICT",
+    "aie_rationale_type": "mixture",
+    "atb_support_level": "none",
+    "template_used": "mixture"
+  },
+  "claim_set": [
+    {
+      "step_id": "A",
+      "step_name": "torsion_access",
+      "claim": "Excited-state structural access is inferred from available aTB cues."
+    },
+    {
+      "step_id": "B",
+      "step_name": "ct_family",
+      "claim": "An electronic redistribution or nonradiative-channel hypothesis is updated from current target cues."
+    },
+    {
+      "step_id": "C",
+      "step_name": "aIE_bridge",
+      "claim": "Aggregation/rigidification may suppress nonradiative pathways."
+    },
+    {
+      "step_id": "D",
+      "step_name": "discriminators",
+      "claim": "Discriminator tests are needed to separate top competing hypotheses."
+    }
+  ],
+  "conflict_points": [
+    {
+      "code": "invented_threshold_not_allowed",
+      "path": "$/mechanism_claim/primary_hypothesis/natural_language_mechanism",
+      "detail": "threshold/range text must use configured reasoning_config.thresholds"
+    },
+    {
+      "code": "supporting_chain_atb_citations_insufficient",
+      "path": "/supporting_chain",
+      "detail": "found 0, require >=2"
+    },
+    {
+      "code": "supporting_chain_atb_support_citations_insufficient",
+      "path": "/supporting_chain",
+      "detail": "found 0, require >=1 support citation"
+    },
+    {
+      "code": "supporting_chain_step_a_missing_atb_citation",
+      "path": "/supporting_chain/0",
+      "detail": "step A requires at least one aTB citation"
+    }
+  ],
+  "confidence": 0.220248,
+  "used_evidence_ids": [
+    "E8",
+    "E51",
+    "E52",
+    "E54",
+    "E56"
+  ],
+  "used_case_paths": [
+    "/risk_scores/compact_prior_metrics_v1/proton_transfer_readiness_score",
+    "/risk_scores/compact_prior_metrics_v1/proton_transfer_sites",
+    "/risk_scores/compact_prior_metrics_v1/rotatable_potential",
+    "/risk_scores/structure_prior_profile/overall_structure_prior",
+    "pack:/risk_scores/candidate_slate_v3"
+  ],
+  "normalization_summary": {
+    "llm_primary_label": "ICT",
+    "normalized_primary_label": "ICT",
+    "decision_state": "provisional_known",
+    "canonical_pool_closed": false,
+    "standard_label_closure": "unsupported",
+    "residual_other_admissible": false,
+    "novelty_candidate": true,
+    "novelty_basis": [
+      "mechanism_entropy_high"
+    ],
+    "normalization_reason_codes": [
+      "r0_prior_only_decision"
+    ]
+  },
+  "llm_failure_reason": null,
+  "updated_at": "2026-03-16T09:45:06Z"
+}

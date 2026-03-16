@@ -1,0 +1,14 @@
+{
+  "case_id": "8f219cc5db304fffba411807d14b0a49",
+  "inchikey": "BTOKLYBXNWNNNY-VFUADWLWSA-N",
+  "smiles": "c1ccc(/C(=C(/c2ccccc2)c2ccc(-c3ccc4c(c3)C3(c5ccccc5-c5ccccc53)c3ccccc3-4)cc2)c2ccc(-c3ccc4c(c3)C3(c5ccccc5-c5ccccc53)c3ccccc3-4)cc2)cc1",
+  "code": "TPE(SF)2",
+  "aliases": [
+    "TPE(SF)2"
+  ],
+  "run_lane": "atb_cache_only",
+  "mode": "web_search",
+  "strictness": "relaxed",
+  "extractor_mode": "mineru_llm",
+  "offline_pdfs": []
+}

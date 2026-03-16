@@ -1,0 +1,14 @@
+{
+  "case_id": "6960397dd8ce44d3b994b740a964da41",
+  "inchikey": "FPYNNMZKLQVJCA-UHFFFAOYSA-N",
+  "smiles": "c1ccc(-c2nc3cc(-c4ccc5c6c4ccc4cccc(c46)CC5)c(-c4ccc5c6c4ccc4cccc(c46)CC5)cc3nc2-c2ccccc2)cc1",
+  "code": "Q-1-Py",
+  "aliases": [
+    "Q-1-Py"
+  ],
+  "run_lane": "atb_cache_only",
+  "mode": "web_search",
+  "strictness": "relaxed",
+  "extractor_mode": "mineru_llm",
+  "offline_pdfs": []
+}

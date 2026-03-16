@@ -1,0 +1,14 @@
+{
+  "case_id": "55dffee67e1b4285ad96304716fe8e39",
+  "inchikey": "LPAXHPNUGIPWEA-UHFFFAOYSA-N",
+  "smiles": "C#Cc1ccc(C(=C(c2ccc(C#C)cc2)c2ccc(C#C)cc2)c2ccc(C#C)cc2)cc1",
+  "code": "TETPE",
+  "aliases": [
+    "TETPE"
+  ],
+  "run_lane": "atb_cache_only",
+  "mode": "web_search",
+  "strictness": "relaxed",
+  "extractor_mode": "mineru_llm",
+  "offline_pdfs": []
+}

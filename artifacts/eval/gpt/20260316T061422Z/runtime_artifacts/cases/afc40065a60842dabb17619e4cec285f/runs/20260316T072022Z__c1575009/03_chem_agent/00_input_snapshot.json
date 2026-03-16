@@ -1,0 +1,14 @@
+{
+  "case_id": "afc40065a60842dabb17619e4cec285f",
+  "inchikey": "OINLUKNQQNPWAO-UHFFFAOYSA-N",
+  "smiles": "c1ccc(C(=C(c2ccccc2)c2ccccc2-c2ccc3ccc4cccc5ccc2c3c45)c2ccccc2)cc1",
+  "code": "o-TPEPy",
+  "aliases": [
+    "o-TPEPy"
+  ],
+  "run_lane": "atb_cache_only",
+  "mode": "web_search",
+  "strictness": "relaxed",
+  "extractor_mode": "mineru_llm",
+  "offline_pdfs": []
+}

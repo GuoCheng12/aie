@@ -1,0 +1,14 @@
+{
+  "case_id": "2b3ff0b5ba8140cb88716acfef67cecb",
+  "inchikey": "VRQDYAGLONSNPL-UHFFFAOYSA-N",
+  "smiles": "c1ccc(N(c2ccccc2)c2ccc(-c3ccc(-c4ccc(N(c5ccccc5)c5ccccc5)cc4)c4n[se]nc34)cc2)cc1",
+  "code": "TPA-Se",
+  "aliases": [
+    "TPA-Se"
+  ],
+  "run_lane": "atb_cache_only",
+  "mode": "web_search",
+  "strictness": "relaxed",
+  "extractor_mode": "mineru_llm",
+  "offline_pdfs": []
+}

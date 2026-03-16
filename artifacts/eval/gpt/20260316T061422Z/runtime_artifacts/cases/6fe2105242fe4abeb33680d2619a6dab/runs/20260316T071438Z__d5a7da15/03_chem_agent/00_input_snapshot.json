@@ -1,0 +1,14 @@
+{
+  "case_id": "6fe2105242fe4abeb33680d2619a6dab",
+  "inchikey": "PCXKETKXUZNFPM-UHFFFAOYSA-N",
+  "smiles": "c1ccc(C(=C(c2ccccc2)c2ccccc2-c2cc3ccccc3c3ccccc23)c2ccccc2)cc1",
+  "code": "o-TPEPa",
+  "aliases": [
+    "o-TPEPa"
+  ],
+  "run_lane": "atb_cache_only",
+  "mode": "web_search",
+  "strictness": "relaxed",
+  "extractor_mode": "mineru_llm",
+  "offline_pdfs": []
+}

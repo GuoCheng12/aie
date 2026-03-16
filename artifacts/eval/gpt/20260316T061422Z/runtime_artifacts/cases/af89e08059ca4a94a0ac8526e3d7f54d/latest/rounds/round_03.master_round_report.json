@@ -1,0 +1,94 @@
+{
+  "round_index": 3,
+  "active_profile": "R2",
+  "status": "completed",
+  "hypothesis": {
+    "mechanism_label": "ICT",
+    "aie_rationale_type": "mixture",
+    "atb_support_level": "none",
+    "template_used": "mixture"
+  },
+  "claim_set": [
+    {
+      "step_id": "A",
+      "step_name": "torsion_access",
+      "claim": "Excited-state structural access is inferred from available aTB cues."
+    },
+    {
+      "step_id": "B",
+      "step_name": "ct_family",
+      "claim": "An electronic redistribution or nonradiative-channel hypothesis is updated from current target cues."
+    },
+    {
+      "step_id": "C",
+      "step_name": "aIE_bridge",
+      "claim": "Aggregation/rigidification may suppress nonradiative pathways."
+    },
+    {
+      "step_id": "D",
+      "step_name": "discriminators",
+      "claim": "Discriminator tests are needed to separate top competing hypotheses."
+    }
+  ],
+  "conflict_points": [
+    {
+      "code": "r2_missing_aop_compact_citation_auto_added",
+      "path": "/evidence_used",
+      "detail": "added E60 because compact .aop evidence is available in this round"
+    },
+    {
+      "code": "single_axis_support_only",
+      "path": "/supporting_chain",
+      "detail": "winning claim is supported by one primary evidence axis only: electronic_redistribution"
+    }
+  ],
+  "confidence": 0.29543040000000004,
+  "used_evidence_ids": [
+    "E21",
+    "E35",
+    "E36",
+    "E37",
+    "E39",
+    "E60",
+    "E70",
+    "E72",
+    "E73"
+  ],
+  "used_case_paths": [
+    "/evidence_readiness/atb/features_summary/charge_redis_heteroatom_abs_share",
+    "/evidence_readiness/atb/features_summary/charge_redis_top3_abs_share",
+    "/evidence_readiness/atb/features_summary/charge_redis_total_abs",
+    "/evidence_readiness/atb/features_summary/delta_angles",
+    "/evidence_readiness/atb/features_summary/delta_bonds",
+    "/evidence_readiness/atb/features_summary/delta_dihedral",
+    "/evidence_readiness/atb/features_summary/delta_gap",
+    "/evidence_readiness/atb/features_summary/delta_volume",
+    "/evidence_readiness/atb/features_summary/s0_rays_asymmetry_parameter",
+    "/evidence_readiness/atb/features_summary/s0_rotational_constant_a",
+    "/evidence_readiness/atb/features_summary/s1_rays_asymmetry_parameter",
+    "/evidence_readiness/atb/features_summary/s1_rotational_constant_a",
+    "/evidence_readiness/atb/features_summary/s1_transition_electric_dip_au",
+    "/risk_scores/atb_neighbor_features_all",
+    "/target_fields/emission_aggr_nm",
+    "/target_fields/emission_solid_or_film_nm",
+    "/target_fields_provenance/emission_aggr_nm",
+    "/target_fields_provenance/emission_solid_or_film_nm"
+  ],
+  "normalization_summary": {
+    "llm_primary_label": "ICT",
+    "normalized_primary_label": "ICT",
+    "decision_state": "provisional_known",
+    "canonical_pool_closed": false,
+    "standard_label_closure": "provisional",
+    "residual_other_admissible": false,
+    "novelty_candidate": true,
+    "novelty_basis": [
+      "novelty_struct_high"
+    ],
+    "normalization_reason_codes": [
+      "standard_label_provisional"
+    ]
+  },
+  "llm_failure_reason": null,
+  "updated_at": "2026-03-16T10:43:40Z"
+}

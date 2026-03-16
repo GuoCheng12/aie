@@ -1,0 +1,14 @@
+{
+  "case_id": "41116581ebf24f02ad2efc9823770434",
+  "inchikey": "HQVCOKDVBRDLLT-UHFFFAOYSA-N",
+  "smiles": "O=C(c1ccccc1)c1ccc2nc3c4ccc(N5c6ccccc6C6(c7ccccc7-c7ccccc76)c6ccccc65)cc4c4cc(N5c6ccccc6C6(c7ccccc7-c7ccccc76)c6ccccc65)ccc4c3nc2c1",
+  "code": "DPPM-SFAC",
+  "aliases": [
+    "DPPM-SFAC"
+  ],
+  "run_lane": "atb_cache_only",
+  "mode": "web_search",
+  "strictness": "relaxed",
+  "extractor_mode": "mineru_llm",
+  "offline_pdfs": []
+}

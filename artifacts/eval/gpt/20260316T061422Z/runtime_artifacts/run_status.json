@@ -1,0 +1,14 @@
+{
+  "run_id": "2b5909b6def545b5b555b6b174127585",
+  "case_id": "eaa44497eeb94af7967b6faa80988153",
+  "round_index": 3,
+  "max_rounds": 4,
+  "active_profile": "R2",
+  "round_runner_mode": "dryrun_then_commit",
+  "stage": "run_end",
+  "last_event": "run_completed",
+  "last_updated_at": "2026-03-16T11:30:02Z",
+  "errors": [],
+  "round_dir": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/artifacts/eval/gpt/20260316T061422Z/runtime_artifacts/cases/eaa44497eeb94af7967b6faa80988153/runs/20260316T112438Z__2b5909b6/rounds",
+  "latest_eval_report": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/artifacts/eval/gpt/20260316T061422Z/runtime_artifacts/cases/eaa44497eeb94af7967b6faa80988153/runs/20260316T112438Z__2b5909b6/rounds/round_03.eval_report.json"
+}

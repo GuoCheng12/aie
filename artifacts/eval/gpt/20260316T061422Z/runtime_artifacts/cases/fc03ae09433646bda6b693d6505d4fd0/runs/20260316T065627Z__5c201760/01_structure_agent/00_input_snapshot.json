@@ -1,0 +1,8 @@
+{
+  "case_id": "fc03ae09433646bda6b693d6505d4fd0",
+  "input_smiles": "c1(/C(c2ccccc2c3ccccc3)=C(c4ccccc4)\\c5ccccc5)ccccc1",
+  "classifier_model_root": "artifacts/structure_agent/latest",
+  "retrieval_topk": 10,
+  "candidate_topk": 5,
+  "data_dir": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/data/reference_indices/split_levels_v2/views/leave_level_1"
+}

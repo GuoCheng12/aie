@@ -1,0 +1,18 @@
+{
+  "case_id": "fc03ae09433646bda6b693d6505d4fd0",
+  "retain_runs": 10,
+  "updated_at": "2026-03-16T07:02:52Z",
+  "runs": [
+    {
+      "run_id": "5c20176047024542b4b8feb5b1e1b19a",
+      "run_name": "20260316T065627Z__5c201760",
+      "run_time": "2026-03-16T06:56:27Z",
+      "status": "ok",
+      "final_label": "neutral aromatic",
+      "final_confidence": 0.31464,
+      "run_dir": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/artifacts/eval/gpt/20260316T061422Z/runtime_artifacts/cases/fc03ae09433646bda6b693d6505d4fd0/runs/20260316T065627Z__5c201760",
+      "run_summary_path": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/artifacts/eval/gpt/20260316T061422Z/runtime_artifacts/cases/fc03ae09433646bda6b693d6505d4fd0/runs/20260316T065627Z__5c201760/run_summary.json",
+      "quick_view_path": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/artifacts/eval/gpt/20260316T061422Z/runtime_artifacts/cases/fc03ae09433646bda6b693d6505d4fd0/runs/20260316T065627Z__5c201760/quick_view.json"
+    }
+  ]
+}

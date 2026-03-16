@@ -1,0 +1,52 @@
+{
+  "files": [
+    {
+      "name": "00_input_snapshot.json",
+      "path": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/artifacts/eval/gpt/20260316T061422Z/runtime_artifacts/cases/d46346ab73a546a9a1840ec890806ab8/runs/20260316T061841Z__383202df/01_structure_agent/00_input_snapshot.json",
+      "sha256": "15219fa7f59fcf84214bee537e74230b13da257645622ccb6d784de17456de57",
+      "size_bytes": 445
+    },
+    {
+      "name": "01_raw_index.json",
+      "path": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/artifacts/eval/gpt/20260316T061422Z/runtime_artifacts/cases/d46346ab73a546a9a1840ec890806ab8/runs/20260316T061841Z__383202df/01_structure_agent/01_raw_index.json",
+      "sha256": "81e61a9654744020faf37267468148fe9e2ae6f2d55b044ed9d859fbd9b1f35f",
+      "size_bytes": 255
+    },
+    {
+      "name": "01_raw_outputs.json",
+      "path": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/artifacts/eval/gpt/20260316T061422Z/runtime_artifacts/cases/d46346ab73a546a9a1840ec890806ab8/runs/20260316T061841Z__383202df/01_structure_agent/01_raw_outputs.json",
+      "sha256": "41a60ff90fb45ed5cb5db0e2de257399bd34acec1d1e19c2085659a5ed75b655",
+      "size_bytes": 18902
+    },
+    {
+      "name": "01_raw_structure_agent_raw.json",
+      "path": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/artifacts/eval/gpt/20260316T061422Z/runtime_artifacts/cases/d46346ab73a546a9a1840ec890806ab8/runs/20260316T061841Z__383202df/01_structure_agent/01_raw_structure_agent_raw.json",
+      "sha256": "bc18a15dd82b60494d8939984b840dc896977f49df8a0ceafee911f83a9a34d5",
+      "size_bytes": 17931
+    },
+    {
+      "name": "03_patch.json",
+      "path": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/artifacts/eval/gpt/20260316T061422Z/runtime_artifacts/cases/d46346ab73a546a9a1840ec890806ab8/runs/20260316T061841Z__383202df/01_structure_agent/03_patch.json",
+      "sha256": "c29cbf083b50bfde70d86ee0aba5383863f1453f51f5ea1b1bf7a49f9dcd5c6a",
+      "size_bytes": 19339
+    },
+    {
+      "name": "04_case_before.json",
+      "path": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/artifacts/eval/gpt/20260316T061422Z/runtime_artifacts/cases/d46346ab73a546a9a1840ec890806ab8/runs/20260316T061841Z__383202df/01_structure_agent/04_case_before.json",
+      "sha256": "b40b096830a847b4ce6ab09c9b13ec2aaca527d38ef8a6d042270d5f6e4436ef",
+      "size_bytes": 2489
+    },
+    {
+      "name": "05_case_after.json",
+      "path": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/artifacts/eval/gpt/20260316T061422Z/runtime_artifacts/cases/d46346ab73a546a9a1840ec890806ab8/runs/20260316T061841Z__383202df/01_structure_agent/05_case_after.json",
+      "sha256": "0e22f5e9e989f1dfd40ad2795ddd3f6006eb0d0101800c8ccee35d4efd7f6938",
+      "size_bytes": 21354
+    },
+    {
+      "name": "06_case_diff.json",
+      "path": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/artifacts/eval/gpt/20260316T061422Z/runtime_artifacts/cases/d46346ab73a546a9a1840ec890806ab8/runs/20260316T061841Z__383202df/01_structure_agent/06_case_diff.json",
+      "sha256": "46fb8999fd5d2287165b55c2b24a7a7bc206d5fc93662a64f6d7fd317adb0ffd",
+      "size_bytes": 377
+    }
+  ]
+}

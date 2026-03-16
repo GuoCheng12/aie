@@ -1,0 +1,14 @@
+{
+  "case_id": "d84eb83989c042dfb1fe723a8a53bf48",
+  "inchikey": "BFUKACQAYZWAGV-GZYRCYOKSA-N",
+  "smiles": "c1ccc(/C(=C(\\c2ccccc2)c2ccccc2-c2ccc(N(c3ccccc3)c3ccccc3)cc2)c2ccccc2-c2ccc(N(c3ccccc3)c3ccccc3)cc2)cc1",
+  "code": "(Z)-o-BTPATPE",
+  "aliases": [
+    "(Z)-o-BTPATPE"
+  ],
+  "run_lane": "atb_cache_only",
+  "mode": "web_search",
+  "strictness": "relaxed",
+  "extractor_mode": "mineru_llm",
+  "offline_pdfs": []
+}

@@ -1,0 +1,14 @@
+{
+  "case_id": "2bbfae7d42f9460cba7c348b51fbe911",
+  "inchikey": "FFZZLMWGOYEULJ-UHFFFAOYSA-N",
+  "smiles": "c1ccc(C(=C(c2ccccc2)c2ccc(N(c3ccccc3)c3ccc(N(c4ccccc4)c4ccc(C(=C(c5ccccc5)c5ccccc5)c5ccccc5)cc4)c4nsnc34)cc2)c2ccccc2)cc1",
+  "code": "BT-2ATPE",
+  "aliases": [
+    "BT-2ATPE"
+  ],
+  "run_lane": "atb_cache_only",
+  "mode": "web_search",
+  "strictness": "relaxed",
+  "extractor_mode": "mineru_llm",
+  "offline_pdfs": []
+}

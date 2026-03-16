@@ -1,0 +1,14 @@
+{
+  "case_id": "d46346ab73a546a9a1840ec890806ab8",
+  "inchikey": "IRRPIWGPVSMOGZ-UHFFFAOYSA-N",
+  "smiles": "c1ccc(C(=C(c2ccccc2)c2ccc(-c3ccc(-c4ccc(C(=C(c5ccccc5)c5ccccc5)c5ccccc5)cc4)c4nsnc34)cc2)c2ccccc2)cc1",
+  "code": "BTPETTD",
+  "aliases": [
+    "BTPETTD"
+  ],
+  "run_lane": "atb_cache_only",
+  "mode": "web_search",
+  "strictness": "relaxed",
+  "extractor_mode": "mineru_llm",
+  "offline_pdfs": []
+}

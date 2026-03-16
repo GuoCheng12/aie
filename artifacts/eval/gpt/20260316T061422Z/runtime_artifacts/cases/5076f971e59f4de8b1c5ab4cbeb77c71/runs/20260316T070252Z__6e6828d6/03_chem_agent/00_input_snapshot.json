@@ -1,0 +1,14 @@
+{
+  "case_id": "5076f971e59f4de8b1c5ab4cbeb77c71",
+  "inchikey": "WLTFWLPWLYBHNU-UHFFFAOYSA-N",
+  "smiles": "c1ccc(C(=C(c2ccccc2)c2ccccc2-c2ccc3ccccc3c2)c2ccccc2)cc1",
+  "code": "o-2-TPENp",
+  "aliases": [
+    "o-2-TPENp"
+  ],
+  "run_lane": "atb_cache_only",
+  "mode": "web_search",
+  "strictness": "relaxed",
+  "extractor_mode": "mineru_llm",
+  "offline_pdfs": []
+}

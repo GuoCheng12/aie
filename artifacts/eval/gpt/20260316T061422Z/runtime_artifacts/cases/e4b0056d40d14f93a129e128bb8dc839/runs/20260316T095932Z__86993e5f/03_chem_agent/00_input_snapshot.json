@@ -1,0 +1,14 @@
+{
+  "case_id": "e4b0056d40d14f93a129e128bb8dc839",
+  "inchikey": "AUFWSACKURHFJW-UHFFFAOYSA-N",
+  "smiles": "N#Cc1c(F)c(F)c(-c2ccc(N(c3ccccc3)c3ccccc3)cc2)c2nsnc12",
+  "code": "TB2FCN",
+  "aliases": [
+    "TB2FCN"
+  ],
+  "run_lane": "atb_cache_only",
+  "mode": "web_search",
+  "strictness": "relaxed",
+  "extractor_mode": "mineru_llm",
+  "offline_pdfs": []
+}

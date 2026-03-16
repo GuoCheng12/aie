@@ -1,0 +1,89 @@
+{
+  "case_id": "42bf7b46efdb4d3a82a63f7f8e66ee1c",
+  "case_version": "1.1.0-multi-agent",
+  "runtime": {
+    "run_lane": "atb_cache_only",
+    "reference_index_root": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/data/reference_indices/split_levels_v2/views",
+    "reference_view": "leave_level_1",
+    "difficulty_level": 1,
+    "allow_other_label": false,
+    "label_pool_name": "main_no_other"
+  },
+  "query": {
+    "input_smiles": "C%12(C2=C(C1=CC=CC=C1)N=C%11C(=N2)C=C(C3=CC5=C4C(=C3)C=CC6=C4C(CC5)CCC6)C(C7=CC9=C8C(=C7)C=CC%10=C8C(CC9)CCC%10)=C%11)=CC=CC=C%12",
+    "canonical_smiles": null,
+    "inchikey": null,
+    "code": "Q-2-Py",
+    "reference": "UWluLCBXLjsgTGksIEsuOyBGZW5nLCBHLjsgTGksIE0uOyBZYW5nLCBaLjsgTGl1LCBCLjsgVGFuZywgQi4gWi4gQnJpZ2h0IGFuZCAgUGhvdG9zdGFibGUgT3JnYW5pYyBGbHVvcmVzY2VudCBEb3RzIHdpdGggQWdncmVnYXRpb24tSW5kdWNlZCAgRW1pc3Npb24gQ2hhcmFjdGVyaXN0aWNzIGZvciBOb25pbnZhc2l2ZSBMb25nLVRlcm0gQ2VsbCBJbWFnaW5nLiBBZHYuICBGdW5jdC4gTWF0ZXIuIDIwMTQsIDI0LCA2MzXigJI2NDMuIFs0OF0gUWluLCBXLjsgRGluZywgRC47IExpdSwgSi47IFl1YW4sIFcuIFouOyBIdSwgWS47IExpdSwgQi47IFRhbmcsIEIuIFouIEJpAm9pbWFnaW5nOiBCaW9jb21wYXRpYmxlIE5hbm9wYXJ0aWNsZXMgd2l0aCBBZ2dyZWdhdGlvbi1JbmR1Y2VkICBFbWlzc2lvbiBDaGFyYWN0ZXJpc3RpY3MgYXMgRmFyLVJlZC9OZWFyLUluZnJhcmVkIEZsdW9yZXNjZW50IEJpAm9wcm9iZXMgZm9yIGluIFZpdHJvIGFuZCBJbiBWaXZvIEltYWdpbmcgQXBwbGljYXRpb25zIChBZHYuIEZ1bmN0LiAgTWF0ZXIuIDQvMjAxMikuIEFkdi4gRnVuY3QuIE1hdGVyLiAyMDEyLCAyMiwgNjY14oCSNjY1Lg==",
+    "created_at": "2026-03-16T09:27:11Z",
+    "aliases": [
+      "Q-2-Py"
+    ]
+  },
+  "inputs": {
+    "offline_pdfs": []
+  },
+  "evidence_acquire": {
+    "emission": {
+      "mode": "web_search",
+      "strictness": "relaxed",
+      "extractor_mode": "mineru_llm"
+    }
+  },
+  "neighbors": [],
+  "risk_scores": {},
+  "evidence_readiness": {
+    "atb": {
+      "cache_status": "absent",
+      "request_status": "not_requested",
+      "missing_fields": [],
+      "last_update": "2026-03-16T09:27:11Z"
+    },
+    "literature": {
+      "status": "not_started",
+      "sources": [],
+      "last_update": "2026-03-16T09:27:11Z",
+      "notes": null
+    },
+    "experiment": {
+      "status": "not_requested",
+      "requested_fields": [],
+      "received_fields": [],
+      "last_update": "2026-03-16T09:27:11Z",
+      "notes": null
+    }
+  },
+  "target_fields": {
+    "emission_solid_or_film_nm": 476.0
+  },
+  "target_fields_provenance": {
+    "emission_solid_or_film_nm": {
+      "source_type": "dataset_row",
+      "source_ref": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/data/split_list/1_level.csv",
+      "source_locator": "row_index=29; code=Q-2-Py",
+      "confidence": 1.0,
+      "identity_match": "exact",
+      "identity_match_confidence": 1.0,
+      "condition": "solid_or_film",
+      "condition_bucket": "solid_or_film"
+    }
+  },
+  "evidence_candidates_staging": [],
+  "current_gate": {
+    "state": "needs_manual",
+    "ready_for_reasoning": false,
+    "reason": "not_evaluated",
+    "reasoning_mode": "blocked"
+  },
+  "action_rationale": "",
+  "action_plan": [],
+  "post_uq": {
+    "status": "not_started",
+    "confidence": null,
+    "contradictions": [],
+    "missing_evidence": [],
+    "recommended_actions": []
+  },
+  "agent_runs": [],
+  "history": []
+}

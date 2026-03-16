@@ -1,0 +1,8 @@
+{
+  "case_id": "098ea4c347de4d5a8c981bb6e1d460c4",
+  "input_smiles": "COC(C=C1)=CC=C1C2=C(C3=CC=C(C4=CC=CC=C4)C=C3)N=C(C5=CC=C(OC)C=C5)C(C6=CC=C(C7=CC=CC=C7)C=C6)=N2",
+  "top_k": 50,
+  "data_dir": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/data/reference_indices/split_levels_v2/views/leave_level_1",
+  "rdkit_features_path": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/data/reference_indices/split_levels_v2/views/leave_level_1/rdkit_features.parquet",
+  "mechanism_label_map_path": "/Users/wuguocheng/workshop/Uncertainty_aware_AIE/data/reference_indices/split_levels_v2/views/leave_level_1/mechanism_label_map_main_prior.parquet"
+}

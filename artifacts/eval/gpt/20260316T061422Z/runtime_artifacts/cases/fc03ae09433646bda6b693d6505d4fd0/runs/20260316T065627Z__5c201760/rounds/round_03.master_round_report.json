@@ -1,0 +1,73 @@
+{
+  "round_index": 3,
+  "active_profile": "R2",
+  "status": "completed",
+  "hypothesis": {
+    "mechanism_label": "neutral aromatic",
+    "aie_rationale_type": "mixture",
+    "atb_support_level": "none",
+    "template_used": "mixture"
+  },
+  "claim_set": [
+    {
+      "step_id": "A",
+      "step_name": "torsion_access",
+      "claim": "Excited-state structural access is inferred from available aTB cues."
+    },
+    {
+      "step_id": "B",
+      "step_name": "ct_family",
+      "claim": "An electronic redistribution or nonradiative-channel hypothesis is updated from current target cues."
+    },
+    {
+      "step_id": "C",
+      "step_name": "aIE_bridge",
+      "claim": "Aggregation/rigidification may suppress nonradiative pathways."
+    },
+    {
+      "step_id": "D",
+      "step_name": "discriminators",
+      "claim": "Discriminator tests are needed to separate top competing hypotheses."
+    }
+  ],
+  "conflict_points": [
+    {
+      "code": "r2_missing_aop_compact_citation_auto_added",
+      "path": "/evidence_used",
+      "detail": "added E60 because compact .aop evidence is available in this round"
+    },
+    {
+      "code": "single_axis_support_only",
+      "path": "/supporting_chain",
+      "detail": "winning claim is supported by one primary evidence axis only: structural_relaxation"
+    }
+  ],
+  "confidence": 0.31464000000000003,
+  "used_evidence_ids": [
+    "E21",
+    "E31",
+    "E60"
+  ],
+  "used_case_paths": [
+    "/evidence_readiness/atb/features_summary/delta_dihedral",
+    "/evidence_readiness/atb/features_summary/s1_transition_electric_dip_au",
+    "/risk_scores/atb_neighbor_features_all"
+  ],
+  "normalization_summary": {
+    "llm_primary_label": "neutral aromatic",
+    "normalized_primary_label": "neutral aromatic",
+    "decision_state": "provisional_known",
+    "canonical_pool_closed": false,
+    "standard_label_closure": "provisional",
+    "residual_other_admissible": false,
+    "novelty_candidate": true,
+    "novelty_basis": [
+      "mechanism_entropy_high"
+    ],
+    "normalization_reason_codes": [
+      "standard_label_provisional"
+    ]
+  },
+  "llm_failure_reason": null,
+  "updated_at": "2026-03-16T07:02:18Z"
+}

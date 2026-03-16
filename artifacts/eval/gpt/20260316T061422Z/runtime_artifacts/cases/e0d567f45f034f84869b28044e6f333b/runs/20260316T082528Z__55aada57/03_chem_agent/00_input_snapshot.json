@@ -1,0 +1,14 @@
+{
+  "case_id": "e0d567f45f034f84869b28044e6f333b",
+  "inchikey": "MGISAKGHBIWFDS-UHFFFAOYSA-N",
+  "smiles": "C[Si]1(C)C(c2ccc3sccc3c2)=C(c2ccccc2)C(c2ccccc2)=C1c1ccc2ccsc2c1",
+  "code": "5-BTDMS",
+  "aliases": [
+    "5-BTDMS"
+  ],
+  "run_lane": "atb_cache_only",
+  "mode": "web_search",
+  "strictness": "relaxed",
+  "extractor_mode": "mineru_llm",
+  "offline_pdfs": []
+}

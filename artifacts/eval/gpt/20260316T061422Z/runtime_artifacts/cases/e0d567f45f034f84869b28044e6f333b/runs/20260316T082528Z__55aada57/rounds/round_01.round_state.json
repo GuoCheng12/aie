@@ -1,0 +1,216 @@
+{
+  "round_index": 1,
+  "active_profile": "R1",
+  "llm_failure_reason": null,
+  "hypothesis_delta": {
+    "changed": true,
+    "primary_label_before": "ICT",
+    "primary_label_after": "neutral aromatic",
+    "confidence_before": 0.10508313600000002,
+    "confidence_after": 0.18393523200000006,
+    "confidence_delta": 0.078852,
+    "template_before": "mixture",
+    "template_after": "mixture"
+  },
+  "new_evidence_used": {
+    "added_ids": [
+      "E71"
+    ],
+    "effective_added_ids": [
+      "E71"
+    ],
+    "removed_ids": [
+      "E4",
+      "E50",
+      "E55",
+      "E56",
+      "E6"
+    ],
+    "added_paths": [
+      "/target_fields/emission_solid_or_film_nm"
+    ],
+    "count_added": 1,
+    "count_effective_added": 1
+  },
+  "conflict_delta": {
+    "new_conflicts": [
+      "C5"
+    ],
+    "resolved_conflicts": [],
+    "unresolved_before": 4,
+    "unresolved_after": 5
+  },
+  "feasibility_snapshot": {
+    "overall_score": 0.25,
+    "constraints": [
+      "lane_disabled:literature",
+      "lane_disabled:wetlab",
+      "missing_input:offline_pdf"
+    ],
+    "lane_capabilities": {
+      "atb_available": true,
+      "offline_pdf_available": false,
+      "literature_enabled": false,
+      "wetlab_enabled": false
+    }
+  },
+  "chosen_next_round_profile": "R2",
+  "profile_adjustment_reason": "as_recommended",
+  "candidate_scorecard": [
+    {
+      "label": "ICT",
+      "prior_rank": 1,
+      "prior_confidence": 0.1051,
+      "current_rank": 1,
+      "current_confidence": 0.3698,
+      "support_axes": [],
+      "weakening_axes": [],
+      "unresolved_axes": [
+        "target_observation"
+      ],
+      "new_support_evidence_ids": [],
+      "new_weakening_evidence_ids": [],
+      "net_direction": "up",
+      "commentary": "Candidate remains unresolved under current evidence and stays in the negotiation set."
+    },
+    {
+      "label": "neutral aromatic",
+      "prior_rank": 2,
+      "prior_confidence": 0.2813,
+      "current_rank": 1,
+      "current_confidence": 0.1839,
+      "support_axes": [
+        "target_observation"
+      ],
+      "weakening_axes": [],
+      "unresolved_axes": [
+        "target_observation"
+      ],
+      "new_support_evidence_ids": [
+        "E71"
+      ],
+      "new_weakening_evidence_ids": [],
+      "net_direction": "up",
+      "commentary": "Current leading candidate supported by target_observation."
+    },
+    {
+      "label": "TICT",
+      "prior_rank": 3,
+      "prior_confidence": 0.2588,
+      "current_rank": 2,
+      "current_confidence": 0.3077,
+      "support_axes": [],
+      "weakening_axes": [],
+      "unresolved_axes": [
+        "target_observation"
+      ],
+      "new_support_evidence_ids": [],
+      "new_weakening_evidence_ids": [],
+      "net_direction": "up",
+      "commentary": "Candidate remains unresolved under current evidence and stays in the negotiation set."
+    },
+    {
+      "label": "ESIPT",
+      "prior_rank": 4,
+      "prior_confidence": 0.177,
+      "current_rank": 4,
+      "current_confidence": 0.0865,
+      "support_axes": [],
+      "weakening_axes": [],
+      "unresolved_axes": [
+        "target_observation"
+      ],
+      "new_support_evidence_ids": [],
+      "new_weakening_evidence_ids": [],
+      "net_direction": "down",
+      "commentary": "Candidate remains unresolved under current evidence and stays in the negotiation set."
+    }
+  ],
+  "master_candidate_scorecard": [
+    {
+      "label": "ICT",
+      "prior_rank": 1,
+      "prior_confidence": 0.1051,
+      "current_rank": 1,
+      "current_confidence": 0.3698,
+      "support_axes": [],
+      "weakening_axes": [],
+      "unresolved_axes": [
+        "target_observation"
+      ],
+      "new_support_evidence_ids": [],
+      "new_weakening_evidence_ids": [],
+      "net_direction": "up",
+      "commentary": "Candidate remains unresolved under current evidence and stays in the negotiation set."
+    },
+    {
+      "label": "neutral aromatic",
+      "prior_rank": 2,
+      "prior_confidence": 0.2813,
+      "current_rank": 1,
+      "current_confidence": 0.1839,
+      "support_axes": [
+        "target_observation"
+      ],
+      "weakening_axes": [],
+      "unresolved_axes": [
+        "target_observation"
+      ],
+      "new_support_evidence_ids": [
+        "E71"
+      ],
+      "new_weakening_evidence_ids": [],
+      "net_direction": "up",
+      "commentary": "Current leading candidate supported by target_observation."
+    },
+    {
+      "label": "TICT",
+      "prior_rank": 3,
+      "prior_confidence": 0.2588,
+      "current_rank": 2,
+      "current_confidence": 0.3077,
+      "support_axes": [],
+      "weakening_axes": [],
+      "unresolved_axes": [
+        "target_observation"
+      ],
+      "new_support_evidence_ids": [],
+      "new_weakening_evidence_ids": [],
+      "net_direction": "up",
+      "commentary": "Candidate remains unresolved under current evidence and stays in the negotiation set."
+    },
+    {
+      "label": "ESIPT",
+      "prior_rank": 4,
+      "prior_confidence": 0.177,
+      "current_rank": 4,
+      "current_confidence": 0.0865,
+      "support_axes": [],
+      "weakening_axes": [],
+      "unresolved_axes": [
+        "target_observation"
+      ],
+      "new_support_evidence_ids": [],
+      "new_weakening_evidence_ids": [],
+      "net_direction": "down",
+      "commentary": "Candidate remains unresolved under current evidence and stays in the negotiation set."
+    }
+  ],
+  "normalization_summary": {
+    "llm_primary_label": "neutral aromatic",
+    "normalized_primary_label": "neutral aromatic",
+    "decision_state": "provisional_known",
+    "canonical_pool_closed": false,
+    "standard_label_closure": "provisional",
+    "residual_other_admissible": false,
+    "novelty_candidate": true,
+    "novelty_basis": [
+      "mechanism_entropy_high"
+    ],
+    "normalization_reason_codes": [
+      "standard_label_provisional"
+    ]
+  },
+  "final_label_adjudication": {},
+  "updated_at": "2026-03-16T08:27:39Z"
+}

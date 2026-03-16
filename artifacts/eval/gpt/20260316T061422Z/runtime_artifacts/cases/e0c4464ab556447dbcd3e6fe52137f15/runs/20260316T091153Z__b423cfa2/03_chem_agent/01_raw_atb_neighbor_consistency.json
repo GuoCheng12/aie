@@ -1,0 +1,45 @@
+{
+  "result": {
+    "enabled": true,
+    "sample_size": 11,
+    "fields_used": [
+      "delta_gap",
+      "delta_dihedral",
+      "delta_volume"
+    ],
+    "median": {
+      "delta_gap": -0.36205015199298884,
+      "delta_dihedral": 0.0241722440289891,
+      "delta_volume": -0.4092200000000048
+    },
+    "mad": {
+      "delta_gap": 0.14033725780891837,
+      "delta_dihedral": 0.04642763777647474,
+      "delta_volume": 3.676209999999969
+    },
+    "z_scores": {
+      "delta_gap": 0.17519784022547963,
+      "delta_dihedral": -6.2970355899789,
+      "delta_volume": 0.13899110084612257
+    },
+    "outlier_score_max": 6.2970355899789,
+    "outlier_score_rss": 3.637887208751576,
+    "outlier_dims": [
+      "delta_dihedral"
+    ],
+    "flag": "outlier",
+    "reliability": "medium",
+    "thresholds": {
+      "z_max": 3.5,
+      "min_sample_size": 5
+    },
+    "warnings": [],
+    "updated_at": "2026-03-16T09:11:53Z"
+  },
+  "neighbor_rows_stats": {
+    "total_neighbors": 50,
+    "used_neighbor_pack": 0,
+    "used_cache_lookup": 50,
+    "enriched_neighbor_pack_from_cache": 0
+  }
+}
