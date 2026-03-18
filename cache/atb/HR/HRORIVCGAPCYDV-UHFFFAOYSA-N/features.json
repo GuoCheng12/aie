@@ -1,22 +1,10 @@
 {
-  "s0_rotational_constant_a": 0.0917786,
-  "s0_rotational_constant_b": 0.1128948,
-  "s0_rotational_constant_c": 0.1840833,
-  "s1_rotational_constant_a": 0.0900295,
-  "s1_rotational_constant_b": 0.1133067,
-  "s1_rotational_constant_c": 0.1786763,
   "s0_rays_asymmetry_parameter": 0.5424675016548455,
   "s1_rays_asymmetry_parameter": 0.47483270687718027,
-  "s0_volume": 631.16981,
-  "s1_volume": 633.40758,
-  "delta_volume": 2.2377700000000686,
   "s0_homo_lumo_gap": 2.1091677857402487,
   "s1_homo_lumo_gap": 1.349341658983183,
-  "delta_gap": -0.7598261267570656,
-  "s0_dihedral_avg": 91.67629928088341,
-  "s1_dihedral_avg": 91.37304894538572,
-  "delta_dihedral": -0.30325033549769387,
-  "delta_dipole": {
+  "s1_max_dihedral": 88.07350543362047,
+  "excitation_delta_dipole": {
     "element": [
       "C",
       "C",
@@ -147,11 +135,25 @@
     ]
   },
   "excitation_energy": "1.8393",
-  "exciting_path_mean_volume": 631.7964916666666,
-  "s0_bonds_avg": 1.2747747039416242,
-  "s1_bonds_avg": 1.2759859471345805,
-  "delta_bonds": 0.0012112431929562906,
-  "s0_angles_avg": 114.9153374442622,
-  "s1_angles_avg": 115.00231162847727,
-  "delta_angles": 0.08697418421506597
+  "transition_dipole_moment": {
+    "x": 0.3579,
+    "y": 1.7564,
+    "z": 0.119,
+    "dip": 3.2273,
+    "osc": 0.1454
+  },
+  "s0_bonds_avg": 1.2684861975195387,
+  "s1_bonds_avg": 1.272037707896154,
+  "s0_angles_avg": 114.93655435245888,
+  "s1_angles_avg": 115.02049017832466,
+  "excitation_delta_rotational_constant_c": -0.005406999999999995,
+  "excitation_delta_rotational_constant_a": -0.0017491000000000034,
+  "excitation_delta_rotational_constant_b": 0.00041189999999999283,
+  "excitation_delta_rays_asymmetry_parameter": -0.06763479477766521,
+  "excitation_delta_dihedral": -1.7054984524202403,
+  "excitation_delta_bonds": 0.0035515103766152745,
+  "excitation_delta_angles": 0.08393582586577963,
+  "excitation_delta_volume": 2.2377700000000686,
+  "exciting_path_volume_delta": 0.6266816666666273,
+  "excitation_delta_gap": -0.7598261267570656
 }

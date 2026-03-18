@@ -1,22 +1,10 @@
 {
-  "s0_rotational_constant_a": 0.1360145,
-  "s0_rotational_constant_b": 0.2284773,
-  "s0_rotational_constant_c": 0.2542336,
-  "s1_rotational_constant_a": 0.1451227,
-  "s1_rotational_constant_b": 0.2196031,
-  "s1_rotational_constant_c": 0.2673217,
   "s0_rays_asymmetry_parameter": -0.5642616125482257,
   "s1_rays_asymmetry_parameter": -0.21900179215869198,
-  "s0_volume": 451.21272,
-  "s1_volume": 443.35154,
-  "delta_volume": -7.86117999999999,
   "s0_homo_lumo_gap": 2.016004178899383,
   "s1_homo_lumo_gap": 0.6769212107416251,
-  "delta_gap": -1.3390829681577578,
-  "s0_dihedral_avg": 89.9326345300955,
-  "s1_dihedral_avg": 89.99063810371561,
-  "delta_dihedral": 0.05800357362011255,
-  "delta_dipole": {
+  "s1_max_dihedral": 40.67385295803771,
+  "excitation_delta_dipole": {
     "element": [
       "C",
       "C",
@@ -91,11 +79,25 @@
     ]
   },
   "excitation_energy": "1.2653",
-  "exciting_path_mean_volume": 447.38647,
-  "s0_bonds_avg": 1.3763155108605198,
-  "s1_bonds_avg": 1.3764394430014946,
-  "delta_bonds": 0.00012393214097472516,
-  "s0_angles_avg": 118.14498340691631,
-  "s1_angles_avg": 118.17076217971665,
-  "delta_angles": 0.02577877280033647
+  "transition_dipole_moment": {
+    "x": 1.3924,
+    "y": -0.8931,
+    "z": 0.5694,
+    "dip": 3.0607,
+    "osc": 0.0949
+  },
+  "s0_bonds_avg": 1.3711008964786486,
+  "s1_bonds_avg": 1.361640784947568,
+  "s0_angles_avg": 118.16808012636335,
+  "s1_angles_avg": 118.23570890335412,
+  "excitation_delta_rotational_constant_c": 0.013088099999999991,
+  "excitation_delta_rotational_constant_a": 0.009108199999999983,
+  "excitation_delta_rotational_constant_b": -0.008874199999999999,
+  "excitation_delta_rays_asymmetry_parameter": -0.34525982038953373,
+  "excitation_delta_dihedral": -2.1744711635870395,
+  "excitation_delta_bonds": -0.009460111531080617,
+  "excitation_delta_angles": 0.06762877699077308,
+  "excitation_delta_volume": -7.86117999999999,
+  "exciting_path_volume_delta": -3.826250000000016,
+  "excitation_delta_gap": -1.3390829681577578
 }

@@ -1,22 +1,10 @@
 {
-  "s0_rotational_constant_a": 0.028579,
-  "s0_rotational_constant_b": 0.0368583,
-  "s0_rotational_constant_c": 0.0927426,
-  "s1_rotational_constant_a": 0.0307844,
-  "s1_rotational_constant_b": 0.0405705,
-  "s1_rotational_constant_c": 0.0862227,
   "s0_rays_asymmetry_parameter": 0.741931562443504,
   "s1_rays_asymmetry_parameter": 0.6469552637797336,
-  "s0_volume": 908.18976,
-  "s1_volume": 905.05648,
-  "delta_volume": -3.1332800000000134,
   "s0_homo_lumo_gap": 1.8016437999965578,
   "s1_homo_lumo_gap": 0.8337159120816224,
-  "delta_gap": -0.9679278879149353,
-  "s0_dihedral_avg": 91.19729238355127,
-  "s1_dihedral_avg": 91.18025071747395,
-  "delta_dihedral": -0.017041666077318496,
-  "delta_dipole": {
+  "s1_max_dihedral": 88.31055792130891,
+  "excitation_delta_dipole": {
     "element": [
       "C",
       "C",
@@ -193,11 +181,25 @@
     ]
   },
   "excitation_energy": "0.9612",
-  "exciting_path_mean_volume": 906.5903316666668,
-  "s0_bonds_avg": 1.2981025096865395,
-  "s1_bonds_avg": 1.297827872226764,
-  "delta_bonds": -0.00027463745977551746,
-  "s0_angles_avg": 117.097007115661,
-  "s1_angles_avg": 117.20015560168353,
-  "delta_angles": 0.10314848602253335
+  "transition_dipole_moment": {
+    "x": 0.2942,
+    "y": -0.0211,
+    "z": -0.0001,
+    "dip": 0.087,
+    "osc": 0.002
+  },
+  "s0_bonds_avg": 1.2906291117643482,
+  "s1_bonds_avg": 1.2890569959204348,
+  "s0_angles_avg": 117.30266281623358,
+  "s1_angles_avg": 117.21505756935807,
+  "excitation_delta_rotational_constant_c": -0.006519899999999995,
+  "excitation_delta_rotational_constant_a": 0.0022053999999999997,
+  "excitation_delta_rotational_constant_b": 0.0037122000000000058,
+  "excitation_delta_rays_asymmetry_parameter": -0.09497629866377044,
+  "excitation_delta_dihedral": 0.26082403041825586,
+  "excitation_delta_bonds": -0.0015721158439134797,
+  "excitation_delta_angles": -0.08760524687551197,
+  "excitation_delta_volume": -3.1332800000000134,
+  "exciting_path_volume_delta": -1.5994283333332078,
+  "excitation_delta_gap": -0.9679278879149353
 }

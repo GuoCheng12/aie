@@ -1,22 +1,10 @@
 {
-  "s0_rotational_constant_a": 0.1274118,
-  "s0_rotational_constant_b": 0.2505769,
-  "s0_rotational_constant_c": 0.2592168,
-  "s1_rotational_constant_a": 0.1272041,
-  "s1_rotational_constant_b": 0.2495364,
-  "s1_rotational_constant_c": 0.2594741,
   "s0_rays_asymmetry_parameter": -0.8688987519441597,
   "s1_rays_asymmetry_parameter": -0.8497361457624557,
-  "s0_volume": 406.30193,
-  "s1_volume": 406.78715,
-  "delta_volume": 0.4852199999999698,
   "s0_homo_lumo_gap": 2.314205545341242,
   "s1_homo_lumo_gap": 2.1586326350305844,
-  "delta_gap": -0.15557291031065734,
-  "s0_dihedral_avg": 89.99999537417085,
-  "s1_dihedral_avg": 90.00003354375913,
-  "delta_dihedral": 3.816958827940198e-05,
-  "delta_dipole": {
+  "s1_max_dihedral": 0.0034377467707849396,
+  "excitation_delta_dipole": {
     "element": [
       "C",
       "C",
@@ -83,11 +71,25 @@
     ]
   },
   "excitation_energy": "2.7497",
-  "exciting_path_mean_volume": 435.07266000000004,
-  "s0_bonds_avg": 1.4168676367656972,
-  "s1_bonds_avg": 1.4194418370632893,
-  "delta_bonds": 0.002574200297592144,
-  "s0_angles_avg": 118.1130434261035,
-  "s1_angles_avg": 118.10899037402547,
-  "delta_angles": -0.00405305207803508
+  "transition_dipole_moment": {
+    "x": -0.7474,
+    "y": 0.0545,
+    "z": -0.0006,
+    "dip": 0.5615,
+    "osc": 0.0378
+  },
+  "s0_bonds_avg": 1.4164228265974284,
+  "s1_bonds_avg": 1.4194088968117144,
+  "s0_angles_avg": 118.10799858653601,
+  "s1_angles_avg": 118.1152198304712,
+  "excitation_delta_rotational_constant_c": 0.00025729999999996034,
+  "excitation_delta_rotational_constant_a": -0.0002077000000000051,
+  "excitation_delta_rotational_constant_b": -0.0010404999999999998,
+  "excitation_delta_rays_asymmetry_parameter": -0.019162606181703956,
+  "excitation_delta_dihedral": 0.0005576856255448323,
+  "excitation_delta_bonds": 0.002986070214286096,
+  "excitation_delta_angles": 0.007221243935191524,
+  "excitation_delta_volume": 0.4852199999999698,
+  "exciting_path_volume_delta": 28.770730000000015,
+  "excitation_delta_gap": -0.15557291031065734
 }

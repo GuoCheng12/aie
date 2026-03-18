@@ -292,7 +292,8 @@
     "structure": {
       "bonds": 1.28463291231,
       "angles": 117.98254661417751,
-      "DA": 91.00235556657464
+      "DA": 9.738174218776955,
+      "max_DA": 88.08840233629385
     },
     "rotational_constant": {
       "A": 0.0249823,
@@ -451,7 +452,8 @@
     "structure": {
       "bonds": 1.29806929626,
       "angles": 117.94141018671688,
-      "DA": 90.63006226460801
+      "DA": 10.26628366258784,
+      "max_DA": 88.24596572995483
     },
     "rotational_constant": {
       "A": 0.0255071,
@@ -460,7 +462,14 @@
     },
     "rays_asymmetry_parameter": 0.9279460478257093,
     "excited_energy": "1.0446",
-    "volume": 787.77283
+    "volume": 787.77283,
+    "transition_dipole_moment": {
+      "x": 2.0117,
+      "y": 0.6167,
+      "z": 0.0912,
+      "dip": 4.4356,
+      "osc": 0.1135
+    }
   },
   "exciting_path_mean_volume": 786.61942
 }

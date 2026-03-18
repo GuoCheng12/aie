@@ -1,22 +1,10 @@
 {
-  "s0_rotational_constant_a": 0.0139313,
-  "s0_rotational_constant_b": 0.0189045,
-  "s0_rotational_constant_c": 0.0380002,
-  "s1_rotational_constant_a": 0.0140813,
-  "s1_rotational_constant_b": 0.0197819,
-  "s1_rotational_constant_c": 0.0394308,
   "s0_rays_asymmetry_parameter": 0.5867530298434909,
   "s1_rays_asymmetry_parameter": 0.5502396496972325,
-  "s0_volume": 1085.64942,
-  "s1_volume": 1087.1763,
-  "delta_volume": 1.5268800000001193,
   "s0_homo_lumo_gap": 1.4053834991820202,
   "s1_homo_lumo_gap": 0.24524257576694808,
-  "delta_gap": -1.1601409234150721,
-  "s0_dihedral_avg": 92.73586207130204,
-  "s1_dihedral_avg": 92.09407411112576,
-  "delta_dihedral": -0.6417879601762735,
-  "delta_dipole": {
+  "s1_max_dihedral": 89.12530390598495,
+  "excitation_delta_dipole": {
     "element": [
       "N",
       "C",
@@ -227,11 +215,25 @@
     ]
   },
   "excitation_energy": "0.2820",
-  "exciting_path_mean_volume": 1084.5490666666667,
+  "transition_dipole_moment": {
+    "x": 0.005,
+    "y": 0.0045,
+    "z": -0.0028,
+    "dip": 0.0001,
+    "osc": 0.0
+  },
   "s0_bonds_avg": 1.2548779903366665,
   "s1_bonds_avg": 1.2462995901858331,
-  "delta_bonds": -0.008578400150833332,
   "s0_angles_avg": 116.71538901667219,
   "s1_angles_avg": 116.09890199861672,
-  "delta_angles": -0.6164870180554658
+  "excitation_delta_rotational_constant_c": 0.001430600000000004,
+  "excitation_delta_rotational_constant_a": 0.0001499999999999991,
+  "excitation_delta_rotational_constant_b": 0.0008774000000000004,
+  "excitation_delta_rays_asymmetry_parameter": -0.03651338014625838,
+  "excitation_delta_dihedral": -0.11249919955485055,
+  "excitation_delta_bonds": -0.008578400150833332,
+  "excitation_delta_angles": -0.6164870180554658,
+  "excitation_delta_volume": 1.5268800000001193,
+  "exciting_path_volume_delta": -1.1003533333332598,
+  "excitation_delta_gap": -1.1601409234150721
 }

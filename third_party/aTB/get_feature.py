@@ -338,8 +338,12 @@ if __name__ == '__main__':
             "s1_rotational_constant_a" : s1_rc_a,
             "s1_rotational_constant_b" : s1_rc_b,
             "s1_rotational_constant_c" : s1_rc_c,
+            "delta_rotational_constant_a" : s1_rc_a - s0_rc_a,
+            "delta_rotational_constant_b" : s1_rc_b - s0_rc_b,     
+            "delta_rotational_constant_c" : s1_rc_c - s0_rc_c,
             "s0_rays_asymmetry_parameter" : s0_rap,
             "s1_rays_asymmetry_parameter" : s1_rap,
+            "delta_rays_asymmetry_parameter" : s1_rap - s0_rap,
             # Volume
             "s0_volume": s0_volume,
             "s1_volume": s1_volume,
