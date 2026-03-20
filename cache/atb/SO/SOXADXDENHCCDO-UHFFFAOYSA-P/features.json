@@ -4,6 +4,7 @@
   "s0_homo_lumo_gap": 0.49336683683472415,
   "s1_homo_lumo_gap": 0.01623703134093102,
   "s1_max_dihedral": 88.93565487579664,
+  "s0_max_dihedral": 89.03592248994454,
   "excitation_delta_dipole": {
     "element": [
       "O",
@@ -295,6 +296,7 @@
   "excitation_delta_rotational_constant_b": -2.0000000000002655e-06,
   "excitation_delta_rays_asymmetry_parameter": -0.00027987309469457156,
   "excitation_delta_dihedral": 0.022206816158824694,
+  "excitation_delta_max_dihedral": -0.10026761414789576,
   "excitation_delta_bonds": 0.006069097235744669,
   "excitation_delta_angles": 0.004282859518610849,
   "excitation_delta_volume": -0.031190000000151485,
